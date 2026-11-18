@@ -121,15 +121,31 @@ and permissions, co-editing, and an agent's draft reviewed in your page are in t
 
 ### Give it to your agent
 
-The engine also runs headless as the `kition-slide` program, and the SDK's `kition-kits-mcp` turns
-it into MCP tools (`slide_inspect`, `slide_run`, `slide_check`, …) on a folder of presentations,
-for any MCP client:
+The engine also runs headless, and `kition`, the Kition SDK's command line, serves it as MCP tools
+(`slide_inspect`, `slide_run`, `slide_check`, …) on a folder of presentations, for any MCP client.
+Nothing is compiled: you need neither Rust nor the Kition app. Install `kition`, then connect your
+agent in the folder:
 
 ```sh
-cargo build --release -p kition-slide
-cargo install --git https://github.com/KitionAI/kition-sdk kition-kits --bin kition-kits-mcp
-kition-kits-mcp --workspace <folder of presentations> --kit target/release/kition-slide
+curl -fsSL https://github.com/KitionAI/kition-sdk/releases/latest/download/install.sh | sh
+# Claude Code, in the folder:
+claude mcp add kition -- ~/.kition/bin/kition mcp --workspace "$PWD"
 ```
+
+On Windows, install it with
+`irm https://github.com/KitionAI/kition-sdk/releases/latest/download/install.ps1 | iex`. With
+Node.js 20 or later you can skip the install:
+`claude mcp add kition -- npx -y @kition/kits-mcp --workspace "$PWD"`.
+
+`kition` holds no kit. The first time the agent opens a `.pptx` or `.kslide` file, through the
+`kit_inspect` tool the server offers until Slide is installed, `kition` downloads Slide's headless
+executable into `~/.kition/kits` and the slide tools appear. `kition kit install slide` downloads it
+ahead of time, and `kition kit upgrade` moves it to the newest version. Claude Desktop, Cursor,
+Codex and the other commands are in the SDK's
+[agent guide](https://github.com/KitionAI/kition-sdk/blob/main/docs/sdk/agent.md#connect-your-agent)
+and [`kition` guide](https://github.com/KitionAI/kition-sdk/blob/main/docs/sdk/cli.md). To run a
+build of your own (working on the kit itself), see
+[docs/development.md](docs/development.md#the-headless-kit-for-an-agent).
 
 A real session on a copy of the showcase's seed pitch deck, abridged:
 
