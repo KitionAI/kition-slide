@@ -1,0 +1,98 @@
+# UI parity with PowerPoint
+
+> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-17 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+
+How Kition Slide looks and feels next to PowerPoint: the shell, the ribbon, menus, panes, dialogs,
+direct manipulation, keyboard and precision. Observations of PowerPoint are kept locally in
+`plan/powerpoint/01-observed-ui.md` and `menu-tree.txt` (gitignored, clean-room rules in
+AGENTS.md §2). Dimension score: **~60% ready** (estimated), **30–50 h** to parity.
+
+## Table editing
+
+The web editor has dedicated Table Design and Table Layout controls for style options, cell
+shading, Draw Borders (pen color, pen weight, and every edge set including diagonals), vertical
+alignment, margin presets, row/column insertion and removal, dimensions, distribution, and
+merge/split. Click a cell to edit text; drag across cells or Shift-click to select a range.
+Interior row and column lines show a resize cursor and drag in one undo step (Escape cancels).
+Tab, Shift+Tab and arrow keys at a cell's edge move between cells and skip covered cells;
+Shift+Arrow at the edge selects cells; Tab at the last visible cell inserts a row; Delete on a
+range clears its text. Cell caret and range highlights come from engine overlays.
+
+The flow is covered by `web/tests/table.mjs` in Chromium and WebKit and by native engine and SDK
+PPTX round-trip tests. Draw-table tools and full imported table-style fidelity remain open, and
+table editing has not been compared with PowerPoint at 99.9% visual parity.
+
+## Shell
+
+| Element | PowerPoint for Mac | Kition Slide | Gap |
+|---|---|---|---|
+| Menu-bar items with a Kition Slide equivalent | 217 app-specific items | 128 matched by name (59%, heuristic lower bound) | One parameterized command (`insert.chart {type}`) stands for many menu items, which a name match cannot see |
+| Ribbon tabs: Home, Insert, Draw, Design, Transitions, Animations, Slide Show, Record, Review, View | 10 | 10 | Record tab is a placeholder |
+| Contextual tabs: Shape Format, Picture Format, Table Design, Table Layout, Chart Design, Chart Format, Video/Audio Format and Playback | yes | most; checklist P0 row partial | Chart Format, media tabs thinner |
+| Status bar: slide counter, language, notes, comments, views, zoom slider | yes | yes | |
+| Command search (Tell Me) | yes | no | |
+| Light / dark appearance | follows the system | follows the host's theme | |
+| Quick Access Toolbar customization | yes | no | P1 partial |
+
+## Panes and dialogs
+
+| Pane / dialog | PowerPoint | Kition Slide |
+|---|---|---|
+| Format Shape / Picture / Text pane (Fill & Line, Effects, Size & Properties, Picture, Text Box) | full | partial: fill, gradient editor, line, some effects, size; no 3-D, thin picture/texture options |
+| Format Background pane | yes | yes |
+| Selection Pane | yes | yes |
+| Animation Pane | list + advanced timeline | list, reorder, timing; no timeline |
+| Comments pane (threads) | yes | yes |
+| Design Ideas (Designer) | yes (cloud) | no |
+| Dialogs | ~60 (Font, Paragraph, Bullets and Numbering, Find, Replace, Replace Fonts, Hyperlink, Action Settings, Header and Footer, Slide Size, Set Up Show, Custom Shows, Print, Page Setup, Insert Object, Symbol, Equation, Chart data sheet, Smart graphic chooser, Preferences…) | The Export dialog (`web/src/ExportDialog.tsx`), the Spelling and Accessibility panes, and one generic parameters form (`editor.ask`, `web/src/slides.tsx`) for any command that needs values |
+
+## Direct manipulation
+
+| Behaviour | PowerPoint | Kition Slide |
+|---|---|---|
+| Selection handles, rotation handle, yellow adjustment handles | yes | yes |
+| Marquee, Shift/Cmd multi-select, Tab to cycle | yes | yes |
+| Smart guides (edges, centres, equal spacing) | yes | yes |
+| Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
+| Nudge (arrows), fine nudge (Option+arrows) | yes | yes |
+| Shift-constrained move, Option-drag to duplicate | yes | yes |
+| Connector glue and rerouting | yes | yes |
+| Edit points on freeforms | yes | **no** |
+| Crop handles, crop to shape, aspect ratio | yes | partial |
+| Text caret, selection, double/triple click, drag-select | yes | yes; Tab in text boxes ends editing |
+| Exact size/position, lock aspect | yes | yes |
+| Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
+| Context menus on shapes, slides, text, thumbnails | yes | yes, shorter |
+| Drag and drop of files and between thumbnails | yes | yes |
+| Image paste from the clipboard | yes | no: the editor does not read pictures from the system clipboard |
+| Font menu: every installed family with its faces | yes | families yes; only Regular/Bold/Italic faces |
+
+## Keyboard shortcuts
+
+Every common PowerPoint for Mac shortcut is bound (checklist row done): new slide, duplicate,
+group/ungroup, bold/italic/underline, alignment, font size, list levels, Format Painter, show from
+start/current, view switching. Not yet: Cmd+F Find opening a find bar on the slide, Option+drag
+precision without snapping, F6 pane cycling, ribbon KeyTips (Windows).
+
+## Visual fidelity
+
+Colours come from the host's theme tokens and the ribbon, panes and dialogs from kit-editor's
+components (AGENTS.md "Kition kit rules"); icons come from kition-sdk's `@kition/tessera-icons`
+and must not imitate Microsoft's. The editor has not been compared with PowerPoint screenshots
+pixel by pixel. Icon consistency across Kition's kits is open.
+
+## Estimates
+
+| Work | Hours |
+|---|---|
+| Format Shape pane depth | 6–10 |
+| Missing dialogs (Font, Bullets and Numbering, Find/Replace, Replace Fonts, Action Settings, Print, Insert Object) | 8–14 |
+| Grid Options, edit points UI, crop depth | 4–7 |
+| A screenshot comparison pass on the most-used tabs | 2–4 |
+| **Total** | **~30–52** |
+
+## Revision history
+
+| Date | Change | Summary |
+|---|---|---|
+| 2026-11-17 | major | First public version |

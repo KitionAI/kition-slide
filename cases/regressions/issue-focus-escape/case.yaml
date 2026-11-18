@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-focus-escape
+feature: slide.editor.display-modes
+intent: In Focus, Escape with a shape tool chosen puts the tool down (Select again) and stays in Focus, Escape with a selected shape lets go of it first, and Escape with nothing to cancel leaves Focus (a shape tool was left chosen while Escape left Focus).
+layer: gate
+source:
+  kind: probe
+  from: web/tests/focus-escape.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/focus-escape.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 60
+since: "2026-11-17"

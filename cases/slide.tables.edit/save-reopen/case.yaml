@@ -1,0 +1,22 @@
+format: 1
+id: slide.tables.edit/save-reopen
+feature: slide.tables.edit
+intent: >-
+  A table made by command, with cell text and an inserted row, survives saving as .kslide and as .pptx and opening each again.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/roundtrip.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: roundtrip
+      filter: tables_survive_save_and_reopen
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

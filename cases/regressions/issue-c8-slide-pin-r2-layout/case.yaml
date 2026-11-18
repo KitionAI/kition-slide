@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-layout
+feature: slide.agent.premises
+intent: >-
+  Creating a slide holds layout membership and placeholder inputs, without holding an ordinary
+  layout decoration's text through the master's layouts list.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 layout regression
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: new_slide_allows_ordinary_layout_shape_text_to_change
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

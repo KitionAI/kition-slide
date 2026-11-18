@@ -1,0 +1,20 @@
+[package]
+name = "kition-slide-pdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide PDF export (krilla): slides, notes pages and handouts with a selectable text layer, links and bookmarks"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-model = { workspace = true }
+kition-slide-fonts = { workspace = true }
+kition-slide-text = { workspace = true }
+kition-slide-render = { workspace = true }
+krilla = { workspace = true }
+kurbo = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }

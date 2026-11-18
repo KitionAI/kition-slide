@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-created-style
+feature: slide.agent.premises
+intent: >-
+  Narrowing layout membership holds must preserve the inherited body style consumed when a
+  new slide is fitted. Refuse a stale creation after that placeholder's style changes.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 creation inheritance review
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: new_slide_holds_its_layout_placeholder_text_style
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

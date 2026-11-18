@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-close
+feature: slide.agent.premises
+intent: >-
+  Closing is terminal: return closed true, skip remaining steps and save, and accept an outside
+  content edit because closing discards the session rather than replacing any file content.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 terminal close contract
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: terminal_close
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

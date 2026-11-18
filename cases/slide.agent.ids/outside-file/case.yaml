@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-file
+feature: slide.agent.ids
+intent: >-
+  A change made in the file to another shape lets a write with basis apply, and others names that shape by its tool id and nothing else (one object, under 1 KB).
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: a_change_made_in_the_file_to_another_shape_lets_a_write_with_basis_apply_and_names_that_shape_alone
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

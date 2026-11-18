@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/scattered-footprint
+feature: slide.agent.ids
+intent: >-
+  An equal translation of shapes scattered across slides has an ids footprint with field/by edits and expands to the same complete receipt.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/premise.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: scattered_shape_shifts_have_an_ids_footprint
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

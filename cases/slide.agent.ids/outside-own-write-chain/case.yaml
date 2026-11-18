@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-own-write-chain
+feature: slide.agent.ids
+intent: >-
+  The agent's own write between two changes made in the file keeps the second: after a write that applies over one change, a change of the agent's next target refuses the next write, made with the revision of the last answer, as changed.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: m_the_agents_own_write_between_two_file_changes_keeps_the_second_change
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-guard-modes
+feature: slide.agent.ids
+intent: >-
+  After a change made in the file, --guard epoch refuses a write with basis; --guard off applies it, tells the other program's edit alone in others, and a write over the other program's text applies with that text as its receipt's before.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: f_epoch_refuses_after_a_file_change_and_off_applies_and_overwrites_telling_the_colleagues_edit_alone
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

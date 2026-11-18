@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-expectations-review-slide-animation-targets
+feature: slide.agent.premises
+intent: >-
+  A separate file writer retargets an animation after observation, either onto or away from
+  the shape whose animations the agent removes. Both stale writes must refuse untouched.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_rests_slides.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_slides
+      filter: review_animation_remove_holds_membership_before_and_after_the_rewrite
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

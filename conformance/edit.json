@@ -1,0 +1,16 @@
+{
+  "steps": [
+    {
+      "command": "shape.insert",
+      "params": {
+        "preset": "ellipse",
+        "rect": [
+          360,
+          200,
+          120,
+          120
+        ]
+      }
+    }
+  ]
+}

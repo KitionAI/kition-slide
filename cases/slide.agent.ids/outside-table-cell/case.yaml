@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-table-cell
+feature: slide.agent.ids
+intent: >-
+  Another program edits one table cell's text: others tells it as one edit under the table's shape at table.cells.<row>:<col>.body.paragraphs.0.text with before and after, a step on the table is refused as changed, and a step on another shape applies.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: k_a_colleagues_cell_edit_is_one_edit_under_the_table_and_refuses_a_step_on_the_table
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

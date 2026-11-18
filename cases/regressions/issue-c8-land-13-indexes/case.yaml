@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-c8-land-13-indexes
+feature: slide.agent.places
+intent: Index writes refuse relocated after an independent writer inserts or removes before their gap, and apply after edits strictly after it.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/index_paths.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: index_paths
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

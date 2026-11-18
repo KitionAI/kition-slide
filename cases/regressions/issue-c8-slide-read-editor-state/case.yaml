@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-c8-slide-read-editor-state
+feature: slide.agent.premises
+intent: The editor-state scanner follows selected_shapes into the current part and commands delegated through named handler helpers.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/acts.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: acts
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

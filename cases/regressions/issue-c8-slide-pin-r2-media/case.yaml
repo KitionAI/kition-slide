@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-media
+feature: slide.agent.premises
+intent: >-
+  Inserting a picture holds the historical media selected by matching bytes, including a media
+  item that no longer matches after an outside edit. Unrelated picture alt text may change.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 media wrong write
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_shapes
+      filter: picture_insert_holds_the_media_it_reuses
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-expectations-review-slide
+feature: slide.agent.premises
+intent: >-
+  A separate file writer changes the edited placeholder's font style after observation.
+  Pasting text must refuse that stale premise and leave the file unchanged.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_rests_slides.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_slides
+      filter: review_paste_holds_its_own_placeholder_font_style
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

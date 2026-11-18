@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-target-param
+feature: slide.agent.ids
+intent: >-
+  A step naming a shape another program changed is refused as changed whether it names it in the command's declared targets parameter (ids) or in its other parameter (id), and nothing is written (kition-sdk 579a322: every object a step's parameters name is a premise); a step giving text.set a parameter its schema does not take (ids) is invalid-params, naming it, before the guard.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task cards C8-slide-4 and C8-slide-5 (kition-sdk a0758b3)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: n_a_target_named_by_id_on_a_command_that_declares_ids_is_refused_as_changed
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

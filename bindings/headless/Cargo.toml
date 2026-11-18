@@ -1,0 +1,29 @@
+[package]
+name = "kition-slide"
+description = "The Slide kit for Kition's agent: the Kition SDK document served headless over the Kit Protocol."
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-kit = { path = "../wasm" }
+kition-headless = { workspace = true }
+
+[dev-dependencies]
+kition-kit-server = { workspace = true }
+kition-kit = { workspace = true, features = ["session"] }
+serde_json = { workspace = true }
+kition-kits = { workspace = true }
+kition-env = { git = "https://github.com/KitionAI/kition-sdk", rev = "f5ea478430d1e85069b6c6c9fac1de6b8e5c5d57" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tempfile = "3"
+zip = { workspace = true }
+kition-slide-engine = { workspace = true }
+kition-slide-model = { workspace = true }
+# workspace_only.rs: pictures as PNG, and a font no kit build bundles, installed in the test's home.
+image = { workspace = true }
+epaint_default_fonts = "0.36"

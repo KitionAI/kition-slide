@@ -1,0 +1,28 @@
+format: 1
+id: slide.agent.places/index-premise
+feature: slide.agent.places
+intent: >-
+  A slide command that names its slide by its place in the deck (index, a move's from and to, a new
+  slide's at) and no slide id has as premise the slide that was there at basis (context.under):
+  after a colleague inserts a slide before it, a step on that index is refused as relocated,
+  naming the slide now there with the place as the step named it and under, and nothing is
+  written; after an insert after it, or a text edit on another slide, the step applies to the same
+  slide. A step by slide number and shape number (at.part) is refused once, by the part premise,
+  not twice.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/outside.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: o_a_slide_named_by_its_index_is_refused_as_relocated_after_an_insert_before_it
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

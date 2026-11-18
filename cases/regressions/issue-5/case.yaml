@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-5
+feature: slide.design.themes
+intent: >-
+  design.low-contrast measures text against the fill drawn behind it, also when that fill comes
+  from the shape's style or is a gradient (it measured against the slide background and flagged
+  white text on styled and gradient cards); design.background with all (Apply to All) puts the
+  background on the masters and layouts so slides added later take it (they stayed white); the
+  Nocturne theme keeps dark in dk1 and light in lt1 and maps background and text through its
+  colour map, and table styles name dk1 and lt1 directly, so a medium2-accent1 table draws dark
+  text on its light tints.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: contrast_backgrounds_for_all_and_a_dark_theme
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

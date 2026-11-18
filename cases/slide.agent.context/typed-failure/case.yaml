@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.context/typed-failure
+feature: slide.agent.context
+intent: >-
+  A command that cannot run says why by a typed reason (kition_kit::failure), so the headless kit answers command_disabled without reading the message's wording, and the message the agent reads carries no reason marker.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, kition_kit::failure)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: params
+      filter: a_command_that_cannot_run_says_why_by_a_typed_reason
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

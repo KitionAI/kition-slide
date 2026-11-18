@@ -1,0 +1,228 @@
+/* The Slide editor's own layout; colors and shapes come from @kition/kit-editor's tokens. */
+
+.slides-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.slides-editor { height: 100%; position: relative; }
+.slides-editor[data-dark='true'] {
+  --kit-surface: var(--kit-dark-surface, #0f1117);
+  --kit-surface-muted: var(--kit-dark-surface-muted, #191c24);
+  --kit-text: var(--kit-dark-text, #e5e3df);
+  --kit-text-muted: var(--kit-dark-text-muted, #a4a097);
+  --kit-border: var(--kit-dark-border, #37352f);
+}
+.slides-canvas-view { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; }
+.slides-canvas-view[data-ruler='true'] { padding: 24px 0 0 24px; }
+.slides-canvas-view[data-grayscale='true'] .kui-canvas-surface { filter: grayscale(1); }
+.slides-ruler { position: absolute; background: var(--kit-surface-muted); color: var(--kit-text-muted); font-size: 10px; overflow: hidden; }
+.slides-ruler-x { top: 0; left: 24px; right: 0; height: 23px; border-bottom: 1px solid var(--kit-border); }
+.slides-ruler-y { top: 24px; left: 0; bottom: 0; width: 23px; border-right: 1px solid var(--kit-border); }
+.slides-ruler span { position: absolute; border-color: var(--kit-border); border-style: solid; padding: 3px; }
+.slides-ruler-x span { height: 20px; border-width: 0 0 0 1px; }
+.slides-ruler-y span { width: 20px; border-width: 1px 0 0; }
+.slides-menu-heading { padding: 6px 10px; font-weight: 600; color: var(--kit-text-muted); }
+.slides-editor .kui-popover { max-height: 70vh; overflow-y: auto; }
+.slides-layout-item { display: block; width: 100%; text-align: left; margin: 4px 0; height: auto; min-height: 30px; white-space: normal; }
+.slides-layout-item[aria-pressed='true'] { background: var(--kit-primary-soft); color: var(--kit-primary); }
+.slides-slides[data-mode='sorter'] { width: auto; flex: 1; }
+.slides-slides[data-mode='sorter'] .slides-slides-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-content: start; gap: 20px; padding: 24px; }
+.slides-outline-text { min-width: 0; overflow-wrap: anywhere; padding: 8px; border: 1px solid var(--kit-border); border-radius: var(--kit-radius-control); user-select: text; }
+.slides-outline-text p { margin: 0 0 6px; white-space: pre-wrap; font-size: 12px; }
+.slides-outline-text p:first-child { font-weight: 600; }
+.slides-slide[data-current='true'] .slides-outline-text { border-color: var(--kit-primary); background: var(--kit-primary-soft); }
+.slides-notes-page-stage { flex: 1; min-height: 0; overflow-y: auto; background: var(--kit-canvas); padding: 24px; }
+.slides-notes-page { max-width: 640px; margin: auto; padding: 32px; background: var(--kit-surface); border: 1px solid var(--kit-border); border-radius: var(--kit-radius-card); }
+.slides-notes-page .slides-thumb { width: 100%; }
+.slides-notes-page .slides-notes { height: 240px; }
+.slides-task-pane { width: 300px; min-width: 230px; }
+.slides-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--kit-border); }
+.slides-pane-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+.slides-pane-item { padding: 12px 0; border-bottom: 1px solid var(--kit-border); }
+.slides-pane-item p { white-space: pre-wrap; user-select: text; }
+.slides-pane-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.slides-design-idea { display: block; width: 100%; padding: 8px 0; margin: 0 0 12px; background: transparent; border: 0; color: var(--kit-text); cursor: pointer; }
+.slides-design-idea .slides-thumb { width: 100%; }
+.slides-pane-body .kui-ribbon-group { display: block; border: 0; height: auto; padding: 8px 0; }
+.slides-pane-body .kui-ribbon-group-body { height: auto; }
+.slides-show[data-reading='true'] { position: absolute; background: var(--kit-canvas); cursor: pointer; }
+.slides-show[data-presenter='true'] { display: grid; grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr); gap: 20px; padding: 30px; cursor: pointer; }
+.slides-show[data-presenter='true'] > .slides-show-slide { width: 100%; }
+.slides-presenter { padding: 20px; background: var(--kit-surface); color: var(--kit-text); border-radius: var(--kit-radius-card); }
+.slides-presenter canvas { width: 100%; }
+.slides-presenter p { white-space: pre-wrap; }
+.slides-show-controls { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-radius: var(--kit-radius-control); background: var(--kit-surface); color: var(--kit-text); }
+
+.slides-slides {
+  width: 212px;
+}
+
+.slides-slides-list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.slides-section {
+  overflow-wrap: anywhere;
+  margin: 8px 2px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--kit-text-muted);
+}
+
+.slides-slide {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.slides-slide-number {
+  padding-top: 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--kit-text-muted);
+}
+
+.slides-thumb {
+  width: 168px;
+  height: auto;
+  border: 1px solid var(--kit-border);
+  border-radius: 6px;
+  background: var(--kit-surface);
+}
+
+.slides-slide .slides-thumb {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.slides-slide[data-current='true'] .slides-thumb {
+  border-color: var(--kit-primary);
+  box-shadow: 0 0 0 2px var(--kit-primary-soft);
+}
+
+.slides-slide[data-hidden='true'] .slides-thumb {
+  opacity: 0.45;
+}
+
+.slides-notes {
+  flex: none;
+  height: 84px;
+  border-top: 1px solid var(--kit-border);
+  background: var(--kit-surface);
+}
+
+.slides-notes textarea {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 8px 14px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  user-select: text;
+}
+
+
+
+.slides-gallery {
+  display: flex;
+  gap: 2px;
+  max-width: 360px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.slides-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  font-size: 12px;
+}
+
+
+.slides-theme-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--kit-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: repeating-linear-gradient(45deg, var(--kit-surface-muted) 0 3px, var(--kit-border) 3px 6px);
+}
+
+.slides-show {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  cursor: none;
+}
+
+.slides-show-slide {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Who else has shapes selected on this slide (Kit UI protocol presence): a mark in their color. */
+.slides-peer-selection {
+  border-left: 3px solid;
+  padding-left: 6px;
+}
+
+.slides-export-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 320px;
+}
+
+.slides-export-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+/* Markers of the comment threads a host keeps (Kit UI protocol 2.6 section 7k). */
+.slides-comment-markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.slides-comment-marker {
+  position: absolute;
+  pointer-events: auto;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  transform: translate(-4px, -100%);
+  border: 0;
+  border-radius: 9px 9px 9px 2px;
+  background: var(--kit-primary);
+  color: var(--kit-primary-text, #fff);
+  font: 600 11px/18px system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.slides-comment-marker[data-resolved='true'] { opacity: 0.45; }
+.slides-comment-marker[aria-pressed='true'] { outline: 2px solid var(--kit-primary-soft); outline-offset: 1px; }
+.slides-comment-marker:focus-visible { outline: 2px solid var(--kit-text); outline-offset: 1px; }
+.slides-comment-marker[data-small='true'] { min-width: 10px; height: 10px; padding: 0; transform: translate(-50%, -50%); font-size: 0; border-radius: 5px 5px 5px 1px; }
+.slides-thumb-frame { position: relative; min-width: 0; }

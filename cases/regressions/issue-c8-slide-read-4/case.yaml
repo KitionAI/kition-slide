@@ -1,0 +1,40 @@
+format: 1
+id: regressions/issue-c8-slide-read-4
+feature: slide.agent.places
+intent: >-
+  A separate file writer may change an anchor's content, a different show setting, an unused
+  selection or target stack position. Writes preserve those changes while refusing deleted
+  anchors, moved slide addresses and changed geometry, table grids or supplied show settings.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_rests_narrow.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+      filter: anchor_content_is_unrelated
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+      filter: show_members_hold_only
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+      filter: explicit_drawing_targets_hold
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+      filter: geometry_and_table_insertions_ignore
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+      filter: generated_ids_do_not_need
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

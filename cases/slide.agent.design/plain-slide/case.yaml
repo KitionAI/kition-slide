@@ -1,0 +1,24 @@
+format: 1
+id: slide.agent.design/plain-slide
+feature: slide.agent.design
+intent: >-
+  A plain slide (small and close text sizes, an empty lower half, text only on a plain
+  background, left edges a few points apart) gets design advice with the commands that change it,
+  in slide.inspect and in the answer of the KitDrawing command that made the text; a designed
+  slide gets none.
+layer: gate
+source:
+  kind: probe
+  from: KitionAI/khp-bench generation runs (judges' criticisms of KHP decks)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: a_plain_slide_gets_advice_and_a_designed_one_none
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

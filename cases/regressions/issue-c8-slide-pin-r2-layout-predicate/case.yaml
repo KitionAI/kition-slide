@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-layout-predicate
+feature: slide.agent.premises
+intent: >-
+  Layout membership narrowing keeps historical placeholder roles and the end boundary: refusing
+  when a consumed placeholder loses its role or the last consumed placeholder is deleted.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 layout membership review
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: new_slide_holds_a_
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

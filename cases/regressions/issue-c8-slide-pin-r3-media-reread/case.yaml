@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-media-reread
+feature: slide.agent.premises
+intent: >-
+  A history-bearing reread that retains the session's layout numbers must also retain the local
+  number of media whose bytes and part are unchanged. Otherwise the replica recreates the media,
+  and a colleague's table-cell edit is reported, and refused, as a change of an unrelated picture.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 outside reread regression
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 180
+since: "2026-11-17"

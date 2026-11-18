@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-c8-slide-read-3-checks-first
+feature: slide.edit.checks-first
+intent: >-
+  A picture change or picture fill whose target is missing adds no media item, a one-item
+  diagram is refused without leaving a stray shape, and resetting a picture leaves the outline
+  and effects of a selected shape that is not a picture alone. A comment anchored on a shape
+  its slide lacks is refused instead of losing its anchor.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/independent_checks_first.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: independent_checks_first
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

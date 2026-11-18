@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-c8-slide-read-empty-text
+feature: slide.agent.ids
+intent: Formatting a shape without a text body holds the default typography its toggle reads.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_text.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_text
+      filter: formatting_without_a_body_holds_default_typography_but_allows_another_slide_name
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

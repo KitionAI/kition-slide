@@ -1,0 +1,20 @@
+format: 1
+id: slide.editor.display-modes/mode-smoke
+feature: slide.editor.display-modes
+intent: Each display mode shows as chosen; Classic still shows at Kition's editor widths (1165 and 749 px) because its ribbon gives way in steps, the Focus bar covers none of the kit's controls, and Single line's Home row holds the most used commands at 1440 and 1024 px.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/modes.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/modes.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 60
+since: "2026-11-17"

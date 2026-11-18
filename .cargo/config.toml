@@ -1,0 +1,7 @@
+# Local development builds embed the kition-fonts checkout next to this repo when it exists
+# (build.rs warns and continues without it).
+[env]
+KITION_FONTS_DIR = { value = "../kition-fonts", relative = true }
+
+[alias]
+xtask = "run --package xtask --"

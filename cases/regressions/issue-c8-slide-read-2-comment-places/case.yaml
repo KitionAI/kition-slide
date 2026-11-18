@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-c8-slide-read-2-comment-places
+feature: slide.agent.premises
+intent: >-
+  Blind comment-position projections compare the thread resolved by a global id,
+  @slide:index, and a current-slide comment index. The mismatch ceiling only decreases.
+  This covers resolution, not complete dependency fields or editor state.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/declarations_independent/comments.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: declarations_independent
+      filter: comment_resolution_matches_blind_handler_projections
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

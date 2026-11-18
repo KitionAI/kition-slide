@@ -1,0 +1,13 @@
+*~
+plan/
+/target
+/target-*/
+/dist
+/corpus
+/log
+.DS_Store
+/.claude/*
+!/.claude/CLAUDE.md
+!/.claude/settings.json
+!/.claude/hooks/
+/kition-fonts/

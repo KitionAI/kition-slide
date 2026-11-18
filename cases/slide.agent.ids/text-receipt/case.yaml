@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/text-receipt
+feature: slide.agent.ids
+intent: >-
+  A receipt names a text edit by the shape slide_inspect lists, at body.paragraphs.0.text with before and after, and a slide's first notes by the slide, so the agent never maps a text body's id back to its shape.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-2 (kition-sdk 9c8c30b, a change made in the file by another program)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: h_a_receipt_names_a_text_edit_by_its_shape_and_a_notes_edit_by_its_slide
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

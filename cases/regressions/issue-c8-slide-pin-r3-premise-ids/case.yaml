@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-premise-ids
+feature: slide.agent.premises
+intent: >-
+  Layout guard references use the same persistent ids as the journal. Section membership holds
+  follow stable identities and allow names to change without dropping membership protection.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 full integration verification
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent
+  - cargo-test:
+      package: kition-slide
+      test: independent_rests_narrow
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

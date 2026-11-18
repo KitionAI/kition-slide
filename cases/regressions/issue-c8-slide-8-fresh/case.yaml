@@ -1,0 +1,17 @@
+format: 1
+id: regressions/issue-c8-slide-8-fresh
+feature: slide.agent.identity
+intent: A document created and never saved, as .pptx or .kslide, is the document its first save opens as, before and after edits (no colour map, saved fit result or view properties appear on the first save).
+layer: gate
+dimension: ai
+source:
+  kind: issue
+  from: C8-slide-8
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-slide-kit, test: fresh_saved }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"
+timeout_s: 60

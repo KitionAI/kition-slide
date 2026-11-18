@@ -1,0 +1,32 @@
+format: 1
+id: regressions/issue-secondary-id-slide
+feature: slide.agent.ids
+intent: >-
+  Numeric connector endpoints and animation triggers hold the shape on the slide implied by
+  the command's composite object id, even when the editor is on another slide. Trigger ids
+  retain the selection and accept numeric strings without clearing the trigger.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/tool_ids.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: tool_ids
+      filter: numeric_secondary_ids_use_the_slide_implied_by_a_tool_id
+  - cargo-test:
+      package: kition-slide-kit
+      test: tool_ids
+      filter: animation_triggers_take_tool_ids_and_numeric_strings
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: numeric_endpoint_on_a_tool_ids_slide_is_guarded
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

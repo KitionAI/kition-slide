@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-khp-bench-slide-id-reload
+feature: slide.agent.act
+intent: >-
+  A slide's id is its file id (`p:sldId/@id`) when no shape uses that number, so after another
+  program deletes or inserts slides and the file is read again, the other slides keep the ids an
+  agent read. Ids had been numbered by position on every read (khp-bench tasks/conv "unseen").
+layer: gate
+source:
+  kind: probe
+  from: KitionAI/khp-bench outside-drift conversations (results/conv-unseen)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-pptx
+      filter: slide_ids_survive_reading_a_changed_file_again
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-read-text-target
+feature: slide.agent.ids
+intent: >-
+  Format painter honours an explicit shape id while another shape's text is selected.
+  Table merge takes fallback coordinates only from the explicitly targeted table.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/independent_text_target.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: independent_text_target
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

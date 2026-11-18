@@ -1,0 +1,30 @@
+format: 1
+id: regressions/issue-kit-hygiene-list-remove
+feature: slide.agent.premises
+intent: >-
+  A raw positional list.remove of a paragraph without basis applies: the paragraph leaves its
+  text body and the saved deck. It was refused as "Paragraph has no stored container", because
+  list.remove takes the item out of its list but leaves the object, and the placement check
+  refused every object outside a stored container. An object the batch takes out of every
+  container now leaves the deck with what it owns; an object the batch creates and never places
+  is still refused.
+layer: gate
+source:
+  kind: probe
+  from: task card kit-hygiene (raw_batches at kition-sdk 45bf9625)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: raw_batches
+      filter: positional_raw_edits_without_a_basis_apply
+  - cargo-test:
+      package: kition-slide-kit
+      test: premise_fork
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

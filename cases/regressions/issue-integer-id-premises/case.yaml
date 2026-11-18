@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-integer-id-premises
+feature: slide.agent.ids
+intent: >-
+  A numeric single shape id holds that shape and the slide named by at.part or onSlide; an unrelated same-number shape on another slide does not block the write.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/outside.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: integer_single_ids_hold_the_shape_and_the_numbered_slide
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

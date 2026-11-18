@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/text-inside-target
+feature: slide.agent.ids
+intent: >-
+  Another agent's edit of a shape's text alone refuses a command step on that shape (the shape owns its text body); its edit of the text of the shape with the same number on another slide is reported under that shape at the path to its text, and the write applies.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-2 (kition-sdk 9c8c30b, a change made in the file by another program)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: d_another_authors_text_edit_inside_the_target_refuses_and_inside_another_shape_is_reported
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

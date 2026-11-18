@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/commands-take-tool-ids
+feature: slide.agent.ids
+intent: >-
+  Commands' ids, ids and a step's on take tool ids; a shape's tool id names its slide, so no onSlide is needed, and ids of two slides, or a slide the call names otherwise, are refused rather than edit the wrong shape.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: tool_ids
+      filter: commands_and_on_take_tool_ids_which_name_their_slide
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

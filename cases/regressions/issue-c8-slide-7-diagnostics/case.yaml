@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-7-diagnostics
+feature: slide.agent.env
+intent: >-
+  An existing missing or unreadable media diagnostic retains the same stored target
+  before a batch, after an unrelated edit, and after reopening the saved file.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/diagnostic_identity.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: diagnostic_identity
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

@@ -1,0 +1,17 @@
+format: 1
+id: regressions/issue-c8-slide-8-positional
+feature: slide.agent.identity
+intent: The old scoped spelling and bare numbers stay accepted as positional addresses; a write by one whose shape moved to another slide or was renumbered since the basis is refused, while the persistent identity still applies.
+layer: gate
+dimension: ai
+source:
+  kind: issue
+  from: C8-slide-8
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-slide, test: persistent_ids }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"
+timeout_s: 120

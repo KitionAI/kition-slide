@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-slide-moved-number
+feature: slide.agent.ids
+intent: >-
+  Another program moves a slide whose shape has the target's number into the target slide's place: a step on that slide number is refused as relocated with the slide's new number, so it does not edit the other slide's shape.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-3 (kition-sdk b4d5c43, two reads of a file paired, not compared by object id)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: c_a_slide_moved_before_the_target_refuses_a_slide_number_as_relocated
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-renumbered-shapes
+feature: slide.agent.ids
+intent: >-
+  Another program numbers a slide's shapes again (two shapes swap numbers, content unchanged): a tool id is the shape's persistent identity, not its number, so others reports only the address.number changes, a write by the held id lands on the same shape, and an inspect lists the same ids.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: j_shapes_renumbered_by_another_program_keep_their_ids_and_a_write_lands_on_the_same_shape
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

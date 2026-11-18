@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-c8-slide-pin-reread
+feature: slide.agent.premises
+intent: >-
+  Reading the saved file again after another program changed it keeps the session: a document
+  with history records the file's difference outside both undo histories, so undo takes back
+  only the session's own edit; a document without history takes the file as read. Before the
+  kit reconciled rereads, every outside change refused writes as unknown.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin session continuity
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: reread
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-17"

@@ -1,0 +1,19 @@
+[package]
+name = "kition-slide-model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide document model: slide files, masters, layouts, slides, shapes, text, themes, transitions, animations"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-geom = { workspace = true }
+kition-slide-color = { workspace = true }
+kition-office-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+uuid = { version = "1", features = ["v4", "js"] }

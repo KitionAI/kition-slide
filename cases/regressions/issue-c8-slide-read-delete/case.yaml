@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-read-delete
+feature: slide.edit.explicit-targets
+intent: >-
+  Deleting or cutting an explicitly addressed shape acts on that shape even while another
+  shape has a text range selected. Cutting copies the same shape it deletes; calls without
+  an explicit shape still edit the selected text range.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/independent_delete.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: independent_delete
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

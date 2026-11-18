@@ -1,0 +1,21 @@
+/**
+ * Tessera icons for the Slide engine's commands that kit-editor's rules cannot read (they draw
+ * the neutral command mark otherwise): its own vocabulary, by command id. Registered once, when the
+ * editor loads (`main.tsx`); ribbons and menus built from engine commands draw them.
+ */
+import { registerCommandIcons } from '@kition/kit-editor'
+import { ArrowUpDownIcon, CaseUpperIcon, EraserIcon, ListIcon, PaintBucketIcon, ScalingIcon, TextAlignJustifyIcon, TimerIcon, TransitionFadeIcon, TypeIcon } from '@kition/tessera-icons/react'
+
+registerCommandIcons({
+  "animation.timing": TimerIcon,
+  "arrange.reorder": ArrowUpDownIcon,
+  "design.background": PaintBucketIcon,
+  "design.fonts": TypeIcon,
+  "draw.eraser": EraserIcon,
+  "format.autofit": ScalingIcon,
+  "format.bullets": ListIcon,
+  "format.caps": CaseUpperIcon,
+  "format.justify": TextAlignJustifyIcon,
+  "transition.set": TransitionFadeIcon,
+  "transition.timing": TimerIcon,
+})

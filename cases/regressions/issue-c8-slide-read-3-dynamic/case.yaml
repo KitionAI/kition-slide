@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-c8-slide-read-3-dynamic
+feature: slide.agent.premises
+intent: >-
+  Every advertised write has executable dependency rows, and no command differs from its
+  reviewed field, position and editor-state expectations. The rows include pinned expectations;
+  this comparison does not establish that the SDK refuses every stale outside-file write.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/declarations_independent.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: declarations_independent
+      filter: every_write_rests_on_what_its_handler_reads
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-master-view-kept
+feature: slide.masters.edit
+intent: >-
+  Picking a master or layout in Slide Master view keeps the person there: the editor's own reads
+  after the change (`slide.inspect` with `select: false`) and an agent's `document.inspect` leave
+  the selection alone. The editor's `slide.inspect {index}` used to make the current slide the one
+  being edited again, dropping the person back to the slides (WebKit ribbon flow, 4 of 4).
+layer: gate
+source:
+  kind: probe
+  from: kition-slide web/tests/ribbon.mjs in WebKit ("Timed out waiting for the ribbon or view")
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      filter: the_editors_reads_and_an_agents_keep_the_person_in_slide_master_view
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

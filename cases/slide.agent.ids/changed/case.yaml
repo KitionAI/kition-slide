@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/changed
+feature: slide.agent.ids
+intent: >-
+  Another author's change of the same shape refuses a command step on it (changed) and changes nothing.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: d_another_authors_change_of_the_same_shape_refuses_a_command_step
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

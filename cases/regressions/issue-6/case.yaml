@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-6
+feature: slide.format.paragraph
+intent: >-
+  Vertical text (format.direction rotate90, rotate270, stacked) runs down its box: an auto-
+  resizing text box keeps its height and fits its width to the columns (it shrank its height and
+  wrapped the text by the box width), and fit and overflow are measured along the box height;
+  one line of Arch Up text in a top- or bottom-anchored box follows the arch at its own size (it
+  was stretched over the whole box, a band of the same height whatever the size).
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: vertical_text_runs_down_its_box_and_an_arch_keeps_its_size
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

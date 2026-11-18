@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-c8-slide-read-text-rests
+feature: slide.agent.ids
+intent: >-
+  Writes to text refuse after an independent file writer changed inherited placeholder
+  text, master text styles, theme fonts, default text styles or an ancestor group frame.
+  Unrelated edits, including the target shape's fill, still apply and keep both edits.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_text.rs
+  license: Apache-2.0
+  note: >-
+    The waiting_for_sdk_* assertions remain red at SDK 34dff06 because changes of
+    unnamed masters and layout placeholders are counted without guardable facts.
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_text
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

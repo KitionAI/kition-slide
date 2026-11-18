@@ -1,0 +1,425 @@
+format: 1
+kit: slide
+updated: "2026-11-17"
+gate_budget_s: 600
+protected: []
+features:
+  - id: slide.agent.premises
+    title: Command declarations follow independent handler readings
+    dimension: [ai, data-safety]
+    priority: P0
+    status: partial
+    paths: [bindings/wasm/tests/premise_fork.rs, bindings/wasm/src/collab.rs, crates/kdm/kdm-model/src/stored.rs, bindings/wasm/tests/historical_media.rs, crates/engine/engine/src/cmd/file.rs, crates/kdm/kdm-model/model/schema.json, bindings/wasm/src/rests_media.rs, bindings/headless/tests/private_facts.rs, bindings/headless/tests/terminal_close.rs, bindings/headless/tests/raw_batches.rs, bindings/headless/tests/index_paths.rs, bindings/wasm/src/acts.rs, bindings/wasm/src/rests_slides.rs, bindings/wasm/src/rests_shapes.rs, bindings/wasm/src/rests_shapes_mine.rs, bindings/wasm/src/rests_text.rs, bindings/wasm/src/rests_other.rs, bindings/wasm/src/rests_deck.rs, bindings/wasm/src/rests_drawing.rs, bindings/wasm/src/rests_tables.rs, bindings/wasm/tests/declarations_independent.rs, bindings/wasm/tests/declarations_independent, bindings/headless/tests/independent.rs, bindings/headless/tests/independent_shapes.rs, bindings/headless/tests/independent_text.rs, bindings/headless/tests/independent_other.rs, bindings/headless/tests/independent_comments.rs, bindings/headless/tests/independent_rests_drawing.rs, bindings/headless/tests/independent_rests_shapes.rs, bindings/headless/tests/independent_rests_slides.rs, bindings/headless/tests/independent_rests_text.rs, bindings/headless/tests/independent_rests_narrow.rs]
+    gap: "Independent declaration comparisons pass. Raw positional paragraph/table edits have direct contracts; persisted member identities guard nested gaps. Layout tool identities allow notes replay and exact holder paths guard unnamed layout shapes. Private facts stay private and guarded close planning terminates. Command table/animation holds remain incomplete; a raw positional paragraph list.remove without basis applies (the removed object leaves the deck). History rereads retain local part numbers when layout identities/order are unchanged, and media numbers when its part and bytes are unchanged; a changed layout set/order is refused. Geometry ancestor bodies and session buffers remain conservative or incomplete."
+    cases: [regressions/issue-kit-hygiene-list-remove, regressions/issue-c8-slide-pin-r3-media-reread, regressions/issue-c8-slide-pin-r3-history-parts, regressions/issue-c8-slide-pin-r3-coverage, regressions/issue-c8-slide-pin-r3-premise-ids, regressions/issue-c8-slide-pin-r2-prefix, regressions/issue-c8-slide-pin-r2-layout-predicate, regressions/issue-c8-slide-pin-r2-media-membership, regressions/issue-c8-slide-pin-r2-created-style, regressions/issue-c8-slide-pin-r2-positional, regressions/issue-c8-slide-pin-r2-layout, regressions/issue-c8-slide-pin-r2-style, regressions/issue-c8-slide-pin-r2-media, regressions/issue-c8-slide-pin-r2-section-boundary, regressions/issue-c8-slide-pin-r2-private, regressions/issue-c8-slide-pin-r2-close, regressions/issue-c8-slide-pin-reread, regressions/issue-c8-slide-pin-batch-ops, regressions/issue-c8-slide-read-declarations, regressions/issue-c8-slide-read-editor-state, regressions/issue-c8-slide-read-2-comment-places, regressions/issue-c8-slide-read-2-comment-identity, regressions/issue-c8-slide-read-3-dynamic]
+    since: "2026-11-17"
+  - id: slide.drawing.absolute-frame
+    title: Absolute drawing transforms resolve the same shape as relative transforms
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [drawing.transform]
+    paths: [crates/engine/engine/src/cmd/drawing.rs, bindings/wasm/tests/independent_frame.rs]
+    cases: [regressions/issue-c8-slide-read-frame]
+    since: "2026-11-17"
+  - id: slide.edit.explicit-targets
+    title: Explicit cut and delete targets take priority over another text selection
+    dimension: [function]
+    priority: P0
+    status: has
+    commands: [edit.cut, edit.delete]
+    paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/tests/independent_delete.rs]
+    cases: [regressions/issue-c8-slide-read-delete]
+    since: "2026-11-17"
+  - id: slide.edit.checks-first
+    title: Commands check what they act on before they write, and picture commands change pictures only
+    dimension: [function]
+    priority: P1
+    status: has
+    commands: [picture.change, picture.reset, shape.fill, insert.smartGraphic, comment.add]
+    paths: [crates/engine/engine/src/cmd/shape.rs, crates/engine/engine/src/cmd/insert.rs, crates/engine/engine/src/cmd/review.rs, crates/engine/engine/tests/independent_checks_first.rs]
+    cases: [regressions/issue-c8-slide-read-3-checks-first]
+    since: "2026-11-17"
+  - id: slide.agent.identity
+    title: Persistent shape identities survive moves, copies and saved files
+    dimension: [ai, conversion]
+    priority: P0
+    status: has
+    commands: [shape.move, edit.duplicate, slide.duplicate, arrange.group, arrange.ungroup]
+    paths: [crates/engine/model/src/identity.rs, crates/formats/pptx/src/read/shapes.rs, crates/formats/pptx/src/write/shapes.rs, crates/kdm/kdm-model/src/write.rs, crates/kdm/kdm-model/src/read.rs, crates/kdm/kdm-model/src/stored.rs, bindings/wasm/tests/persistent_ids.rs, bindings/headless/tests/persistent_ids.rs, bindings/wasm/tests/fresh_saved.rs]
+    requirements: [AX13]
+    cases: [regressions/issue-c8-slide-8-identity, regressions/issue-c8-slide-8-positional, regressions/issue-c8-slide-8-fresh]
+    since: "2026-11-17"
+  - id: slide.agent.observe
+    title: An agent reads slides and reuses what it read
+    dimension: [ai]
+    priority: P0
+    status: has
+    commands: [drawing.describe, text.get, animation.get, table.state, document.inspect, slide.inspect, shape.inspect, commands.list]
+    requirements: [AX13]
+    cases: [slide.agent.observe/echo-title, regressions/issue-4]
+    since: "2026-11-17"
+  - id: slide.agent.act
+    title: An agent builds slides with the deck's placeholders
+    dimension: [ai]
+    priority: P0
+    status: has
+    requirements: [AX13]
+    cases: [slide.agent.act/next-steps, regressions/issue-khp-bench-r3-drawing-text, regressions/issue-khp-bench-string-shape-id, regressions/issue-khp-bench-text-on-group, regressions/issue-khp-bench-slide-id-reload, regressions/issue-c8-slide-read-hyperlink-target, regressions/issue-c8-slide-read-grouped-shapes, regressions/issue-c8-slide-read-animation-buffer]
+    since: "2026-11-17"
+  - id: slide.agent.design
+    title: An agent is told what a designer would change on a slide, with the commands that change it
+    dimension: [ai]
+    priority: P1
+    status: has
+    requirements: [AX13]
+    cases: [slide.agent.design/plain-slide]
+    since: "2026-11-17"
+  - id: slide.agent.recover
+    title: An agent fixes what the check reports
+    dimension: [ai]
+    priority: P0
+    status: has
+    requirements: [AX13]
+    cases: [slide.agent.recover/text-overflow, regressions/issue-unknown-params]
+    since: "2026-11-17"
+  - id: slide.agent.draft
+    title: An agent works in a draft over a conversation
+    dimension: [ai]
+    priority: P1
+    status: has
+    paths: [bindings/wasm/src/collab.rs, bindings/headless/tests/replica.rs]
+    requirements: [AX13]
+    cases: [regressions/issue-draft-replica-open, slide.agent.draft/closing-slide]
+    since: "2026-11-17"
+  - id: slide.agent.context
+    title: An agent's call names the slide and shapes it acts on, and leaves the editor's current slide and selection as they were
+    dimension: [ai]
+    priority: P0
+    status: has
+    commands: [file.render, slide.inspect, slide.go, edit.select]
+    paths: [bindings/wasm/src/lib.rs, bindings/wasm/src/acts.rs, bindings/wasm/src/collab.rs, bindings/wasm/tests/context.rs, bindings/wasm/tests/acts.rs, bindings/wasm/tests/recovery_reads.rs, bindings/headless/src/main.rs, bindings/headless/tests/context.rs, bindings/headless/tests/params.rs, crates/engine/engine/src/context.rs, crates/engine/engine/src/lib.rs, crates/engine/engine/src/cmd/inspect.rs, crates/engine/engine/src/cmd/file.rs]
+    requirements: [AX13]
+    cases: [regressions/issue-inspect-editor-state, regressions/issue-recovery-list-reads, slide.agent.context/explicit-targets, slide.agent.context/headless-run, slide.agent.context/reads-declared, slide.agent.context/render-explicit-view, slide.agent.context/same-id-two-slides, slide.agent.context/two-slides-one-run, slide.agent.context/typed-failure]
+    since: "2026-11-17"
+  - id: slide.agent.ids
+    title: One id space for the agent's tools, so receipts, others and the premise guard name what slide_inspect listed
+    dimension: [ai]
+    priority: P0
+    status: partial
+    commands: [slide.inspect, document.inspect]
+    paths: [bindings/wasm/tests/layout_ids.rs, bindings/wasm/tests/member_ids.rs, crates/engine/model/src/identity.rs, crates/engine/model/src/table.rs, crates/engine/model/src/table/edit.rs, crates/engine/engine/src/kdm_bridge.rs, crates/formats/pptx/src/layout_id.rs, crates/formats/pptx/src/member_ids.rs, crates/kdm/kdm-model/model/schema.json, crates/kdm/kdm-model/src/write.rs, crates/kdm/kdm-model/src/read.rs, crates/kdm/kdm-model/src/patch.rs, crates/engine/engine/src/context.rs, crates/engine/engine/src/cmd/inspect.rs, crates/engine/engine/src/cmd/file.rs, crates/engine/model/src/lib.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/described.rs, bindings/wasm/tests/tool_ids.rs, bindings/wasm/tests/id_params.rs, bindings/headless/tests/premise.rs, bindings/headless/tests/outside.rs, crates/engine/engine/src/stored.rs, crates/support/geom/src/stored.rs, crates/formats/pptx/src/autofit_ext.rs, crates/kdm/kdm-model/src/validate.rs, bindings/wasm/tests/saved.rs, bindings/headless/tests/real_decks.rs]
+    requirements: [AX13]
+    gap: "Layout references use persisted immutable tool identities; table rows/columns retain identities within their table and sections retain standard GUIDs. Creates assign stored ids/defaults before their receipt; an omitted Shape.kind defaults to shape. A shape's tool id is its persistent identity: a cross-slide move keeps it and changes only address; a scoped positional address whose shape moved away is refused by the command, not as relocated (the SDK checks a place only with a place parameter)."
+    cases: [regressions/issue-c8-slide-pin-r3-layout-import, regressions/issue-c8-slide-pin-r3-import-ids, regressions/issue-c8-slide-pin-r3-members, regressions/issue-c8-slide-pin-r3-layout-id, regressions/issue-shape-ids-after-undo, slide.agent.ids/changed, slide.agent.ids/commands-take-tool-ids, slide.agent.ids/guard-modes, slide.agent.ids/new-server, slide.agent.ids/one-id-space, slide.agent.ids/others-reported, slide.agent.ids/outside-duplicated-slide, slide.agent.ids/outside-false-refusals, slide.agent.ids/outside-file, slide.agent.ids/outside-guard-modes, slide.agent.ids/outside-layout-media, slide.agent.ids/outside-no-basis, slide.agent.ids/outside-own-write-chain, slide.agent.ids/outside-renumbered-shapes, slide.agent.ids/outside-resaved-package, slide.agent.ids/outside-same-number, slide.agent.ids/outside-same-shape-text, slide.agent.ids/outside-slide-deleted, slide.agent.ids/outside-slide-inserted, slide.agent.ids/outside-slide-moved-number, slide.agent.ids/outside-table-cell, slide.agent.ids/outside-target-param, slide.agent.ids/outside-unrelated-text, slide.agent.ids/own-edits, slide.agent.ids/receipts, slide.agent.ids/relocated, slide.agent.ids/text-inside-target, slide.agent.ids/text-receipt, regressions/issue-in-memory-is-saved, regressions/issue-integer-id-parameters, regressions/issue-integer-id-premises, slide.agent.ids/scattered-footprint, regressions/issue-secondary-id-slide, regressions/issue-animation-owner-premise, regressions/issue-stored-receipts, regressions/issue-c8-land-13-receipts, regressions/issue-c8-slide-read-text-target, regressions/issue-c8-slide-read-text-rests, regressions/issue-c8-slide-read-shapes, regressions/issue-c8-slide-read-text-context, regressions/issue-c8-slide-read-hyperlink-text, regressions/issue-c8-slide-read-edit-body, regressions/issue-c8-slide-read-empty-text]
+    since: "2026-11-17"
+  - id: slide.agent.places
+    title: Indexed insertions and moves hold the observed source and destination gap
+    dimension: [ai]
+    priority: P0
+    status: partial
+    commands: [slide.duplicate, slide.delete, slide.hide, slide.layout, slide.reset, slide.notes, slide.rename, slide.move, slide.new, transition.set, transition.options, animation.clear]
+    paths: [bindings/wasm/src/acts.rs, bindings/wasm/src/lib.rs, bindings/headless/tests/outside.rs, bindings/headless/tests/real_decks.rs, crates/formats/pptx/src/write/mod.rs, agent/guide.md]
+    requirements: [AX13]
+    gap: "Raw slide, shape, paragraph and table creations and list edits have direct contracts. Saved table member identities let shifted raw gaps refuse relocated while later edits apply. Raw text offsets and section moves refuse relocated after a shift and apply later edits. Command table and animation holds remain conservative after the index. The unchanged index_paths test remains the acceptance gate."
+    cases: [slide.agent.places/index-premise, slide.agent.places/mixed-editing, regressions/issue-unused-slide-index, regressions/issue-comment-anchor-place, regressions/issue-animation-index-premise, regressions/issue-c8-land-13-indexes, regressions/issue-c8-slide-7-section, regressions/issue-c8-slide-read-media, regressions/issue-c8-slide-read-rests, regressions/issue-c8-slide-read-4]
+    since: "2026-11-17"
+  - id: slide.agent.env
+    title: Generated editing tasks name slides and shapes by their labels
+    dimension: [ai]
+    priority: P1
+    status: partial
+    paths: [crates/kdm/kdm-model/model/schema.json, bindings/wasm/tests/id_params.rs, bindings/wasm/examples/env_receipts.rs]
+    gap: "Command clamps are numeric schemas; JSON frame, paragraph-level and animation-time members declare real limits. Internal TextBody props remain sample:false. kit-env rejects instructions with consequential autofit changes."
+    cases: [slide.agent.env/labels, slide.agent.env/shape-kind, regressions/issue-c8-land-13-limits, regressions/issue-c8-slide-7-placement, regressions/issue-c8-slide-7-open, regressions/issue-c8-slide-7-integers, regressions/issue-c8-slide-7-diagnostics, regressions/issue-c8-slide-7-replay]
+    since: "2026-11-17"
+  - id: slide.security.workspace
+    title: The kit reaches files only in its workspace, through its host, and reads no font folder of the machine
+    dimension: [security]
+    priority: P0
+    status: has
+    paths: [crates/engine/engine/src/disk.rs, crates/engine/engine/src/cmd/file.rs, crates/engine/engine/src/cmd/insert.rs, crates/support/fonts/src/fontdb.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/collab.rs, bindings/wasm/src/files.rs, bindings/headless/src/main.rs, bindings/headless/tests/workspace_only.rs, agent/guide.md]
+    requirements: [RFA3]
+    cases: [regressions/issue-writes-outside-workspace]
+    since: "2026-11-17"
+  - id: slide.collab.presence
+    title: "Selections shown to co-editors and located on the slide"
+    dimension: [collab]
+    priority: P1
+    status: partial
+    commands: [presence.selection, presence.locate]
+    paths: [crates/engine/engine/src/cmd/presence.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.file.presentations
+    title: "New, open, save, save as, revert, close, properties and AutoRecover"
+    dimension: [function, conversion, data-safety]
+    priority: P1
+    status: partial
+    commands: [file.new, file.open, file.openBytes, file.save, file.saveAs, file.saveBytes, file.close, file.properties, file.recovery.save, file.recovery.list, file.recovery.open, file.recovery.discard, file.revert, window.next]
+    paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/recovery.rs, bindings/wasm/src/lib.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands.
+    since: "2026-11-17"
+  - id: slide.file.export
+    title: "Export, render a slide and save as a template"
+    dimension: [conversion]
+    priority: P1
+    status: partial
+    commands: [file.saveTemplate, file.export, file.exportBytes, file.render]
+    paths: [bindings/wasm/src/lib.rs, crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/review.rs, web/src/ExportDialog.tsx, web/src/exporting.ts]
+    target: "PowerPoint 16.113.4 (Mac)"
+    cases: [slide.file.export/export-bytes]
+    gap: File › Export writes PDF, PNG and JPEG through the host (web/tests/flow.mjs); Save as Template has no case, and no case exports a template or a pptx copy from the editor.
+    since: "2026-11-17"
+  - id: slide.edit.clipboard
+    title: "Undo, redo, cut, copy, paste, duplicate, delete and select objects"
+    dimension: [function, data-safety]
+    priority: P1
+    status: partial
+    commands: [edit.undo, edit.redo, edit.cut, edit.copy, edit.paste, edit.pasteText, edit.duplicate, edit.delete, edit.selectAll, edit.deselect, edit.select]
+    paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.slides.manage
+    title: "New, duplicate, delete, move, hide, rename and navigate slides; layouts, notes and outline import"
+    dimension: [function]
+    priority: P0
+    status: has
+    commands: [slide.new, slide.duplicate, slide.delete, slide.move, slide.go, slide.next, slide.previous, slide.first, slide.last, slide.selectSlides, slide.hide, slide.layout, slide.reset, slide.notes, slide.rename, slide.fromOutline]
+    paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/sample.rs, bindings/wasm/src/collab.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for adding slides with a layout, duplicating, moving and changing a slide's layout; the feature's other commands are covered by engine tests only.
+    cases: [slide.slides.manage/save-reopen]
+    since: "2026-11-17"
+  - id: slide.slides.sections
+    title: "Sections"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [section.add, section.rename, section.remove, section.removeAll, section.move]
+    paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/sample.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.shapes.edit
+    title: "Insert, size, rotate, flip, adjust, fill, outline, effects, merge and lock shapes"
+    dimension: [function, fidelity]
+    priority: P0
+    status: has
+    commands: [shape.insert, shape.presets, shape.connect, shape.freeform, shape.sites, shape.move, shape.resize, shape.delete, shape.setBounds, shape.rotate, shape.flip, shape.adjust, shape.change, shape.fill, shape.line, shape.effects, shape.quickStyle, shape.rename, shape.altText, shape.visible, shape.lock, shape.setDefault, shape.merge]
+    paths: [crates/engine/engine/src/cmd/shape.rs, crates/engine/engine/src/sample.rs, crates/engine/engine/src/cmd/arrange.rs, crates/engine/engine/src/cmd/insert.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for inserting preset shapes with text, moving and resizing, and rotating; the feature's other commands are covered by engine tests only.
+    cases: [slide.shapes.edit/save-reopen, regressions/issue-2, regressions/issue-8]
+    since: "2026-11-17"
+  - id: slide.insert.objects
+    title: "Insert text boxes, pictures, tables, charts, audio, video, art text, slide numbers, dates, symbols, links, smart graphics and action buttons"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [insert.textBox, insert.picture, insert.table, insert.chart, insert.audio, insert.video, insert.artText, insert.slideNumber, insert.dateTime, insert.symbol, insert.hyperlink, insert.smartGraphic, insert.actionButton]
+    paths: [crates/engine/engine/src/cmd/insert.rs, web/src/ribbon/InsertTab.tsx, bindings/wasm/src/files.rs, crates/engine/engine/src/sample.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-3]
+    since: "2026-11-17"
+  - id: slide.charts.edit
+    title: "Chart type, data and elements"
+    dimension: [function, fidelity]
+    priority: P1
+    status: partial
+    commands: [chart.type, chart.data, chart.options]
+    paths: [crates/engine/engine/src/cmd/insert.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-1]
+    since: "2026-11-17"
+  - id: slide.pictures.edit
+    title: "Crop, correct, reset and change pictures"
+    dimension: [function, fidelity]
+    priority: P1
+    status: partial
+    commands: [picture.crop, picture.adjust, picture.reset, picture.change]
+    paths: [crates/engine/engine/src/cmd/shape.rs, bindings/wasm/src/files.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.media.playback
+    title: "Audio, video and GIF playback, options and poster frames"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [media.options, media.play, media.pause, media.toggle, media.stop, media.seek, media.info, media.posterFrame, media.gifPlay]
+    paths: [crates/engine/engine/src/cmd/media.rs, crates/engine/engine/src/cmd/shape.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.drawing.objects
+    title: "Drawing objects: insert, transform, format, connect, group, arrange; ink"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [drawing.insert, drawing.delete, drawing.transform, drawing.format, drawing.text, drawing.arrange, drawing.reconnect, drawing.connect, drawing.group, drawing.ungroup, drawing.chart, drawing.ink, drawing.erase]
+    paths: [crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/cmd/ink.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/format.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.draw.ink-tools
+    title: "Draw tab pens, highlighter and eraser"
+    dimension: [function]
+    priority: P2
+    status: partial
+    commands: [draw.pen, draw.pencil, draw.highlighter, draw.eraser, draw.select, draw.state]
+    paths: [crates/engine/engine/src/cmd/ink.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.arrange.objects
+    title: "Order, group, align, distribute, rotate, flip and nudge objects"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [arrange.bringToFront, arrange.bringForward, arrange.sendBackward, arrange.sendToBack, arrange.reorder, arrange.group, arrange.ungroup, arrange.regroup, arrange.align, arrange.distribute, arrange.rotateLeft, arrange.rotateRight, arrange.flipHorizontal, arrange.flipVertical, arrange.nudge]
+    paths: [crates/engine/engine/src/cmd/arrange.rs, crates/engine/engine/src/cmd/drawing.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/insert.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.text.edit
+    title: "Edit, type, delete, select and set text in shapes"
+    dimension: [function]
+    priority: P0
+    status: has
+    commands: [text.edit, text.exit, text.insert, text.delete, text.move, text.select, text.selectAll, text.selectWord, text.selectParagraph, text.set]
+    paths: [crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/tools.rs, crates/engine/engine/src/tools/table.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for setting a shape's text; the feature's other commands are covered by engine tests only.
+    cases: [slide.text.edit/save-reopen]
+    since: "2026-11-17"
+  - id: slide.format.character
+    title: "Character formatting: font, size, colour, highlight, case, spacing and text effects"
+    dimension: [function, fidelity]
+    priority: P0
+    status: has
+    commands: [format.bold, format.italic, format.underline, format.strikethrough, format.superscript, format.subscript, format.font, format.size, format.grow, format.shrink, format.color, format.highlight, format.case, format.caps, format.spacing, format.clear, format.textShadow, format.textOutline, format.transform, format.painter, format.painterApply, format.state]
+    paths: [crates/engine/engine/src/cmd/format.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/sample.rs, crates/engine/engine/src/lib.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for bold, size, italic, underline, colour and font; the feature's other commands are covered by engine tests only.
+    cases: [slide.format.character/save-reopen]
+    since: "2026-11-17"
+  - id: slide.format.paragraph
+    title: "Paragraph formatting: alignment, direction, bullets, numbering, list levels, line spacing, columns, autofit, wrap and margins"
+    dimension: [function, fidelity]
+    priority: P0
+    status: has
+    commands: [format.align, format.rtl, format.alignLeft, format.alignCenter, format.alignRight, format.justify, format.bullets, format.numbering, format.indent, format.outdent, format.lineSpacing, format.paragraph, format.anchor, format.direction, format.columns, format.autofit, format.wrap, format.margins]
+    paths: [crates/engine/engine/src/cmd/format.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/keys.rs, bindings/wasm/src/check.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for centring, bullets and list level; the feature's other commands are covered by engine tests only.
+    cases: [slide.format.paragraph/save-reopen, regressions/issue-6]
+    since: "2026-11-17"
+  - id: slide.design.themes
+    title: "Themes, colours, fonts, background, slide size, header and footer"
+    dimension: [function, fidelity]
+    priority: P1
+    status: partial
+    commands: [design.theme, design.themes, design.colors, design.fonts, design.background, design.hideBackgroundGraphics, design.slideSize, design.headerFooter]
+    paths: [crates/engine/engine/src/cmd/design.rs, crates/engine/engine/src/cmd/insert.rs, crates/engine/engine/src/design.rs, crates/engine/engine/src/sample.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-5]
+    since: "2026-11-17"
+  - id: slide.masters.edit
+    title: "Slide master view, layouts and placeholders"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [view.slideMaster, view.closeMaster, master.insertLayout, master.renameLayout, master.deleteLayout, master.insertPlaceholder]
+    paths: [crates/engine/engine/src/cmd/design.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-master-view-kept]
+    since: "2026-11-17"
+  - id: slide.transitions.set
+    title: "Slide transitions, options and timing"
+    dimension: [function, fidelity]
+    priority: P1
+    status: has
+    commands: [transition.set, transition.options, transition.timing, transition.applyAll, transition.list]
+    paths: [crates/engine/engine/src/cmd/transition.rs, crates/engine/engine/src/sample.rs, web/src/ribbon/TransitionsTab.tsx]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for setting a transition with a duration; the feature's other commands are covered by engine tests only.
+    cases: [slide.transitions.set/save-reopen]
+    since: "2026-11-17"
+  - id: slide.animations.set
+    title: "Animations: add, remove, reorder, timing, options and Animation Painter"
+    dimension: [function, fidelity]
+    priority: P1
+    status: has
+    commands: [animation.set, animation.add, animation.remove, animation.move, animation.timing, animation.options, animation.clear, animation.painter, animation.painterApply, animation.list]
+    paths: [crates/engine/engine/src/cmd/animation.rs, crates/engine/engine/src/sample.rs, web/src/ribbon/AnimationsTab.tsx, crates/engine/engine/src/tools.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for adding an entrance animation; the feature's other commands are covered by engine tests only.
+    cases: [slide.animations.set/save-reopen, regressions/issue-7]
+    since: "2026-11-17"
+  - id: slide.tables.edit
+    title: "Table rows, columns, cells, merging, borders, shading and styles"
+    dimension: [function, fidelity]
+    priority: P0
+    status: has
+    commands: [table.cellFormat, table.border, table.clearCells, table.insertRowAbove, table.insertRowBelow, table.insertColumnLeft, table.insertColumnRight, table.deleteRow, table.deleteColumn, table.merge, table.split, table.style, table.options, table.cellFill, table.distributeRows, table.distributeColumns, table.columnWidth, table.rowHeight, table.selectCells]
+    paths: [crates/engine/engine/src/cmd/table.rs, crates/engine/engine/src/cmd/table/selection.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/tools/table.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Save and reopen as .kslide and .pptx is proven by command for inserting a table, setting cell text and inserting a row; the feature's other commands are covered by engine tests only.
+    cases: [slide.tables.edit/save-reopen]
+    since: "2026-11-17"
+  - id: slide.review.comments
+    title: "Comments and threads"
+    dimension: [function, collab]
+    priority: P1
+    status: partial
+    commands: [comment.add, comment.reply, comment.delete, comment.resolve, comment.list, comment.threads]
+    paths: [crates/engine/engine/src/cmd/review.rs, web/src/ribbon/ReviewTab.tsx]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.review.anchored-comments
+    title: "Comments a host keeps, anchored to shapes, text and points"
+    dimension: [collab]
+    priority: P1
+    status: has
+    commands: [comment.anchor, comment.place]
+    paths: [crates/engine/engine/src/cmd/anchor.rs, web/src/HostComments.tsx, web/tests/comments.mjs]
+    target: "Kit UI protocol 2.6 section 7k (comment-anchors)"
+    cases: [slide.review.anchored-comments/reorder-move-delete]
+    since: "2026-11-17"
+  - id: slide.review.proofing
+    title: "Accessibility check and spelling"
+    dimension: [function]
+    priority: P2
+    status: partial
+    commands: [review.accessibility, review.spelling]
+    paths: [crates/engine/engine/src/cmd/review.rs]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"
+  - id: slide.editor.display-modes
+    title: The editor in Menus, Single line, Classic and Focus; Escape in Focus puts a tool down or lets go of a selection first
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/App.tsx, web/src/ribbon/MoreCommands.tsx, web/src/ribbon/ContextTab.tsx, web/src/ribbon/HomeTab.tsx, web/tests/modes.mjs, web/tests/focus-escape.mjs]
+    cases: [slide.editor.display-modes/mode-smoke, regressions/issue-focus-escape]
+    since: "2026-11-17"
+  - id: slide.show.slideshow
+    title: "Slide show from start or current slide, setup and custom shows"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [show.fromStart, show.fromCurrent, show.setup, show.customShow]
+    paths: [crates/engine/engine/src/cmd/review.rs, web/src/ribbon/SlideShowTab.tsx]
+    target: "PowerPoint 16.113.4 (Mac)"
+    gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    since: "2026-11-17"

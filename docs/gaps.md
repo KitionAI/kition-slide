@@ -1,0 +1,47 @@
+# Gaps
+
+> **Last updated:** 2026-11-17 · **Source:** `features.yaml` (updated 2026-11-17) and the engine's command list
+
+Every known shortfall of Kition Slide, from the feature catalogue: features that are not yet `has`,
+then the differences recorded on features that work. Update the feature in `features.yaml` when you
+land work, then this list. The comparison with the target application is in
+[parity/target-app-parity.md](parity/target-app-parity.md); the order of work is in [roadmap.md](roadmap.md).
+
+## Features not done
+
+- `slide.agent.ids` (P0, partial): One id space for the agent's tools, so receipts, others and the premise guard name what slide_inspect listed. Layout references use persisted immutable tool identities; table rows/columns retain identities within their table and sections retain standard GUIDs. Creates assign stored ids/defaults before their receipt; an omitted Shape.kind defaults to shape. A shape's tool id is its persistent identity: a cross-slide move keeps it and changes only address; a scoped positional address whose shape moved away is refused by the command, not as relocated (the SDK checks a place only with a place parameter).
+- `slide.agent.places` (P0, partial): Indexed insertions and moves hold the observed source and destination gap. Raw slide, shape, paragraph and table creations and list edits have direct contracts. Saved table member identities let shifted raw gaps refuse relocated while later edits apply. Raw text offsets and section moves refuse relocated after a shift and apply later edits. Command table and animation holds remain conservative after the index. The unchanged index_paths test remains the acceptance gate.
+- `slide.agent.premises` (P0, partial): Command declarations follow independent handler readings. Independent declaration comparisons pass. Raw positional paragraph/table edits have direct contracts; persisted member identities guard nested gaps. Layout tool identities allow notes replay and exact holder paths guard unnamed layout shapes. Private facts stay private and guarded close planning terminates. Command table/animation holds remain incomplete; a raw positional paragraph list.remove without basis applies (the removed object leaves the deck). History rereads retain local part numbers when layout identities/order are unchanged, and media numbers when its part and bytes are unchanged; a changed layout set/order is refused. Geometry ancestor bodies and session buffers remain conservative or incomplete.
+- `slide.agent.env` (P1, partial): Generated editing tasks name slides and shapes by their labels. Command clamps are numeric schemas; JSON frame, paragraph-level and animation-time members declare real limits. Internal TextBody props remain sample:false. kit-env rejects instructions with consequential autofit changes.
+- `slide.arrange.objects` (P1, partial): Order, group, align, distribute, rotate, flip and nudge objects. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.charts.edit` (P1, partial): Chart type, data and elements. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.collab.presence` (P1, partial): Selections shown to co-editors and located on the slide. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.design.themes` (P1, partial): Themes, colours, fonts, background, slide size, header and footer. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.drawing.objects` (P1, partial): Drawing objects: insert, transform, format, connect, group, arrange; ink. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.edit.clipboard` (P1, partial): Undo, redo, cut, copy, paste, duplicate, delete and select objects. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.file.export` (P1, partial): Export, render a slide and save as a template. File › Export writes PDF, PNG and JPEG through the host (web/tests/flow.mjs); Save as Template has no case, and no case exports a template or a pptx copy from the editor.
+- `slide.file.presentations` (P1, partial): New, open, save, save as, revert, close, properties and AutoRecover. Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands.
+- `slide.insert.objects` (P1, partial): Insert text boxes, pictures, tables, charts, audio, video, art text, slide numbers, dates, symbols, links, smart graphics and action buttons. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.masters.edit` (P1, partial): Slide master view, layouts and placeholders. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.media.playback` (P1, partial): Audio, video and GIF playback, options and poster frames. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.pictures.edit` (P1, partial): Crop, correct, reset and change pictures. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.review.comments` (P1, partial): Comments and threads. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.show.slideshow` (P1, partial): Slide show from start or current slide, setup and custom shows. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.slides.sections` (P1, partial): Sections. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.draw.ink-tools` (P2, partial): Draw tab pens, highlighter and eraser. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+- `slide.review.proofing` (P2, partial): Accessibility check and spelling. Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+
+## Differences on working features
+
+- `slide.format.character`: Save and reopen as .kslide and .pptx is proven by command for bold, size, italic, underline, colour and font; the feature's other commands are covered by engine tests only.
+- `slide.format.paragraph`: Save and reopen as .kslide and .pptx is proven by command for centring, bullets and list level; the feature's other commands are covered by engine tests only.
+- `slide.shapes.edit`: Save and reopen as .kslide and .pptx is proven by command for inserting preset shapes with text, moving and resizing, and rotating; the feature's other commands are covered by engine tests only.
+- `slide.slides.manage`: Save and reopen as .kslide and .pptx is proven by command for adding slides with a layout, duplicating, moving and changing a slide's layout; the feature's other commands are covered by engine tests only.
+- `slide.tables.edit`: Save and reopen as .kslide and .pptx is proven by command for inserting a table, setting cell text and inserting a row; the feature's other commands are covered by engine tests only.
+- `slide.text.edit`: Save and reopen as .kslide and .pptx is proven by command for setting a shape's text; the feature's other commands are covered by engine tests only.
+- `slide.animations.set`: Save and reopen as .kslide and .pptx is proven by command for adding an entrance animation; the feature's other commands are covered by engine tests only.
+- `slide.transitions.set`: Save and reopen as .kslide and .pptx is proven by command for setting a transition with a duration; the feature's other commands are covered by engine tests only.
+
+## Catalogue
+
+The catalogue has 42 features: 21 `has`, 21 not yet.

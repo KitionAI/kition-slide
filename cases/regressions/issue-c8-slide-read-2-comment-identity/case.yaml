@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-c8-slide-read-2-comment-identity
+feature: slide.agent.premises
+intent: >-
+  Reply, delete and resolve refuse when an independent file writer removes a thread
+  before the named comment ordinal, and allow an unrelated slide rename. Both the
+  current-slide index and @slide:index must keep the observed thread identity.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_comments.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_comments
+      filter: comment_ordinals_hold_thread_identity_but_allow_unrelated_slide_names
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

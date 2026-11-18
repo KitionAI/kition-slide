@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/relocated
+feature: slide.agent.ids
+intent: >-
+  A slide another author inserted before the step's slide refuses a write that names the slide by number (relocated, with where it is now), a deleted slide refuses it (deleted), and nothing changes in the file; the shape's own tool id still applies.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: c_a_slide_inserted_or_deleted_before_the_target_by_another_author_refuses_the_write
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

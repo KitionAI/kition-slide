@@ -1,0 +1,5 @@
+{
+  "maxChannelDelta": 2,
+  "maxDifferentPixels": 2600,
+  "note": "The engine's own renderer draws the preview; anti-aliased text edges may differ by a step between platforms, on at most 0.5% of the slide's pixels."
+}

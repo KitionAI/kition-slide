@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-layout-media
+feature: slide.agent.ids
+intent: >-
+  After another program changes a slide's layout, a picture's image or a text elsewhere, writes with basis on an untouched slide, on the picture and on another shape apply; others names the slide whose layout changed and counts the image in unnamed (Media changed 1).
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: i_a_layout_or_media_change_lets_writes_on_untouched_slides_and_the_picture_apply
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

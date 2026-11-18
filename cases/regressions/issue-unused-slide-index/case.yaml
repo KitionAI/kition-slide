@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-unused-slide-index
+feature: slide.agent.places
+intent: >-
+  Deleting slides by ids ignores an unused index, so a change on that indexed slide does not falsely refuse the write.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/outside.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: slide_ids_take_precedence_over_unused_index
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

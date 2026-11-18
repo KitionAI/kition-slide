@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-7-section
+feature: slide.agent.places
+intent: >-
+  A section starts at an insertion gap before its anchor slide. Removing a later slide
+  is unrelated, while deleting the anchor or shifting the boundary is refused.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/index_paths.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: index_paths
+      filter: section_creation_holds
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

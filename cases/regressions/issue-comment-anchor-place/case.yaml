@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-comment-anchor-place
+feature: slide.agent.places
+intent: >-
+  A comment anchored by a numeric shape id and an explicit slide index holds that shape and
+  slide location, even when the editor is on a different slide; an unrelated change allows
+  the comment and its anchor survives saving the PPTX.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/outside.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: comment_anchor_uses_its_explicit_slide_index
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

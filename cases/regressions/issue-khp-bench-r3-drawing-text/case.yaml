@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-khp-bench-r3-drawing-text
+feature: slide.agent.act
+intent: >-
+  `drawing.text` with only `body` lays the text out and keeps it, and `drawing.insert` takes
+  `text` as the text object `drawing.describe` returns; both were refused with "give `text` or
+  `paragraphs`" (khp-bench r2, S01 and S02).
+layer: gate
+source:
+  kind: probe
+  from: KitionAI/khp-bench round 2 generation runs, issues (a) and (b)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: text_takes_body_alone_and_the_described_text_object
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

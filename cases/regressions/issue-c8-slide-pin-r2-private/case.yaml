@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-private
+feature: slide.agent.premises
+intent: >-
+  Guard-only derived facts stay out of public receipts while their private comparisons continue
+  to refuse a stale write when its consumed count changes.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 private receipt facts
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: private_facts
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

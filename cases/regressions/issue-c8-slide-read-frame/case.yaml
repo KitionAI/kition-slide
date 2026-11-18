@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-read-frame
+feature: slide.drawing.absolute-frame
+intent: >-
+  Setting an absolute drawing frame edits the shape resolved from a numeric,
+  persistent or scoped address, and the edited frame survives saving and reopening.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/independent_frame.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: independent_frame
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

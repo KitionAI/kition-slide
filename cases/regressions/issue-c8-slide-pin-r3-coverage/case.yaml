@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-coverage
+feature: slide.agent.premises
+intent: >-
+  Raw deleted text objects are not slide shapes at a scoped numeric shape address. Private
+  list history must not make an unrelated shape deletion refuse the mixed-editing write.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 unchanged mixed table
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: real_decks
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

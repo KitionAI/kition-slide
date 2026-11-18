@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-same-number
+feature: slide.agent.ids
+intent: >-
+  Another program's edit of the shape with the same per-slide number on another slide: the agent's write on its target applies by tool id and by slide number, and others names the other slide's shape, not the target.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-3 (kition-sdk b4d5c43, two reads of a file paired, not compared by object id)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: e_a_colleagues_edit_of_the_same_number_on_another_slide_lets_the_write_apply
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Slide kit: a host that keeps comment threads (test)</title>
+    <style>
+      html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+      body { display: flex; flex-direction: column; }
+      iframe { flex: 1; border: 0; }
+    </style>
+  </head>
+  <body>
+    <span id="status">opening…</span>
+    <iframe id="kit" src="about:blank" title="Slides"></iframe>
+    <script type="module" src="./host.ts"></script>
+  </body>
+</html>

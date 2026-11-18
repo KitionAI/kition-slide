@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.context/explicit-targets
+feature: slide.agent.context
+intent: >-
+  A command given what it acts on (text.set {id, onSlide}, format.* {ids}, a failed shape.fill {ids}, slide.inspect {index}, file.render {target}, an insert at a step's slide) leaves the editor's current slide and selection as they were, so an agent's call never moves the person or depends on where they are.
+layer: gate
+source:
+  kind: synthetic
+  from: 'task card C4-slide (kition-sdk 3e6fc07, explicit call context)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: context
+      filter: commands_given_their_targets_leave_the_current_slide_and_the_selection_as_they_were
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

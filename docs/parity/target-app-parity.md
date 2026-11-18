@@ -1,0 +1,58 @@
+# Target-app parity
+
+> **Last updated:** 2026-11-17 · **Source:** `features.yaml` (updated 2026-11-17) and the engine's command list
+
+Each feature in `features.yaml` records its status against what the feature promises and, where it
+has one, the target application it is compared with (PowerPoint 16.113.4 (Mac), Kit UI protocol 2.6 section 7k (comment-anchors)).
+The difference column is the feature's recorded gap.
+
+| Feature | Priority | Status | Target | Difference |
+| --- | --- | --- | --- | --- |
+| `slide.agent.act` An agent builds slides with the deck's placeholders | P0 | has | — | — |
+| `slide.agent.context` An agent's call names the slide and shapes it acts on, and leaves the editor's current slide and selection as they were | P0 | has | — | — |
+| `slide.agent.identity` Persistent shape identities survive moves, copies and saved files | P0 | has | — | — |
+| `slide.agent.ids` One id space for the agent's tools, so receipts, others and the premise guard name what slide_inspect listed | P0 | partial | — | Layout references use persisted immutable tool identities; table rows/columns retain identities within their table and sections retain standard GUIDs. Creates assign stored ids/defaults before their receipt; an omitted Shape.kind defaults to shape. A shape's tool id is its persistent identity: a cross-slide move keeps it and changes only address; a scoped positional address whose shape moved away is refused by the command, not as relocated (the SDK checks a place only with a place parameter). |
+| `slide.agent.observe` An agent reads slides and reuses what it read | P0 | has | — | — |
+| `slide.agent.places` Indexed insertions and moves hold the observed source and destination gap | P0 | partial | — | Raw slide, shape, paragraph and table creations and list edits have direct contracts. Saved table member identities let shifted raw gaps refuse relocated while later edits apply. Raw text offsets and section moves refuse relocated after a shift and apply later edits. Command table and animation holds remain conservative after the index. The unchanged index_paths test remains the acceptance gate. |
+| `slide.agent.premises` Command declarations follow independent handler readings | P0 | partial | — | Independent declaration comparisons pass. Raw positional paragraph/table edits have direct contracts; persisted member identities guard nested gaps. Layout tool identities allow notes replay and exact holder paths guard unnamed layout shapes. Private facts stay private and guarded close planning terminates. Command table/animation holds remain incomplete; a raw positional paragraph list.remove without basis applies (the removed object leaves the deck). History rereads retain local part numbers when layout identities/order are unchanged, and media numbers when its part and bytes are unchanged; a changed layout set/order is refused. Geometry ancestor bodies and session buffers remain conservative or incomplete. |
+| `slide.agent.recover` An agent fixes what the check reports | P0 | has | — | — |
+| `slide.drawing.absolute-frame` Absolute drawing transforms resolve the same shape as relative transforms | P0 | has | — | — |
+| `slide.edit.explicit-targets` Explicit cut and delete targets take priority over another text selection | P0 | has | — | — |
+| `slide.format.character` Character formatting: font, size, colour, highlight, case, spacing and text effects | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for bold, size, italic, underline, colour and font; the feature's other commands are covered by engine tests only. |
+| `slide.format.paragraph` Paragraph formatting: alignment, direction, bullets, numbering, list levels, line spacing, columns, autofit, wrap and margins | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for centring, bullets and list level; the feature's other commands are covered by engine tests only. |
+| `slide.security.workspace` The kit reaches files only in its workspace, through its host, and reads no font folder of the machine | P0 | has | — | — |
+| `slide.shapes.edit` Insert, size, rotate, flip, adjust, fill, outline, effects, merge and lock shapes | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for inserting preset shapes with text, moving and resizing, and rotating; the feature's other commands are covered by engine tests only. |
+| `slide.slides.manage` New, duplicate, delete, move, hide, rename and navigate slides; layouts, notes and outline import | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for adding slides with a layout, duplicating, moving and changing a slide's layout; the feature's other commands are covered by engine tests only. |
+| `slide.tables.edit` Table rows, columns, cells, merging, borders, shading and styles | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for inserting a table, setting cell text and inserting a row; the feature's other commands are covered by engine tests only. |
+| `slide.text.edit` Edit, type, delete, select and set text in shapes | P0 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for setting a shape's text; the feature's other commands are covered by engine tests only. |
+| `slide.agent.design` An agent is told what a designer would change on a slide, with the commands that change it | P1 | has | — | — |
+| `slide.agent.draft` An agent works in a draft over a conversation | P1 | has | — | — |
+| `slide.agent.env` Generated editing tasks name slides and shapes by their labels | P1 | partial | — | Command clamps are numeric schemas; JSON frame, paragraph-level and animation-time members declare real limits. Internal TextBody props remain sample:false. kit-env rejects instructions with consequential autofit changes. |
+| `slide.animations.set` Animations: add, remove, reorder, timing, options and Animation Painter | P1 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for adding an entrance animation; the feature's other commands are covered by engine tests only. |
+| `slide.arrange.objects` Order, group, align, distribute, rotate, flip and nudge objects | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.charts.edit` Chart type, data and elements | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.collab.presence` Selections shown to co-editors and located on the slide | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.design.themes` Themes, colours, fonts, background, slide size, header and footer | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.drawing.objects` Drawing objects: insert, transform, format, connect, group, arrange; ink | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.edit.checks-first` Commands check what they act on before they write, and picture commands change pictures only | P1 | has | — | — |
+| `slide.edit.clipboard` Undo, redo, cut, copy, paste, duplicate, delete and select objects | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.editor.display-modes` The editor in Menus, Single line, Classic and Focus; Escape in Focus puts a tool down or lets go of a selection first | P1 | has | — | — |
+| `slide.file.export` Export, render a slide and save as a template | P1 | partial | PowerPoint 16.113.4 (Mac) | File › Export writes PDF, PNG and JPEG through the host (web/tests/flow.mjs); Save as Template has no case, and no case exports a template or a pptx copy from the editor. |
+| `slide.file.presentations` New, open, save, save as, revert, close, properties and AutoRecover | P1 | partial | PowerPoint 16.113.4 (Mac) | Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands. |
+| `slide.insert.objects` Insert text boxes, pictures, tables, charts, audio, video, art text, slide numbers, dates, symbols, links, smart graphics and action buttons | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.masters.edit` Slide master view, layouts and placeholders | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.media.playback` Audio, video and GIF playback, options and poster frames | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.pictures.edit` Crop, correct, reset and change pictures | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.review.anchored-comments` Comments a host keeps, anchored to shapes, text and points | P1 | has | Kit UI protocol 2.6 section 7k (comment-anchors) | — |
+| `slide.review.comments` Comments and threads | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.show.slideshow` Slide show from start or current slide, setup and custom shows | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.slides.sections` Sections | P1 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.transitions.set` Slide transitions, options and timing | P1 | has | PowerPoint 16.113.4 (Mac) | Save and reopen as .kslide and .pptx is proven by command for setting a transition with a duration; the feature's other commands are covered by engine tests only. |
+| `slide.draw.ink-tools` Draw tab pens, highlighter and eraser | P2 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+| `slide.review.proofing` Accessibility check and spelling | P2 | partial | PowerPoint 16.113.4 (Mac) | Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen. |
+
+| Priority | has | partial | missing |
+| --- | ---: | ---: | ---: |
+| P0 | 14 | 3 | 0 |
+| P1 | 7 | 16 | 0 |
+| P2 | 0 | 2 | 0 |

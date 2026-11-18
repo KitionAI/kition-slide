@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-false-refusals
+feature: slide.agent.ids
+intent: >-
+  Fifty rounds of another program editing a random other shape's text before the agent's write with basis on a fixed target: the premise guard refuses none of the fifty writes, --guard epoch refuses all fifty; the test prints both counts.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: l_fifty_unrelated_file_changes_refuse_no_write_under_premise_and_every_write_under_epoch
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

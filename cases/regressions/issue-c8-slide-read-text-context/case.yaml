@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-read-text-context
+feature: slide.agent.ids
+intent: >-
+  Text writes name the same slide shape while the editor is in master view, and hold
+  ancestor frames needed to apply an edit to text inside a group.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/declarations_independent/text.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: declarations_independent
+      filter: "text::"
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

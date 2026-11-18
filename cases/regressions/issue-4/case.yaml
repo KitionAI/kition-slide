@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-4
+feature: slide.agent.observe
+intent: >-
+  After shape.setBounds on a group, slide.inspect lists its children with their boxes on the
+  slide, mapped through the group's child space (they kept their old boxes); moving or resizing
+  a group member (in slide points, as inspect lists it) refits the group's box around its
+  members (it went stale); design.colors answers the theme's colour scheme as {name, colors} (it
+  answered null) and refuses an unknown slot.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: inspect_follows_a_resized_group_and_a_moved_child
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

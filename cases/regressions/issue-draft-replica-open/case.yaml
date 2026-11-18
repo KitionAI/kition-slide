@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-draft-replica-open
+feature: slide.agent.draft
+intent: >-
+  `kition-slide` opens a deck from its replica (`model.open`, which `kit.json` lists): what
+  `model.export` answers for an open deck, its changes and the media they reference, opens again
+  as the same deck with no file. An agent's headless draft is such a replica; the kit refused
+  `model.open` and exported no media, so its drafts were copies of the file without the object
+  difference a person reviews.
+layer: gate
+source:
+  kind: probe
+  from: 'task card S0-1/C1 (kition-sdk tests/drafts.rs, "slide: the draft lost its edit")'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: replica
+      filter: a_deck_opens_from_its_exported_replica_with_its_media
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

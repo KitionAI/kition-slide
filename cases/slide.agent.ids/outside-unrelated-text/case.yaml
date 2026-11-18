@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-unrelated-text
+feature: slide.agent.ids
+intent: >-
+  Another program edits a shape's text on another slide: the agent's write with basis applies and others names that shape alone, at body.paragraphs.0.text with before and after, in under 1 KB.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: a_a_colleagues_text_edit_on_another_slide_applies_and_others_names_that_shape_alone
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

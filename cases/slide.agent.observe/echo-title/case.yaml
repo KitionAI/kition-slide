@@ -1,0 +1,46 @@
+format: 1
+id: slide.agent.observe/echo-title
+feature: slide.agent.observe
+intent: >-
+  The agent reads the text on a slide through the kit and reuses it on a new slide, leaving the
+  first slide exactly as it was.
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/basic.kslide
+  license: Apache-2.0
+  note: A copy of the conformance deck the slide engine writes (one slide, a text box and a rectangle).
+input: [input/deck.kslide]
+steps:
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_before }
+  - task:
+      prompt: >-
+        Read the text on the first slide of deck.kslide. Add a second slide with a text box whose
+        text is that same text followed by " – summary". Do not change the first slide.
+      max_turns: 25
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_after }
+  - inspect: { path: deck.kslide, args: { target: { slide: 2 } }, as: second, missing_ok: true }
+  - inspect: { path: deck.kslide, as: after }
+expected:
+  - actual: out:second
+    compare: values
+    value:
+      part.shapes: { any: { text: "Quarterly review – summary" } }
+  - actual: out:after
+    compare: values
+    value:
+      details.slides: { count: 2 }
+  - actual: out:first_after
+    compare: kdm-json
+    against: out:first_before
+    ignore: [edit, summary, dirty, canUndo, canRedo, revision]
+    collateral: true
+solution:
+  - tool: slide_run
+    args:
+      path: deck.kslide
+      steps:
+        - { command: slide.new, params: {} }
+        - { command: insert.textBox, params: { rect: [60, 60, 600, 60], text: "Quarterly review – summary" } }
+since: "2026-11-17"
+timeout_s: 600

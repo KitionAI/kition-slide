@@ -1,0 +1,34 @@
+[package]
+name = "kition-slide-kit"
+description = "The Slide engine for Kition's in-page editor: open, edit, and save slides (Kition Slide's native format) and PowerPoint files from JavaScript (WebAssembly), on the Kition SDK."
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-kit = { workspace = true, features = ["session"] }
+kdm-model = { workspace = true }
+kition-slide-engine = { workspace = true }
+kition-slide-model = { workspace = true }
+kition-slide-render = { workspace = true }
+kition-slide-geom = { workspace = true }
+kition-slide-text = { workspace = true }
+kition-slide-fonts = { workspace = true }
+kition-slide-color = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# A face `add_font` can never find already bundled (crates/support/fonts embeds only kition-fonts'
+# families plus Ubuntu Light; see takes_a_font_for_text_its_own_faces_do_not_cover in tests.rs).
+epaint_default_fonts = "0.36"
+# The Kition platform convergence suite (L6), on the same kition-sdk revision.
+kition-convergence = { workspace = true }
+# The showcase sample builder (examples/showcase.rs) saves its thumbnails.
+image = { workspace = true }

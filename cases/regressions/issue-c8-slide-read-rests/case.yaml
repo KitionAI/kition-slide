@@ -1,0 +1,51 @@
+format: 1
+id: regressions/issue-c8-slide-read-rests
+feature: slide.agent.places
+intent: >-
+  Writes hold copied transitions, indexed transition slides, notes, show settings and section
+  membership. Unrelated slide/layout text may change; unpublished parameters refuse before writes.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: copied_current_transition_holds_source_but_allows_unrelated_text
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: transition_timing_index_holds_slide_place_but_allows_an_unrelated_rename
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: notes_hold_replaced_notes_but_allow_the_slides_name_to_change
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: show_settings_hold_replaced_settings_but_allow_unrelated_title
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: custom_show_holds_referenced_slide_indexes_but_allows_unrelated_title
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: slide_move_holds_membership_but_allows_unrelated_section_names
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: shape_move_unpublished_single_id_alias_is_refused_before_writing
+  - cargo-test:
+      package: kition-slide
+      test: independent
+      filter: new_slide_allows_ordinary_layout_shape_text_to_change
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

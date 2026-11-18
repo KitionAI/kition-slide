@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-2
+feature: slide.shapes.edit
+intent: >-
+  An elbow (bentConnector3) connector glued from a bottom connection site to a top site leaves
+  downward, runs across and comes down into the second shape, as PowerPoint draws it (the
+  connector is turned a quarter turn); it routed across first, along the box edges. Moving a
+  glued shape keeps the vertical-first route, and right-to-left sites still go across first.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: an_elbow_from_a_bottom_site_to_a_top_site_leaves_downward
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

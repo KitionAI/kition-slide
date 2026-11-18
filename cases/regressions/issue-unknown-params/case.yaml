@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-unknown-params
+feature: slide.agent.recover
+intent: >-
+  A command refuses a key its schema does not name and says which, with the parameter it resembles
+  and the ones the command takes (platform rule E7a), instead of running without it; every key a
+  command reads is in its schema, so a valid call still runs. Before, 81 commands ran with an
+  unknown key without a word, and schemas left out keys commands read (an `id` for `ids`,
+  format.paragraph's lineSpacingPt, drawing.chart's seriesFormat and axes, drawing.format's
+  effects, ...): Chart Elements' trendline would have been refused.
+layer: gate
+source:
+  kind: probe
+  from: "unknown-parameter sweep"
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: "kition-slide-kit", test: "unknown_params" }
+expected:
+  - actual: out:exit
+    compare: exit
+since: "2026-11-17"

@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-7
+feature: slide.animations.set
+intent: >-
+  The Turns motion path goes across, makes a rounded quarter turn and ends in the direction its
+  option names (down, up, right, left), instead of a straight line; animation.set and
+  animation.add with effect customPath take `points` ([[dx, dy]] in points from the shape's
+  place), straight or smooth, open or closed, and refuse a customPath without points or points
+  for another effect.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: turns_turns_and_custom_paths_take_points
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

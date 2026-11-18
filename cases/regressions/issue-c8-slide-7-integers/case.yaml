@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-7-integers
+feature: slide.agent.env
+intent: >-
+  Integer fields expose their stored range and unit step so sampled edits do not
+  invent fractional slide file ids or overflow the Rust integer fields.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/integer_fields.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: integer_fields
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

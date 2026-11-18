@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-khp-bench-string-shape-id
+feature: slide.agent.act
+intent: >-
+  A shape id given as a string of a number (`"13"`), which the command schemas allow, names that
+  shape; an `id` that is not a shape id is an error. The engine read a string id as no id, so
+  `text.set` wrote into whatever shape was selected (khp-bench addressing ablation, every flat
+  run: "missing `id` (or select a shape)").
+layer: gate
+source:
+  kind: probe
+  from: KitionAI/khp-bench conversation ablation runs (results/conv-ablation)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: a_shape_id_may_be_a_number_string_and_never_falls_back_to_the_selection
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,25 @@
+[package]
+name = "kition-slide-media"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide media: probing, audio decoding (MP3, AAC/M4A, WAV, AIFF, FLAC, ALAC, Vorbis, Opus) to f32 PCM, H.264/HEVC/VP9/AV1 video decoding, poster frames, trim/fade/volume and the playback mixer and clock"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-isobmff = { workspace = true }
+kition-slide-matroska = { workspace = true }
+kition-slide-ogg = { workspace = true }
+kition-slide-opus = { workspace = true }
+kition-slide-h264 = { workspace = true }
+kition-slide-hevc = { workspace = true }
+kition-slide-vp9 = { workspace = true }
+kition-slide-av1 = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+image = { workspace = true }
+# Audio decoding for the formats we have no decoder of our own for (MPL-2.0, used unmodified,
+# as in Kition Film).
+symphonia = { version = "0.5.5", default-features = false, features = ["aac", "adpcm", "alac", "flac", "mp1", "mp2", "mp3", "pcm", "vorbis", "wav", "aiff", "caf", "ogg", "mkv", "isomp4"] }

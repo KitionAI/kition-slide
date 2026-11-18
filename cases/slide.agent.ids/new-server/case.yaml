@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/new-server
+feature: slide.agent.ids
+intent: >-
+  Ids from an earlier inspect name the same slides and shapes after the file is saved and a new server opens it, a slide the agent made included.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: g_ids_from_an_earlier_inspect_name_the_same_shapes_after_a_new_server_opens_the_saved_file
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

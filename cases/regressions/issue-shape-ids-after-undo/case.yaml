@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-shape-ids-after-undo
+feature: slide.agent.ids
+intent: >-
+  Shape numbers repeat across slides (cNvPr is per slide); reading the slides again from the object model (an undo) gave every repeat after the first a fresh number, so ids an agent read named nothing. They are kept per slide now, and tool ids survive saving, reopening, reordering, inserting and deleting slides.
+layer: gate
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: tool_ids
+      filter: tool_ids_survive_reopening_and_reordering_and_deleting_slides
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

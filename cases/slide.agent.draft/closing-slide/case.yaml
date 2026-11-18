@@ -1,0 +1,40 @@
+format: 1
+id: slide.agent.draft/closing-slide
+feature: slide.agent.draft
+intent: >-
+  Over two messages the agent adds a closing slide in a draft for the person to review; the deck
+  itself keeps its one slide (KHP Recover, A12–A14).
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/basic.kslide
+  license: Apache-2.0
+  note: A copy of the conformance deck the slide engine writes (one slide, a text box and a rectangle).
+input: [input/deck.kslide]
+steps:
+  - task:
+      turns:
+        - >-
+          As a draft for me to review (leave deck.kslide itself unchanged), add a closing slide at
+          the end of deck.kslide.
+        - In the same draft, put a text box on that closing slide that says "Thank you".
+      max_turns: 25
+  - inspect: { path: deck.kslide, args: { draft: true }, as: draft, missing_ok: true }
+  - inspect: { path: deck.kslide, as: after }
+expected:
+  - actual: out:draft
+    compare: values
+    value:
+      details.slides: { count: 2 }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.slides: { count: 1 }
+solution:
+  - tool: slide_run
+    args: { path: deck.kslide, draft: true, steps: [{ command: slide.new, params: {} }] }
+  - tool: slide_run
+    args: { path: deck.kslide, draft: true, steps: [{ command: insert.textBox, params: { rect: [60, 200, 840, 80], text: "Thank you" } }] }
+since: "2026-11-17"
+timeout_s: 600

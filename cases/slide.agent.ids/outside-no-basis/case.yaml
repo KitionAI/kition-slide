@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-no-basis
+feature: slide.agent.ids
+intent: >-
+  Without basis, a change made in the file refuses the next write once (failed, changedOutside, retryable) and the same write then applies, overwriting the other program's text when it acts on it.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-2 (kition-sdk 9c8c30b, a change made in the file by another program)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: g_without_basis_a_file_change_refuses_one_write_then_lets_it_through
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

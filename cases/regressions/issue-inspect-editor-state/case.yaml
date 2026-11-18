@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-inspect-editor-state
+feature: slide.agent.context
+intent: >-
+  What an agent reads of a deck served headless (`view.describe`) is the deck, not the editing
+  session: moving to another slide, selecting shapes, or opening Slide Master view leaves it
+  unchanged. kition-sdk stopped leaving out `selection`-like keys by name, so the kit declares its
+  editor state itself (`EDITOR_STATE`); `selectedKinds` and the Slide Master `target` were not
+  declared and changed with the selection.
+layer: gate
+source:
+  kind: probe
+  from: 'task card C4-slide (kition-sdk cf9bc93, "inspect details leave out only declared editor state")'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: context
+      filter: what_an_agent_reads_of_the_deck_leaves_out_the_editors_state
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

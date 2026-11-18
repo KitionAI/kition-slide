@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-import-ids
+feature: slide.agent.ids
+intent: >-
+  Deterministic fallback identities for missing or inconsistent grid metadata must change when
+  that grid changes. Position alone cannot establish member continuity after a reread.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 import identity safety review
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: member_ids
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

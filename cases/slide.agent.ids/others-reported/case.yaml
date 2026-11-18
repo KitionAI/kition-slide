@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/others-reported
+feature: slide.agent.ids
+intent: >-
+  Another author's edit of another slide since the agent's basis is reported in others by its tool id, and the agent's write applies.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: b_another_authors_edit_of_another_slide_is_reported_and_the_write_applies
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

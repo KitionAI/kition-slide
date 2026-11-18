@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-7-replay
+feature: slide.agent.env
+intent: >-
+  The SDK can replay a slide creation receipt, including its owned notes body.
+  Waiting for the SDK at 34dff06: flattened held fields and references are not reconstructed.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/env_receipts.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: env_receipts
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

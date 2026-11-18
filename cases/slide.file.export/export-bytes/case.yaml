@@ -1,0 +1,23 @@
+format: 1
+id: slide.file.export/export-bytes
+feature: slide.file.export
+intent: >-
+  file.exportBytes answers the slides as a PDF, one slide as a PNG, or every slide as JPEG
+  pictures in base64, without writing a file or changing the presentation, so the editor and an
+  agent's export hand the file to the host to write; an unknown slide or format is refused.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: export_bytes_answers_the_file_without_writing_one
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

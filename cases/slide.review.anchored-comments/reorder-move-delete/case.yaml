@@ -1,0 +1,24 @@
+format: 1
+id: slide.review.anchored-comments/reorder-move-delete
+feature: slide.review.anchored-comments
+intent: >-
+  A comment anchor made from selected shapes, selected text or a point on a slide names KDM
+  objects, so its marker is placed on the right slide and shape after the slide is reordered and
+  the shape moved, falls back to the slide when the shape is deleted (reported not found), comes
+  back with undo, is found on another person's replica, and is not found once its slide is gone.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/comment_anchors.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: comment_anchors
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-7-open
+feature: slide.agent.env
+intent: >-
+  Opening a deck settles imported autofit fingerprints before an agent observes it.
+  An unrelated slide rename does not refit another slide's placeholders.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/open_settled.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: open_settled
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

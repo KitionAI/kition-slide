@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-prefix
+feature: slide.agent.premises
+intent: >-
+  A premise planner permits a temporarily detached raw creation before its insertion, without
+  allowing it in an actual batch, saving the incomplete plan, or changing the source document.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 raw prefix investigation
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: premise_fork
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

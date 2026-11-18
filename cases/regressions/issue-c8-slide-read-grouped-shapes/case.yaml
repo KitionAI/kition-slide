@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-read-grouped-shapes
+feature: slide.agent.act
+intent: >-
+  Alignment and distribution use one slide coordinate system for grouped members and
+  other shapes. Picture insertion changes the selected placeholder inside its group.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/independent_grouped.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: independent_grouped
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

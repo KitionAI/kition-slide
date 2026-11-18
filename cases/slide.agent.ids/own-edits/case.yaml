@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/own-edits
+feature: slide.agent.ids
+intent: >-
+  The agent's own earlier edits, its own slide insert before the target's slide included, never refuse its write.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: e_the_agents_own_edits_and_its_own_slide_insert_never_refuse_it
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-c8-slide-read-media
+feature: slide.agent.places
+intent: >-
+  Poster extraction declares its referenced video bytes and resolved shape, and permits an
+  unrelated slide-title change. The related-file-write refusal remains a waiting_for_sdk test.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_other.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: declarations_independent_other
+  - cargo-test:
+      package: kition-slide
+      test: independent_other
+      filter: poster_allows_unrelated_slide_title
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,17 @@
+format: 1
+id: regressions/issue-c8-slide-8-identity
+feature: slide.agent.identity
+intent: A held shape identity survives cross-slide moves, grouping and saved-file rereads; copies have distinct identities and identityless imports open deterministically.
+layer: gate
+dimension: ai
+source:
+  kind: issue
+  from: C8-slide-8
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-slide-kit, test: persistent_ids }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"
+timeout_s: 60

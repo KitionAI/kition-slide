@@ -1,0 +1,51 @@
+format: 1
+id: slide.agent.context/two-slides-one-run
+feature: slide.agent.context
+intent: >-
+  Slides 2 and 3 hold shapes with the same ids (as decks from other programs do). The agent retitles
+  both in one slide_run, naming each step's slide (`at.part`, or `onSlide`) and, for a command that
+  acts on the selection, the shapes (`on`); each edit lands on its own slide and slide 1 is
+  untouched, whatever slide the editor had current.
+layer: eval
+source:
+  kind: synthetic
+  from: 'task card C4-slide; a three-slide deck the slide engine wrote, slide 3 given slide 2''s shape ids'
+  license: owned
+input: [input/deck.kslide]
+steps:
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_before }
+  - task:
+      prompt: >-
+        In deck.kslide, slides 2 and 3 are both titled "Draft". Retitle slide 2 "Results" and slide
+        3 "Next steps", in one slide_run call. Change nothing else.
+      max_turns: 20
+  - inspect: { path: deck.kslide, args: { target: { slide: 2 } }, as: second }
+  - inspect: { path: deck.kslide, args: { target: { slide: 3 } }, as: third }
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_after }
+expected:
+  - actual: out:second
+    compare: values
+    value:
+      part.shapes: { any: { text: "Results" } }
+  - actual: out:third
+    compare: values
+    value:
+      part.shapes: { any: { text: "Next steps" } }
+  - actual: out:third
+    compare: values
+    value:
+      part.shapes: { any: { text: "More points" } }
+  - actual: out:first_after
+    compare: kdm-json
+    against: out:first_before
+    ignore: [edit, summary, dirty, canUndo, canRedo, revision]
+    collateral: true
+solution:
+  - tool: slide_run
+    args:
+      path: deck.kslide
+      steps:
+        - { command: text.set, at: { part: { slide: 2 } }, params: { id: 261, text: "Results" } }
+        - { command: text.set, on: [261], at: { part: { slide: 3 } }, params: { text: "Next steps" } }
+since: "2026-11-17"
+timeout_s: 600

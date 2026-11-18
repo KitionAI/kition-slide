@@ -1,0 +1,22 @@
+format: 1
+id: slide.slides.manage/save-reopen
+feature: slide.slides.manage
+intent: >-
+  Slides added with titles and layouts, duplicated, moved and given a new layout by command keep their order, layouts and text after saving as .kslide and as .pptx and opening each again.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/roundtrip.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: roundtrip
+      filter: slides_and_layouts_survive_save_and_reopen
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-positional
+feature: slide.agent.premises
+intent: >-
+  Approved D1 names the destination slide when inserting a text box. D2 permits raw positional
+  paragraph and table edits without basis and guards indexed destinations with ordered gaps.
+  Changes before the addressed position refuse relocated; changes after it apply.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 decisions D1 and D2
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: raw_batches
+  - cargo-test:
+      package: kition-slide
+      test: index_paths
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

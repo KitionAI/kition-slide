@@ -1,0 +1,50 @@
+[
+  {
+    "code": "slide.missing-media",
+    "fixture": "check-missing-media.kslide",
+    "severity": "error",
+    "summary": "A picture or media clip names bytes the slide file does not hold, so it shows nothing."
+  },
+  {
+    "code": "slide.unreadable-picture",
+    "fixture": "check-unreadable-picture.kslide",
+    "severity": "error",
+    "summary": "A picture's bytes are not a format the slide can show, so it draws nothing."
+  },
+  {
+    "code": "slide.text-overflow",
+    "fixture": "check-text-overflow.kslide",
+    "severity": "warning",
+    "summary": "Text does not fit its box, so it spills over the box's edge."
+  },
+  {
+    "code": "slide.effects-dropped",
+    "fixture": "check-effects-dropped.kslide",
+    "severity": "warning",
+    "summary": "A shape's effects are too large to draw, so it is shown without them."
+  },
+  {
+    "code": "slide.font-substituted",
+    "fixture": "check-font-substituted.kslide",
+    "severity": "warning",
+    "summary": "A run's font is not available here, so its text is drawn with a substitute and may wrap differently."
+  },
+  {
+    "code": "slide.off-slide",
+    "fixture": "check-off-slide.kslide",
+    "severity": "warning",
+    "summary": "A shape lies entirely outside the slide, so the show never displays it."
+  },
+  {
+    "code": "slide.empty-placeholder",
+    "fixture": "check-empty-placeholder.kslide",
+    "severity": "info",
+    "summary": "A placeholder holds no text: the editor shows its prompt and the show shows nothing."
+  },
+  {
+    "code": "slide.missing-alt-text",
+    "fixture": "check-missing-alt-text.kslide",
+    "severity": "info",
+    "summary": "A picture has no alt text for screen readers."
+  }
+]

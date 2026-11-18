@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.context/render-explicit-view
+feature: slide.agent.context
+intent: >-
+  file.render, the kit's agent.render, draws the slide the call names (target.slide from 1, target.slideId, or slide from 0; else the first), the same bytes whatever is current or selected and on every call, and refuses a slide or size it cannot draw.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C4-slide (kition-sdk 3e6fc07, explicit call context)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: context
+      filter: the_render_is_a_function_of_the_deck_and_the_view_the_call_gives
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

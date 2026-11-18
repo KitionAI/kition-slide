@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-duplicated-slide
+feature: slide.agent.ids
+intent: >-
+  Another program duplicates a slide: a write by tool id applies to the original slide's shape, a step by the number of the slide after it is refused as relocated, and others names the new slide as created.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: j_a_slide_duplicated_by_another_program_relocates_slide_numbers_and_is_named_in_others
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

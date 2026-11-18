@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-8
+feature: slide.shapes.edit
+intent: >-
+  A glow on a donut rings the ring inside and out and leaves its hole the background (the glow
+  and the shadow keep even-odd holes); the Outer shadow preset draws as PowerPoint's Offset:
+  Bottom Right (40 % black, 4 pt blur, 3 pt away) at that strength; a freeform is named like
+  other new shapes, "Freeform <n>" by its place on the slide, not by its id.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: a_glow_leaves_a_donuts_hole_empty_and_the_outer_shadow_shows
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

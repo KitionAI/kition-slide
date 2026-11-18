@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-style
+feature: slide.agent.premises
+intent: >-
+  Growing placeholder text must hold the inherited layout TextBody style register directly
+  across an outside reread, and allow an unrelated slide name to change.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 inherited style wrong write
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_text
+      filter: layout_placeholder_text_style_is_held_but_another_slides_name_is_not
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-slide-deleted
+feature: slide.agent.ids
+intent: >-
+  Another program deleting the target's slide refuses the write as deleted, whether the step names the shape by its tool id or the slide by its number, and writes nothing.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-3 (kition-sdk b4d5c43, two reads of a file paired, not compared by object id)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: d_a_colleague_deleting_the_targets_slide_is_refused_as_deleted_by_shape_id_and_by_slide_number
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

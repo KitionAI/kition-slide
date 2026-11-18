@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.context/headless-run
+feature: slide.agent.context
+intent: >-
+  Served headless, a run as kition-kits drives it over the Kit Process Protocol (context.get, context.set with each step's on and at.part, context.restore) puts each step on the slide it names and selects exactly the shapes its on lists, and leaves the person's slide and selection as they were.
+layer: gate
+source:
+  kind: synthetic
+  from: 'task card C4-slide (kition-sdk 3e6fc07, explicit call context)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: context
+      filter: a_run_sets_each_steps_slide_and_selection_and_puts_the_editor_back
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

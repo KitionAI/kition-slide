@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-slide-inserted
+feature: slide.agent.ids
+intent: >-
+  A slide inserted in the file before the target's slide: a write naming the shape by its tool id applies to that shape on its new slide; one naming it by slide number is refused as relocated, by the slide's tool id with its new number, and writes nothing.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-3 (kition-sdk b4d5c43, two reads of a file paired, not compared by object id)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: c_a_slide_inserted_before_the_target_lets_its_composite_id_apply_and_refuses_its_slide_number_as_relocated
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-3
+feature: slide.insert.objects
+intent: >-
+  Formatting a smart graphic group (shape.fill, shape.line, shape.effects, format.size, format.color
+  and the other text formatting) formats the shapes in it instead of nothing; insert.smartGraphic
+  takes `rect` and makes it the diagram's frame; a hierarchy joins the root to each child with
+  elbow lines; a cycle sizes its nodes to the area, draws an arrow from each node to the next
+  and sets its text small enough that the longest word fits across a node.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: smart_art_takes_a_rect_draws_its_links_and_is_formatted_as_a_group
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-c8-slide-read-edit-body
+feature: slide.agent.ids
+intent: Entering text editing can create a stored text body and must pass the write guard and save that body.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_text.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_metadata
+      filter: entering_text_edit_is_declared_as_a_possible_document_write
+  - cargo-test:
+      package: kition-slide
+      test: independent_text
+      filter: entering_text_edit_holds_the_body_it_may_create_but_allows_another_slide_name
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

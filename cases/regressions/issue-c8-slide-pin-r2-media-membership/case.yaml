@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-media-membership
+feature: slide.agent.premises
+intent: >-
+  Combined address and media coverage must remove an item that matches the requested bytes only
+  now from the complete historical match set, as well as marking its membership false.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 historical media review
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: historical_media
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

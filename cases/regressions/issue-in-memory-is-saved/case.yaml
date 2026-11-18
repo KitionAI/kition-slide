@@ -1,0 +1,34 @@
+format: 1
+id: regressions/issue-in-memory-is-saved
+feature: slide.agent.ids
+intent: >-
+  The object model a deck holds in memory after an agent's command is the object model its saved
+  file opens as, object by object, compared as the premise guard compares two reads of a file
+  (paired by tool id; kition_kdm::reread::diff_paired); and open, save, open equals open. Checked
+  after each of about twenty representative commands (text writes into shrink-to-fit and grow-to-fit
+  boxes, font size and bold, move, resize, rotate, an object-model write of a frame, moves of tables,
+  charts, groups, pictures and connectors, a cell's text, notes, new text boxes, shapes and tables,
+  a shape moved to another slide through the object model, a deletion, slides inserted, duplicated,
+  moved and deleted) on the ten-slide test deck and a deck with a table, a chart, a group, a
+  connector, a picture, notes and an animation. Before, an agent's own text write left the shrink
+  scale unrounded with a receipt the file does not keep, a grown box 93.59999999999998 pt high, a
+  moved shape its old slide's tool id, a deck with notes without the notes master its file gets, a
+  copied slide its source's file id (so after a move the two slides swapped ids on saving), and
+  more (C8-slide-5): each read as a change by others after the next change made in the file and
+  refused a right write. With KITION_SLIDE_CORPUS the same runs on corpus decks.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/saved.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: saved
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

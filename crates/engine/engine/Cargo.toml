@@ -1,0 +1,29 @@
+[package]
+name = "kition-slide-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide engine: sessions, undo history, selection, the command registry every frontend dispatches through, and pointer tools"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-office-core = { workspace = true }
+kition-slide-geom = { workspace = true }
+kition-slide-color = { workspace = true }
+kition-slide-model = { workspace = true }
+kition-slide-fonts = { workspace = true }
+kition-slide-text = { workspace = true }
+kition-slide-render = { workspace = true }
+kition-slide-pdf = { workspace = true }
+kition-slide-format = { workspace = true }
+kition-slide-pptx = { workspace = true }
+kition-slide-media = { workspace = true }
+kdm-model = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+i_overlay = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+image = { workspace = true }

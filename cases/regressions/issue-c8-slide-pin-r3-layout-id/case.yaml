@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-layout-id
+feature: slide.agent.ids
+intent: >-
+  Layout references use persisted immutable identities, so a slide creation receipt can replay
+  its layout reference and owned notes body against the original saved deck.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 notes replay
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: env_receipts
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

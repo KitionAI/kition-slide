@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r2-section-boundary
+feature: slide.agent.premises
+intent: >-
+  A section insertion holds its slide boundary and anchor without refusing a deletion strictly
+  after that boundary when the deck previously had no sections.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 2 section boundary false refusal
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: index_paths
+      filter: section_creation_holds_its_boundary_and_anchor_but_not_a_later_slide
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-layout-import
+feature: slide.agent.ids
+intent: >-
+  A format reader can reuse layout numbers for different parts. Without persisted layout ids,
+  a changed imported layout set must not reuse the old slot identities.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 import identity safety review
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: layout_ids
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

@@ -1,0 +1,220 @@
+{
+  "kdm": 1,
+  "kit": "kit.slide",
+  "schemaVersion": 8,
+  "root": "SlideFile",
+  "types": {
+    "SlideFile": {
+      "batchOps": { "*": { "direct": true } },
+      "derived": { "commentOrder": { "premiseOnly": true, "description": "Thread identities by slide and ordinal, as comment commands resolve them" }, "slideOrder": { "premiseOnly": true, "description": "Slide identities in document order, without their content" } },
+      "fields": {
+        "props": { "kind": "json", "optional": true, "members": {
+          "firstSlideNumber": { "minimum": 0, "maximum": 4294967295, "multipleOf": 1 }
+        } },
+        "show": { "kind": "json", "optional": true },
+        "headerFooter": { "kind": "json", "optional": true },
+        "defaultTextStyle": { "kind": "json", "optional": true },
+        "sections": { "kind": "json", "optional": true },
+        "customShows": { "kind": "json", "optional": true },
+        "embeddedFonts": { "kind": "json", "optional": true },
+        "embeddedFontList": { "kind": "json", "optional": true, "readOnly": true },
+        "embeddedFontRels": { "kind": "json", "optional": true, "readOnly": true },
+        "notesMaster": { "kind": "json", "optional": true },
+        "handoutMaster": { "kind": "json", "optional": true },
+        "rawExt": { "kind": "json", "optional": true, "readOnly": true },
+        "masters": { "kind": "list", "of": "Master" },
+        "slides": { "kind": "list", "of": "Slide" },
+        "media": { "kind": "list", "of": "Media" }
+      }
+    },
+    "Master": {
+      "batchOps": { "*": { "direct": true } },
+      "derived": { "layoutCount": { "premiseOnly": true, "description": "Number of layouts in the lookup candidate list" }, "shapeCount": { "premiseOnly": true, "description": "Number of top-level shapes used by generated shape names" } },
+      "fields": {
+        "props": { "kind": "json", "optional": true },
+        "theme": { "kind": "json", "optional": true },
+        "listStyles": { "kind": "json", "optional": true },
+        "colorMap": { "kind": "json", "optional": true },
+        "rawExt": { "kind": "json", "optional": true, "readOnly": true },
+        "shapes": { "kind": "list", "of": "Shape" },
+        "layouts": { "kind": "list", "of": "Layout" }
+      }
+    },
+    "Layout": {
+      "batchOps": { "*": { "direct": true } },
+      "derived": { "shapeCount": { "premiseOnly": true, "description": "Number of top-level shapes used by generated shape names" } },
+      "fields": {
+        "identity": { "kind": "string", "optional": true, "readOnly": true },
+        "props": { "kind": "json", "optional": true },
+        "shapes": { "kind": "list", "of": "Shape" }
+      },
+      "toolId": { "field": "identity", "prefix": "layout:" }
+    },
+    "Slide": {
+      "batchOps": { "*": { "direct": true } },
+      "derived": { "shapeCount": { "premiseOnly": true, "description": "Number of top-level shapes used by generated shape names" } },
+      "label": "props.name",
+      "fields": {
+        "layout": { "kind": "ref", "of": "Layout", "optional": true },
+        "props": { "kind": "json", "optional": true, "members": {
+          "fileId": { "minimum": 256, "maximum": 2147483647, "multipleOf": 1 }
+        } },
+        "background": { "kind": "json", "optional": true },
+        "transition": { "kind": "json", "optional": true, "members": {
+          "durationMs": { "minimum": 0, "maximum": 4294967295, "multipleOf": 1 }
+        } },
+        "rawExt": { "kind": "json", "optional": true, "readOnly": true },
+        "notes": { "kind": "json", "optional": true },
+        "notesBody": { "kind": "ref", "of": "TextBody", "optional": true, "owns": true },
+        "comments": { "kind": "json", "optional": true },
+        "animations": { "kind": "list", "of": "Animation" },
+        "shapes": { "kind": "list", "of": "Shape" },
+        "slideId": { "kind": "integer", "optional": true, "readOnly": true, "minimum": 256, "maximum": 2147483647, "multipleOf": 1 }
+      },
+      "toolId": { "field": "slideId", "prefix": "slide:" }
+    },
+    "Shape": {
+      "batchOps": { "*": { "direct": true } },
+      "label": "name",
+      "readOnlyWhen": { "field": "kind", "values": ["opaque"] },
+      "fields": {
+        "kind": { "kind": "enum", "values": ["shape", "picture", "group", "connector", "table", "chart", "media", "ink", "opaque"], "optional": true, "sample": false },
+        "name": { "kind": "string" },
+        "xfrm": { "kind": "json", "optional": true, "members": {
+          "x": { "minimum": -2147483647, "maximum": 2147483647 },
+          "y": { "minimum": -2147483647, "maximum": 2147483647 },
+          "w": { "minimum": 0, "maximum": 2147483647 },
+          "h": { "minimum": 0, "maximum": 2147483647 }
+        } },
+        "props": { "kind": "json", "optional": true },
+        "look": { "kind": "map" },
+        "text": { "kind": "json", "optional": true },
+        "body": { "kind": "ref", "of": "TextBody", "optional": true, "owns": true },
+        "children": { "kind": "list", "of": "Shape" },
+        "table": { "kind": "ref", "of": "Table", "optional": true, "owns": true },
+        "media": { "kind": "ref", "of": "Media", "optional": true },
+        "chart": { "kind": "ref", "of": "Chart", "optional": true, "owns": true },
+        "key": { "kind": "string", "optional": true, "readOnly": true },
+        "address": { "kind": "json", "optional": true, "readOnly": true, "position": true },
+        "identity": { "kind": "string", "optional": true, "readOnly": true }
+      },
+      "toolId": { "field": "key", "prefix": "shape:" }
+    },
+    "Chart": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "parts": { "kind": "map" }
+      }
+    },
+    "TextBody": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "props": { "kind": "json", "optional": true, "sample": false },
+        "paragraphs": { "kind": "list", "of": "Paragraph" }
+      }
+    },
+    "Paragraph": {
+      "batchIndependent": true,
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "props": { "kind": "json", "optional": true, "members": { "level": { "minimum": 0, "maximum": 8, "multipleOf": 1 } } },
+        "text": {
+          "kind": "text",
+          "marks": {
+            "font": { "expand": "after" },
+            "fontEa": { "expand": "after" },
+            "fontCs": { "expand": "after" },
+            "fontSym": { "expand": "after" },
+            "size": { "expand": "after" },
+            "bold": { "expand": "after" },
+            "italic": { "expand": "after" },
+            "underline": { "expand": "after" },
+            "underlineColor": { "expand": "after" },
+            "strike": { "expand": "after" },
+            "baseline": { "expand": "after" },
+            "caps": { "expand": "after" },
+            "spacing": { "expand": "after" },
+            "kern": { "expand": "after" },
+            "fill": { "expand": "after" },
+            "outline": { "expand": "after" },
+            "highlight": { "expand": "after" },
+            "link": { "expand": "none" },
+            "lang": { "expand": "after" },
+            "shadow": { "expand": "after" },
+            "glow": { "expand": "after" },
+            "noProof": { "expand": "after" },
+            "extra": { "expand": "after" },
+            "inline": { "expand": "none" },
+            "seg": { "expand": "after" }
+          }
+        }
+      }
+    },
+    "Table": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "props": { "kind": "json", "optional": true },
+        "cols": { "kind": "list", "of": "Col" },
+        "rows": { "kind": "list", "of": "Row" },
+        "cells": { "kind": "map", "owns": true }
+      }
+    },
+    "Col": {
+      "batchIndependent": true,
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "identity": { "kind": "string", "optional": true, "readOnly": true },
+        "width": { "kind": "number", "label": "column width", "minimum": 0, "maximum": 2147483647 }
+      }
+    },
+    "Row": {
+      "batchIndependent": true,
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "identity": { "kind": "string", "optional": true, "readOnly": true },
+        "height": { "kind": "number", "label": "row height", "minimum": 0, "maximum": 2147483647 }
+      }
+    },
+    "Animation": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "props": { "kind": "json", "optional": true, "members": {
+          "durationMs": { "minimum": 0, "maximum": 4294967295, "multipleOf": 1 },
+          "delayMs": { "minimum": 0, "maximum": 4294967295, "multipleOf": 1 },
+          "repeat": { "minimum": 0, "maximum": 4294967295, "multipleOf": 1 }
+        } }
+      }
+    },
+    "Media": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "blob": { "kind": "blob", "optional": true },
+        "props": { "kind": "json", "optional": true }
+      }
+    },
+    "CommentThread": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "anchor": { "kind": "json" },
+        "resolved": { "kind": "boolean", "optional": true },
+        "comments": { "kind": "list", "of": "Comment" },
+        "legacy": { "kind": "string", "optional": true },
+        "wasResolved": { "kind": "boolean", "optional": true }
+      }
+    },
+    "Comment": {
+      "batchOps": { "*": { "direct": true } },
+      "fields": {
+        "author": { "kind": "string" },
+        "name": { "kind": "string", "optional": true },
+        "body": { "kind": "text" },
+        "created": { "kind": "string" },
+        "initials": { "kind": "string", "optional": true },
+        "props": { "kind": "json", "optional": true, "members": {
+          "kept.tz": { "minimum": -2147483648, "maximum": 2147483647, "multipleOf": 1 }
+        } },
+        "legacy": { "kind": "string", "optional": true }
+      }
+    }
+  }
+}

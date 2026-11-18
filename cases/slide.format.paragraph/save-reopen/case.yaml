@@ -1,0 +1,22 @@
+format: 1
+id: slide.format.paragraph/save-reopen
+feature: slide.format.paragraph
+intent: >-
+  A centred paragraph and a bulleted, indented list made by command survive saving as .kslide and as .pptx and opening each again.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/roundtrip.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: roundtrip
+      filter: paragraph_formatting_survives_save_and_reopen
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

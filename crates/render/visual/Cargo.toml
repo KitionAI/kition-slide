@@ -1,0 +1,23 @@
+[package]
+name = "kition-slide-visual"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide visual fidelity: clean slide renders compared with reference renders (SSIM and pixel metrics, diff images, scorecards)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-model = { workspace = true }
+kition-slide-render = { workspace = true }
+kition-slide-pptx = { workspace = true }
+kition-slide-fonts = { workspace = true }
+kition-slide-text = { workspace = true }
+image = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[build-dependencies]
+sha2 = { workspace = true }

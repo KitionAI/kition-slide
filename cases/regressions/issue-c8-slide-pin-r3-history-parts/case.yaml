@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-c8-slide-pin-r3-history-parts
+feature: slide.agent.premises
+intent: >-
+  An ordinary file reread can renumber local master/layout ids after a slide edit. When the
+  persisted layout identities and order are unchanged, retain the session's local part numbers
+  and history so the private shape-count premise can report changed.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin run 3 private fact regression
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: private_facts
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

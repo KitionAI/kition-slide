@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-1
+feature: slide.charts.edit
+intent: >-
+  insert.chart and chart.type refuse an unknown chart type (it became a column chart) and
+  chart.options an unknown palette; a waterfall floats each bar on the running total with totals
+  from zero, coloured increase, decrease and total; funnel and treemap draw centred bars and
+  tiles, not lines; combo draws columns with the last series as a line; format.size,
+  format.color, format.bold and format.font on a chart format its text; series take colours
+  (insert.chart series color, chart.options colors) and chart.options takes gapWidth and
+  overlap; a chart given its data gets no "Chart Title" placeholder.
+layer: gate
+source:
+  kind: issue
+  from: Kition Slide regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-resaved-package
+feature: slide.agent.ids
+intent: >-
+  A package saved again with the same parts in another order and without compression is no change: a write with basis applies without others, and one without basis is neither refused nor told of a change.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-4 (kition-sdk 2b7231e, two reads of a file paired object by object)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: j_a_package_saved_again_unchanged_is_no_change
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

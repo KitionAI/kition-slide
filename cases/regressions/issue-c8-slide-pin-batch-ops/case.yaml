@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-c8-slide-pin-batch-ops
+feature: slide.agent.premises
+intent: >-
+  Raw object-model batches declare their premise contract (batchOps): without it the SDK refuses
+  every raw batch before it runs. Paragraphs and table rows and columns keep no identity in the
+  saved file, so creating one, or inserting, moving or removing one by index, stays undeclared
+  and is refused before it runs (it applied at a shifted place before); a paragraph named by id
+  after another program inserted one before it is still the same paragraph.
+layer: gate
+source:
+  kind: probe
+  from: task card C8-slide-pin raw batch contracts
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: raw_batches
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-17"

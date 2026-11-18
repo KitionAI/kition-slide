@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/guard-modes
+feature: slide.agent.ids
+intent: >-
+  With --guard epoch any change by others since the basis refuses a write; with --guard off nothing is refused and others still says what changed.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: f_the_epoch_guard_refuses_any_change_by_others_and_the_guard_off_refuses_none
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

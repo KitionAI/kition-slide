@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-khp-bench-text-on-group
+feature: slide.agent.act
+intent: >-
+  `text.set` on a group, picture, connector or chart is refused: a file keeps text only in
+  shapes and table cells, and the text was accepted and then lost on saving (khp-bench shift
+  conversations: a remembered id named a group on the slide now at that position).
+layer: gate
+source:
+  kind: probe
+  from: KitionAI/khp-bench conversation grader self-check (tests/conv_shift_grader.py, C34)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      filter: text_set_on_a_group_is_refused_not_dropped
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

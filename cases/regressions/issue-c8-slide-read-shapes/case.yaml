@@ -1,0 +1,48 @@
+format: 1
+id: regressions/issue-c8-slide-read-shapes
+feature: slide.agent.ids
+intent: >-
+  Shape writes hold ancestor transforms, connector endpoint geometry, slide size and hyperlink
+  destinations while unrelated file changes remain writable. Unnamed inherited-fill detection
+  remains a separate strict waiting_for_sdk test.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/independent_shapes.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: group_member_move_holds_ancestor_transform_but_not_ancestor_name
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: inherited_fill_allows_an_unused_theme_font_change
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: explicit_fill_holds_replaced_fill_but_allows_same_targets_text_change
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: hyperlink_holds_destination_index_but_not_unused_destination_title
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: hyperlink_default_display_holds_destination_title_after_text_edit_step
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: centered_insert_holds_slide_size_but_allows_other_document_properties
+  - cargo-test:
+      package: kition-slide
+      test: independent_shapes
+      filter: connector_holds_endpoint_geometry_but_allows_endpoint_text
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

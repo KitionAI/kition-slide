@@ -1,0 +1,50 @@
+format: 1
+id: slide.agent.act/next-steps
+feature: slide.agent.act
+intent: >-
+  The agent builds a titled list slide at the end of the deck with the kit's own placeholders, and
+  leaves no empty placeholder or other check finding behind.
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/basic.kslide
+  license: Apache-2.0
+  note: A copy of the conformance deck the slide engine writes (one slide, a text box and a rectangle).
+input: [input/deck.kslide]
+steps:
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_before }
+  - task:
+      prompt: >-
+        Add a slide at the end of deck.kslide titled "Next steps" that lists Hire, Launch and
+        Review, one per line. Leave no empty placeholders.
+      max_turns: 25
+  - inspect: { path: deck.kslide, args: { target: { slide: 1 } }, as: first_after }
+  - inspect: { path: deck.kslide, args: { target: { slide: 2 } }, as: second, missing_ok: true }
+  - check: { path: deck.kslide, as: diagnostics }
+expected:
+  - actual: out:second
+    compare: values
+    value:
+      part.shapes: { any: { text: "Next steps" } }
+  - actual: out:second
+    compare: values
+    value:
+      part.shapes: { any: { text: { matches: "Hire\\s*\\n\\s*Launch\\s*\\n\\s*Review" } } }
+  - actual: out:diagnostics
+    compare: diagnostics
+    value: { absent: [slide.empty-placeholder, slide.text-overflow, slide.off-slide], max_errors: 0 }
+  - actual: out:first_after
+    compare: kdm-json
+    against: out:first_before
+    ignore: [edit, summary, dirty, canUndo, canRedo, revision]
+    collateral: true
+solution:
+  - tool: slide_run
+    args:
+      path: deck.kslide
+      steps:
+        - { command: slide.new, params: {} }
+        - { command: text.set, params: { id: 263, text: "Next steps", onSlide: 2 } }
+        - { command: text.set, params: { id: 264, text: "Hire\nLaunch\nReview", onSlide: 2 } }
+since: "2026-11-17"
+timeout_s: 600

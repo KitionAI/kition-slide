@@ -1,0 +1,13 @@
+[package]
+name = "kition-slide-geom"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide geometry: the shared drawing geometry of kition-office-core (units, frames, preset shapes) and Slide's morph contours"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-office-core = { workspace = true }
+kurbo = { workspace = true }

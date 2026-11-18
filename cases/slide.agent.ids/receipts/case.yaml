@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/receipts
+feature: slide.agent.ids
+intent: >-
+  Through the kits' MCP server's tools, slide_run's receipt names what the call changed, created, deleted or moved by the ids slide_inspect listed (a fill edit names exactly the shape; a text edit names the shape at the path to its text), and never a shape of another slide with the same number.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C6/C8-slide (kition-sdk 1d39fb1, tool ids, receipts and the premise guard)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: premise
+      filter: a_receipt_names_the_shapes_and_slides_a_run_changed_by_the_ids_inspect_listed
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,28 @@
+[package]
+name = "kition-slide-pptx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Slide PPTX: Office Open XML (PresentationML/DrawingML) import and export, written from the public ECMA-376 standard"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-slide-model = { workspace = true }
+kition-office-core = { workspace = true }
+kition-slide-geom = { workspace = true }
+kition-slide-color = { workspace = true }
+quick-xml = { workspace = true }
+zip = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+kition-slide-engine = { workspace = true }
+kition-slide-color = { workspace = true }
+kition-slide-geom = { workspace = true }
+image = { workspace = true }
+zip = { workspace = true }

@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-stored-receipts
+feature: slide.agent.ids
+intent: >-
+  Model creates assign ids and file defaults before their receipt, and internal autofit
+  props are marked sample:false. Created objects agree in memory, receipt and saved file.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/stored_receipts.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: stored_receipts
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

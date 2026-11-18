@@ -1,0 +1,22 @@
+format: 1
+id: slide.agent.ids/outside-same-shape-text
+feature: slide.agent.ids
+intent: >-
+  Another program's edit of the text of the agent's target refuses the agent's write with basis as changed, tells that text in others, and writes nothing; with the refusal's revision the write applies, its receipt giving the other program's text as before.
+layer: unit
+source:
+  kind: synthetic
+  from: 'task card C8-slide-3 (kition-sdk b4d5c43, two reads of a file paired, not compared by object id)'
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: outside
+      filter: b_a_colleagues_text_edit_of_the_target_is_refused_as_changed_and_the_retry_applies
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

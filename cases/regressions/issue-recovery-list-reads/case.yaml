@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-recovery-list-reads
+feature: slide.agent.context
+intent: >-
+  file.recovery.list lists the host's recovery folder and declares no editor state, as
+  file.recovery.discard does; it declared a current-slide read it never makes.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/recovery_reads.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: recovery_reads
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 60

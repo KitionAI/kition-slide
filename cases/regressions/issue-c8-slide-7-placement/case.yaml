@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-c8-slide-7-placement
+feature: slide.agent.env
+intent: >-
+  Object-model creations either survive saving under their chosen container or are
+  refused atomically before the receipt. Only groups hold child shapes and only ordinary
+  shapes hold a shape text body. Masters and layouts assign the same creation defaults;
+  comments keep their saved identities and valid anchors; media requires available bytes,
+  including parts added by an earlier command in the same batch. Unchanged imported missing
+  images remain editable through unrelated objects.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/saved.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: saved
+      filter: creations_
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 120

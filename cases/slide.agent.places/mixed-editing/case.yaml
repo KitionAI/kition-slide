@@ -1,0 +1,27 @@
+format: 1
+id: slide.agent.places/mixed-editing
+feature: slide.agent.places
+intent: >-
+  Fifty rounds (fixed seed, printed) on a fresh ten-slide deck each: a colleague's program makes
+  one random change (another shape's text, a slide inserted before or after the target's slide,
+  the other shape on the target's slide deleted or moved, a slide duplicated) and the agent writes
+  its target with basis by its tool id and by slide number and shape number. No write by id is
+  refused; a write by number is refused exactly when its slide number names another slide now
+  (relocated), and none is applied to another slide's shape. The test prints the table of outcomes.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/real_decks.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: real_decks
+      filter: fifty_rounds_of_mixed_editing
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-17"
+timeout_s: 180
