@@ -71,9 +71,9 @@ resolution and overlays an invisible real-text layer with embedded font subsets.
 ## Quality gates
 
 `cargo xtask ci`: rustfmt check, clippy `-D warnings`, tests, layering, asset attribution
-(`cargo xtask assets`), wasm32 check. This repository has no CI or release workflow of its own;
-Kition builds and publishes the kit's package from a Kition checkout
-(`scripts/publish-kit.sh slide`, see `docs/kits.md` there).
+(`cargo xtask assets`), wasm32 check. This repository's only workflow is
+the Package workflow (`.github/workflows/package.yml`), which builds and publishes the kit's
+package on GitHub with Kition's reusable `kit-package.yml` (see `docs/kits.md` there).
 
 ## Revision history
 
