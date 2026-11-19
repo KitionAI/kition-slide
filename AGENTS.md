@@ -40,7 +40,7 @@ to the engine.
 - `bindings/wasm` compiles the engine to WebAssembly on the public
   `KitionAI/kition-sdk` crate; the editor runs it in a Web Worker. The contract and the Kition platform rules live in kition-sdk
   (`docs/platform/kits/engine.md`, `docs/platform/reference/ui-protocol.md`), the agent protocol
-  in KHP (`github.com/kitharness/khp`);
+  in KHP (`github.com/kitharness/kitharness`);
   change them there, never here. `kition-slide-kit` must keep passing
   `kition_kit::testing::check_contract`, and `kit.json` must pass kition-sdk's
   `tools/check-manifest.mjs`.
@@ -56,7 +56,7 @@ WebAssembly for Kition's in-page editor and to a native binary for the headless 
 Kition Photo, Kition Vector, Kition Film, Kition PDF, Kition Motion, Kition Layout (`../kition-<kit>`).
 
 Standards and learnings shared across Kition's kits live in kition-sdk
-(`docs/platform/index.md`), in KHP (`github.com/kitharness/khp`) and in `docs/kits.md` in the
+(`docs/platform/index.md`), in KHP (`github.com/kitharness/kitharness`) and in `docs/kits.md` in the
 Kition repository. Read them at the start of a session and follow their standards. Kits never
 copy code from each other. Drawing objects are shared instead: their geometry, model, commands
 and gestures live in kition-sdk's `kition-office-core` crate, which this kit depends on (from the
