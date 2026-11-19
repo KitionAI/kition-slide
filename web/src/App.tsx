@@ -38,6 +38,7 @@ import { MoreCommands } from './ribbon/MoreCommands'
 import { CONTEXT_PRIMARY, RIBBON_MENUS } from './ribbon/menus'
 import { FileTab } from './ribbon/FileTab'
 import { ExportDialog } from './ExportDialog'
+import { useEngineBackdrop } from './backdrop'
 
 const HOST_TOOLS = { hand: HAND_TOOL }
 
@@ -57,6 +58,7 @@ function Editor({ slides }: { slides: Slides }) {
   const canvasRegion = useRef<HTMLDivElement>(null)
   const viewMemory = useRef<RasterView | null>(null)
   useSlideWheel(canvasRegion, canvas, viewMemory, slides)
+  useEngineBackdrop(doc, canvas)
   const [zoom, setZoom] = useState(1)
   const [tab, setTab] = useState('home')
   const [exporting, setExporting] = useState(false)

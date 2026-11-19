@@ -1,6 +1,6 @@
 format: 1
 kit: slide
-updated: "2026-11-17"
+updated: "2026-11-19"
 gate_budget_s: 600
 protected: []
 features:
@@ -413,6 +413,15 @@ features:
     paths: [web/src/App.tsx, web/src/ribbon/MoreCommands.tsx, web/src/ribbon/ContextTab.tsx, web/src/ribbon/HomeTab.tsx, web/tests/modes.mjs, web/tests/focus-escape.mjs]
     cases: [slide.editor.display-modes/mode-smoke, regressions/issue-focus-escape]
     since: "2026-11-17"
+  - id: slide.editor.host-theme
+    title: "The editor follows the host's light or dark theme, live: the pasteboard the engine paints around the slide is the host's canvas color, and the slide keeps its own colors"
+    dimension: [platform]
+    priority: P1
+    status: has
+    paths: [web/src/backdrop.ts, web/src/slides.tsx, web/src/App.tsx, web/tests/backdrop.mjs]
+    gap: "Export, print and previews never take the host's canvas color by design. Slide thumbnails, the notes pane and the rulers are not checked in the dark scheme yet."
+    cases: [regressions/issue-dark-backdrop]
+    since: "2026-11-19"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-dark-backdrop
+feature: slide.editor.host-theme
+intent: >-
+  The pasteboard the engine paints around the slide is the host's canvas color, and follows a live
+  switch of the host's theme (dark, light, dark, no reload), with Kition's tokens as it sends them
+  (`hsl(...)`); the slide stays white and in place. Before, the editor handed the engine only a
+  `#rrggbb` canvas color and only when the document opened, so in Kition's dark scheme the whole
+  backdrop around the slide stayed the engine's built-in light grey (Kition host matrix row H16).
+layer: gate
+source:
+  kind: probe
+  from: web/tests/backdrop.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/backdrop.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-19"

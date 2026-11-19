@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { KitCommentAnchor, KitShownThread } from '@kition/kit-ui-protocol'
 import { useKitEditorState, useKitSession, usePresence, useRemoteSelections, type HostConnection, type KitEngineInfo, type KitPresence, type KitModuleManifest, type PresenceRect, type Strings } from '@kition/kit-editor'
 import { useSlideView } from './useSlideView'
+import { canvasColor } from './backdrop'
 import kit from '../../kit.json'
 
 /**
@@ -9,7 +10,7 @@ import kit from '../../kit.json'
  * Called after the host's theme is applied.
  */
 export function slidesManifest(commentOnlyAs: string | null = null): KitModuleManifest {
-  const canvas = getComputedStyle(document.documentElement).getPropertyValue('--kit-canvas').trim()
+  const canvas = canvasColor()
   return {
     kitId: 'kit.slide',
     base: new URL('./engine/', document.baseURI).href,
@@ -34,7 +35,7 @@ export function slidesManifest(commentOnlyAs: string | null = null): KitModuleMa
     ].map((file) => new URL(`./fonts/${file}`, document.baseURI).href),
     setup: [
       { method: 'setSingle', args: [true] },
-      ...(/^#[0-9a-f]{6}$/i.test(canvas) ? [{ method: 'setBackdrop', args: [canvas] }] : []),
+      ...(canvas ? [{ method: 'setBackdrop', args: [canvas] }] : []),
       ...(commentOnlyAs !== null ? [{ method: 'setCommentOnly', args: [commentOnlyAs] }] : []),
     ],
     // What a commenter's read-only session runs (kit.json `collaboration.comments.commands`).
