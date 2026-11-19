@@ -3,6 +3,10 @@
 Changes to Kition Slide, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## 0.1.1
+
+- The pasteboard around the slide follows the host's theme, live: in a dark host it is dark, and it repaints when the host's theme changes (before, it kept its built-in light grey).
+
 ## 0.1.0
 
 First public release of the source, under the Apache License 2.0. It contains:

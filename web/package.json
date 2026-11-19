@@ -1,6 +1,6 @@
 {
   "name": "kition-slide-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "The Slide kit's own editor (Kition Kit Standard 6.1): Kition Slide's engine with a PowerPoint-style ribbon, slide thumbnails, notes, and status bar, embedded by hosts over the Kit UI protocol.",
   "license": "Apache-2.0",
