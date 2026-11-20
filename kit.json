@@ -12,7 +12,8 @@
     "module": "kition_slide_kit",
     "class": "SlideDocument",
     "contract": 2,
-    "crate": "kition-slide-kit"
+    "crate": "kition-slide-kit",
+    "editorState": ["/slide", "/selection", "/selectedKinds", "/target", "/editingText"]
   },
   "formats": [
     {
