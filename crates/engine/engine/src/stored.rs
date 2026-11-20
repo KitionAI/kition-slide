@@ -106,6 +106,41 @@ fn file_ids(doc: &mut SlideFile, all: bool) -> bool {
     changed
 }
 
+/// [`settle`] for a document read from its replica after changes another replica made (an
+/// import): the slides' file ids first, as every replica settles them alike.
+pub(crate) fn settle_merged(doc: &mut SlideFile, old: &SlideFile) -> bool {
+    merged_file_ids(doc) | settle(doc, Some(old))
+}
+
+/// The file ids of a merged deck, the same on every replica. Two replicas that each added a slide
+/// at once gave both slides the same id (each its next number), and each replica numbers the two
+/// slides its own way: giving the repeat this replica's number for it, as [`file_ids`] does for a
+/// local copy, made every replica write a different repair, which the others undid, without end.
+/// So a repeat takes what the writer gives it: the first slide in slide order keeps the id, each
+/// other one the next id above every slide's. (A slide with none is [`file_ids`]'s.)
+fn merged_file_ids(doc: &mut SlideFile) -> bool {
+    const MAX: u32 = 2_147_483_647;
+    let mut next = doc.slides.iter().filter_map(|slide| slide.file_id).max().map_or(256, |max| max.saturating_add(1)).max(256);
+    // The ids `file_ids` gives the slides with none (their own) are taken too.
+    let taken: HashSet<u32> = doc.slides.iter().filter(|slide| slide.file_id.is_none()).map(|slide| slide.id.0).collect();
+    let mut used = HashSet::new();
+    let mut changed = false;
+    for slide in &mut doc.slides {
+        let Some(id) = slide.file_id else { continue };
+        if used.insert(id) {
+            continue;
+        }
+        // Ends: `used` and `taken` hold at most one id per slide.
+        while next > MAX || used.contains(&next) || taken.contains(&next) {
+            next = if next > MAX { 256 } else { next + 1 };
+        }
+        used.insert(next);
+        Arc::make_mut(slide).file_id = Some(next);
+        changed = true;
+    }
+    changed
+}
+
 fn settle_slide(slide: &mut Slide, media: &[kition_slide_model::MediaItem]) -> bool {
     shapes(&mut slide.shapes, media) | kition_slide_pptx::stored::settle_slide(slide)
 }

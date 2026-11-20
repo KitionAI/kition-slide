@@ -192,7 +192,7 @@ features:
     paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/sample.rs, bindings/wasm/src/collab.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and reopen as .kslide and .pptx is proven by command for adding slides with a layout, duplicating, moving and changing a slide's layout; the feature's other commands are covered by engine tests only.
-    cases: [slide.slides.manage/save-reopen]
+    cases: [regressions/issue-concurrent-slide-ids, slide.slides.manage/save-reopen]
     since: "2026-11-17"
   - id: slide.slides.sections
     title: "Sections"

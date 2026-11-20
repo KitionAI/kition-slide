@@ -255,8 +255,8 @@ impl DocState {
         }
         let mut repaired = (*self.doc).clone();
         // Values others wrote (an agent's object-model batch) as the file stores them (C8-slide-5),
-        // for what changed since `before`.
-        let settled = before.is_some_and(|before| crate::stored::settle(&mut repaired, Some(before)));
+        // for what changed since `before`, and the slides' file ids as every replica settles them.
+        let settled = before.is_some_and(|before| crate::stored::settle_merged(&mut repaired, before));
         if (crate::autofit::repair(&mut repaired) | settled)
             && self.record_kdm(&Origin::system("autofit"), &Arc::new(repaired)).is_some()
             && let Some(kdm) = self.link.kdm.as_ref()

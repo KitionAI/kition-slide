@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-concurrent-slide-ids
+feature: slide.slides.manage
+intent: >-
+  Two editors of one room add a slide at the same time: their replicas converge and then stop
+  writing. Both new slides took the same next number in their own editor, so after the merge both
+  carried the same file id; each replica gave the repeat its own number for that slide, and the two
+  replicas number the slides the other way round, so every import made a repair the other replica
+  undid. While their pushes crossed (a room under load) the room grew without end and its editors
+  never converged. A repeat now takes what the writer gives it, the same on every replica.
+layer: gate
+source:
+  kind: issue
+  from: co-editing acceptance run of a host with managed rooms (two editors' converge case under parallel load)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: concurrent_slides
+      filter: two_editors_add_a_slide_at_once_and_their_replicas_settle
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-20"
+timeout_s: 120
