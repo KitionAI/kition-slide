@@ -178,7 +178,7 @@ hint on the small kicker; the second inspect has no hints left. The agent's guid
 
 ## Maturity
 
-Version 0.1.1 · KHP 1.0, conformance level `basic`.
+Version 0.1.2 · KHP 1.0, conformance level `basic`.
 
 | Works today | Partly there | Not yet |
 | --- | --- | --- |

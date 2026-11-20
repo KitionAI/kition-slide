@@ -3,6 +3,11 @@
 Changes to Kition Slide, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## 0.1.2
+
+- `kit.json` declares the engine's editor state as `engine.editorState`, so a host that does not run the engine's Rust code reads `inspect()` without it.
+- A lint fix in the HEVC decoder's SAO neighbour check (no change in behaviour).
+
 ## 0.1.1
 
 - The pasteboard around the slide follows the host's theme, live: in a dark host it is dark, and it repaints when the host's theme changes (before, it kept its built-in light grey).

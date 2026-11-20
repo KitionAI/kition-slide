@@ -15,7 +15,7 @@ const alone = window.setTimeout(() => {
   root.render(<div className="kui-alone">{t('noHost')}</div>)
 }, 3000)
 
-void connectHost({ id: 'kit.slide', version: '0.1.1', capabilities: ['ai', 'replica', 'presence', 'comment-anchors'], brand: manifest.ui.brand, display: manifest.ui.display }).then((host) => {
+void connectHost({ id: 'kit.slide', version: '0.1.2', capabilities: ['ai', 'replica', 'presence', 'comment-anchors'], brand: manifest.ui.brand, display: manifest.ui.display }).then((host) => {
   window.clearTimeout(alone)
   // No StrictMode: its doubled effects would open the document twice, in two engine workers.
   root.render(<App host={host} />)
