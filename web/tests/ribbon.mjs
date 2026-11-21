@@ -76,6 +76,13 @@ try {
     ['insert.chart', { type: 'line' }, 'chartDesign'],
   ]) {
     await run(command, params)
+    // The person clicks the new object (the topmost): an agent's insertion selects it only in the
+    // agent's own editor state (KHP C3b), and the contextual tab follows the person's selection.
+    const shapes = (await run('slide.inspect')).shapes
+    const [x, y, w, h] = shapes[shapes.length - 1].box
+    const bounds = await kit.getByTestId('kit-canvas-surface').boundingBox()
+    const zoom = Number((await kit.getByTestId('kit-zoom').textContent()).replace('%', '')) / 100
+    await page.mouse.click(bounds.x + bounds.width / 2 + (x + w / 2 - 480) * zoom, bounds.y + bounds.height / 2 + (y + h / 2 - 270) * zoom)
     await visible(`ribbon-tab-${context}`)
     await tab(context)
     assert.ok(await kit.locator('[role="tabpanel"] button').count() > 2)

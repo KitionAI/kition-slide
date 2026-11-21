@@ -109,9 +109,9 @@ try {
   }, data)
   await until(async () => (await run('document.inspect')).slides.length === 3, 'PPTX reopened')
   await run('slide.go', { index: tableSlide })
-  const table = (await tables())[0]
-  await run('edit.select', { ids: [table.id] })
-  await run('text.edit', { cell: [0, 1] })
+  // The person clicks into the cell: an agent's edit.select and text.edit move only the agent's
+  // own editor state, for that run (KHP C3b).
+  await clickCell(0, 1)
   assert.equal((await state()).canSplit, true)
   assert.equal((await state()).anchor, 'center')
   assert.match(await cellText(0, 0), /Editable/)
@@ -158,7 +158,7 @@ try {
   console.log('PASS arrow navigation across cells and clearing a cell range')
 
   // Borders on chosen edges with the pen's color and weight.
-  await run('table.selectCells', { from: [1, 1], to: [1, 1] })
+  await clickCell(1, 1)
   await tab('tableDesign')
   await kit.getByTestId('slides-table-pen-weight').selectOption('3')
   await kit.getByTestId('slides-table-pen-color').click()
@@ -181,10 +181,15 @@ try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/dev.html?modes=classic&locale=en-US&role=viewer`)
   await page.waitForFunction(() => document.getElementById('status')?.textContent?.includes(' open in '), null, { timeout: 60000 })
   await page.evaluate(async (saved) => window.devHost.open('Read-only-table.pptx', new Uint8Array(saved).buffer), saved)
-  await run('slide.go', { index: tableSlide })
-  await run('edit.select', { ids: [(await tables())[0].id] })
-  await run('table.selectCells', { from: [1, 1], to: [1, 1] })
-  assert.equal((await state()).borders[2], 3, 'the border survives saving and reopening')
+  // One agent run: its selection lasts that run (KHP C3b).
+  const id = (await tables())[0].id
+  const reopened = await page.evaluate(async (steps) => (await window.devHost.connection().ai.run(steps, false)).completed.at(-1).result, [
+    { command: 'slide.go', params: { index: tableSlide } },
+    { command: 'edit.select', params: { ids: [id] } },
+    { command: 'table.selectCells', params: { from: [1, 1], to: [1, 1] } },
+    { command: 'table.state', params: {} },
+  ])
+  assert.equal(reopened.borders[2], 3, 'the border survives saving and reopening')
   // A read-only document shows only the viewing tabs: no Table Layout, so no table edits.
   await page.waitForTimeout(300)
   assert.equal(await kit.getByTestId('ribbon-tab-tableLayout').count(), 0, 'no Table Layout tab in a read-only document')
