@@ -11,17 +11,17 @@ importers:
   .:
     dependencies:
       '@kition/kit-dev-host':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.2
+        version: 0.5.2
       '@kition/kit-editor':
-        specifier: ^0.1.0
-        version: 0.1.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.5.2
+        version: 0.5.2(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@kition/kit-host':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.2
+        version: 0.5.2
       '@kition/kit-ui-protocol':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.2
+        version: 0.5.2
       '@kition/tessera-icons':
         specifier: ^0.1.0
         version: 0.1.0(react@19.3.0)
@@ -323,26 +323,26 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kition/kdm@0.1.0':
-    resolution: {integrity: sha512-st/3ZOkElVALIgejYyoYIYb+FVmaAVeTurKuQYf0py1mQLqMv312fKUTLqaQOZVIOh/uWsIhGC1r/d5iUN3ofA==}
+  '@kition/kdm@0.5.2':
+    resolution: {integrity: sha512-WtyCis1+vyrghGNK+2f/50WiTq9ckVrxdPvAIwGz5l5H15wC/zmSCe0ex+KCmStMHll/7I67vNHECOyGyxfuhw==}
 
-  '@kition/kit-dev-host@0.1.0':
-    resolution: {integrity: sha512-6DbAPbj7DZUf+VmDZw8rFkkhS6gqtUqHcEFj7ngO+1h2tH+wOlXBxXDPA5PDK0A1aqXEkRKQ6d2n/Hz+urMBQA==}
+  '@kition/kit-dev-host@0.5.2':
+    resolution: {integrity: sha512-RWMXom7xjmxpy8ls2+CT+TBpB+kGUfQ116tm3V+5PQDY6utRBS9p8dqj4JKy/SWZDTclnBgqwAv/ULYjV+bPYw==}
 
-  '@kition/kit-editor@0.1.0':
-    resolution: {integrity: sha512-mshRnhnRh057a5Optgzakh0lMiRBXqSQTehUsCoVpgyUL7FJIGyOesWuAygAij7Vhdj3tbkesmmW9kFOTNk6FQ==}
+  '@kition/kit-editor@0.5.2':
+    resolution: {integrity: sha512-p6A+fCrxEBOajM4Ko/ZjrCCe6LU+hElaqk+WEOPl5m4dHOblrFBG+7Mf/rV8hJ1zWibaDZevI3rSPHskAkBwdA==}
     peerDependencies:
       react: '>=19'
       react-dom: '>=19'
 
-  '@kition/kit-engine@0.1.0':
-    resolution: {integrity: sha512-GF7l9dQfE+qgtxwG9XSsYcmwShBFdXMnjsTe7acbkaySLliAm4lUeFdIEpTr8SfWWaELsqoH3rdeai9owJYp7w==}
+  '@kition/kit-engine@0.5.2':
+    resolution: {integrity: sha512-vA5gA6Z8623+Mobcd6VOxwynYJSEzJ2mWkz2CeQU9DZM0oCD/sqnP6+qnI2mwGTr5iwfEhS05CjsVLNTfjuKZg==}
 
-  '@kition/kit-host@0.1.0':
-    resolution: {integrity: sha512-w3edEErQ2DTE4qYsM0tv3Mm/MvtY34c3zxR1tIN8rOcClD27ZOA3mr1k4z66gp3WaJvN05AxIJYlT5LiFgstSg==}
+  '@kition/kit-host@0.5.2':
+    resolution: {integrity: sha512-+ndq6jGH9BdCVksCsudXDqZv/GJYv5DfBrFrxu74KG/22Kg381nWpmDSG5oEIsM8qwAX00mziyHt/4PWpUM8ew==}
 
-  '@kition/kit-ui-protocol@0.1.0':
-    resolution: {integrity: sha512-4E3a32Qk3leGiQPhxS3J7yfbJnJZRQZGdfRSRExVTgGNw/b5xduymixy409UV8UrzExbR79qaor781Xi1qj+bA==}
+  '@kition/kit-ui-protocol@0.5.2':
+    resolution: {integrity: sha512-N0OdNjO8gqP0EKCtu73MgGDzdUxS5yFHYfXrLpX7NBUwaFlk/pdQ9Q5fHtzTbarxDQ4CvlOY5qZm/F+sG7ULZg==}
 
   '@kition/tessera-icons@0.1.0':
     resolution: {integrity: sha512-UpEAusz6dbipn9hcGvzY5ywsPyNOKLWa9y4Lo7WW2Z07USBHqcrHwj08TVe/QkWZ7gopnxQWqlF2rT+YOGAWgw==}
@@ -1908,19 +1908,19 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@kition/kdm@0.1.0':
+  '@kition/kdm@0.5.2':
     dependencies:
       loro-crdt: 1.16.4
 
-  '@kition/kit-dev-host@0.1.0':
+  '@kition/kit-dev-host@0.5.2':
     dependencies:
-      '@kition/kit-host': 0.1.0
+      '@kition/kit-host': 0.5.2
 
-  '@kition/kit-editor@0.1.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@kition/kit-editor@0.5.2(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@kition/kdm': 0.1.0
-      '@kition/kit-engine': 0.1.0
-      '@kition/kit-ui-protocol': 0.1.0
+      '@kition/kdm': 0.5.2
+      '@kition/kit-engine': 0.5.2
+      '@kition/kit-ui-protocol': 0.5.2
       '@kition/tessera-icons': 0.1.0(react@19.3.0)
       '@kition/tessera-tokens': 0.1.0
       '@kition/tessera-ui': 0.1.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1930,15 +1930,15 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  '@kition/kit-engine@0.1.0':
+  '@kition/kit-engine@0.5.2':
     dependencies:
-      '@kition/kdm': 0.1.0
+      '@kition/kdm': 0.5.2
 
-  '@kition/kit-host@0.1.0':
+  '@kition/kit-host@0.5.2':
     dependencies:
-      '@kition/kit-ui-protocol': 0.1.0
+      '@kition/kit-ui-protocol': 0.5.2
 
-  '@kition/kit-ui-protocol@0.1.0': {}
+  '@kition/kit-ui-protocol@0.5.2': {}
 
   '@kition/tessera-icons@0.1.0(react@19.3.0)':
     optionalDependencies:

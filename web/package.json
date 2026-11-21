@@ -23,13 +23,13 @@
     "test:focus-escape": "node tests/focus-escape.mjs chromium && node tests/focus-escape.mjs webkit"
   },
   "dependencies": {
-    "@kition/kit-editor": "^0.1.0",
-    "@kition/kit-host": "^0.1.0",
-    "@kition/kit-ui-protocol": "^0.1.0",
+    "@kition/kit-editor": "^0.5.2",
+    "@kition/kit-host": "^0.5.2",
+    "@kition/kit-ui-protocol": "^0.5.2",
     "@kition/tessera-icons": "^0.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "@kition/kit-dev-host": "^0.1.0"
+    "@kition/kit-dev-host": "^0.5.2"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
