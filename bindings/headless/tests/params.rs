@@ -22,7 +22,9 @@ fn ill_typed_params_are_refused_and_change_nothing() {
     let root = std::fs::canonicalize(root).unwrap();
     std::fs::write(root.join("Deck.kslide"), SlideDocument::create("Deck.kslide", 960, 540).unwrap().save(None).unwrap()).unwrap();
 
-    let mut kit = Headless::<SlideDocument>::with_replica_port(KitInfo::from_manifest(include_str!("../../../kit.json"), &[], &[]).unwrap());
+    let mut kit = Headless::<SlideDocument>::with_replica_port(
+        KitInfo::from_manifest(include_str!("../../../kit.json"), &[], kition_slide_kit::EDITOR_STATE).unwrap(),
+    );
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let id = kit.open(OpenRequest { file: &folder.file("Deck.kslide").unwrap(), read_only: false, create: None }).unwrap().id;
@@ -55,7 +57,9 @@ fn a_command_that_cannot_run_says_why_by_a_typed_reason() {
     std::fs::create_dir_all(&root).unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     std::fs::write(root.join("Deck.kslide"), doc.save(None).unwrap()).unwrap();
-    let mut kit = Headless::<SlideDocument>::with_replica_port(KitInfo::from_manifest(include_str!("../../../kit.json"), &[], &[]).unwrap());
+    let mut kit = Headless::<SlideDocument>::with_replica_port(
+        KitInfo::from_manifest(include_str!("../../../kit.json"), &[], kition_slide_kit::EDITOR_STATE).unwrap(),
+    );
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let id = kit.open(OpenRequest { file: &folder.file("Deck.kslide").unwrap(), read_only: false, create: None }).unwrap().id;

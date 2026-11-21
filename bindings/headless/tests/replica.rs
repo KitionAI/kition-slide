@@ -39,7 +39,9 @@ fn a_deck_opens_from_its_exported_replica_with_its_media() {
     deck.execute("insert.picture", json!({ "name": "dot.png", "data": PICTURE })).unwrap();
     std::fs::write(root.join("Deck.kslide"), deck.save(None).unwrap()).unwrap();
 
-    let mut kit = Headless::<SlideDocument>::with_replica_port(KitInfo::from_manifest(include_str!("../../../kit.json"), &[], &[]).unwrap());
+    let mut kit = Headless::<SlideDocument>::with_replica_port(
+        KitInfo::from_manifest(include_str!("../../../kit.json"), &[], kition_slide_kit::EDITOR_STATE).unwrap(),
+    );
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let file = kit.open(OpenRequest { file: &folder.file("Deck.kslide").unwrap(), read_only: false, create: None }).unwrap().id;

@@ -1,0 +1,26 @@
+format: 1
+id: slide.platform.document-identity/no-replica
+feature: slide.platform.document-identity
+intent: >-
+  Through the real kition-slide process: a saved .kslide (slide.json and media) or .pptx embeds no
+  replica, so document.identity answers no docId for either and for an empty file, and
+  document.fork writes the file's bytes unchanged under the new name with no docId; the source is
+  unchanged, the fork opens as a deck, a fork of the fork is the same bytes again, a fork never
+  replaces an existing file, and kit.json lists exactly the features kit.initialize answers.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/headless/tests/identity.rs (a_slide_file_carries_no_identity_and_forks_into_the_same_bytes)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: identity
+      filter: a_slide_file_carries_no_identity_and_forks_into_the_same_bytes
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-20"
+timeout_s: 120

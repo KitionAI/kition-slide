@@ -195,7 +195,7 @@ repository has no push policy of its own (see "Kition kit rules" at the top of t
 ## 6. Running and looking at the app
 
 - Headless, for the agent: `cargo build --release -p kition-slide`, then drive it over the Kit
-  Protocol (`kition-kit/2`; `kit.json`'s `headless.protocol`); kition-sdk's `kition-headless`
+  Protocol (`kition-kit/1`; `kit.json`'s `headless.protocol`); kition-sdk's `kition-headless`
   implements the host side.
 - For the web editor: `cd web && pnpm engine && pnpm dev`, open `dev.html`. `pnpm test:flow`,
   `pnpm test:ribbon` and `pnpm test:scroll` drive it with Playwright (Chromium and WebKit) and are
