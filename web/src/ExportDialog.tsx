@@ -4,7 +4,7 @@
  * host writes it as a new file next to the slides; success is shown only once the host answers.
  */
 import { useState } from 'react'
-import { Button, Choice, Dialog, toast, useKitEditor } from '@kition/kit-editor'
+import { Button, Choice, Dialog, toast, useKitEditor } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { exportFiles, writeExports, type ExportAnswer, type ExportFormat } from './exporting'
 

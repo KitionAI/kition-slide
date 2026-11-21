@@ -9,7 +9,7 @@ kit's package. To use Slide, start with the [README](../README.md).
 | --- | --- |
 | `crates/` | The engine (Rust), in groups: `kdm`, `engine`, `formats`, `media`, `render`, `support`; compiled to WebAssembly for the editor |
 | `bindings/` | The engine's two outlets: `wasm` (the in-page editor's engine, behind Kition's `KitDocument` contract) and `headless` (the `kition-slide` program for Kition's agent and `kition-kits-mcp`) |
-| `web/` | The kit's editor (React, on kition-sdk's `@kition/kit-editor`) |
+| `web/` | The kit's editor (React, on kition-sdk's `@kition/sdk/editor`) |
 | `agent/` | The agent guide and checks (KHP) |
 | `conformance/` | The sample presentations the conformance checks open (KHP) |
 | `kit.json` | The kit manifest (KHP) |
@@ -55,13 +55,14 @@ server's options.
 
 ### The editor's dependencies
 
-By default `pnpm install` in `web/` installs the published `@kition/*` packages from npm, at the
-versions the committed `web/pnpm-lock.yaml` pins, so the editor needs no other checkout. To
-develop against a kition-sdk checkout instead, run `pnpm install` in that checkout, then
-`KITION_LINK=1 pnpm install` in `web/`: `web/.pnpmfile.cjs` then links `@kition/kit-editor`,
-`@kition/kit-host`, `@kition/kit-ui-protocol` and `@kition/kit-dev-host` from the checkout next
-to this repository (or the one `KITION_SDK` names); the Kition Tessera packages still come from
-npm. The linked install rewrites `web/pnpm-lock.yaml`; do not commit a lockfile changed that way.
+By default `pnpm install` in `web/` installs kition-sdk's `@kition/sdk` and Kition Tessera's
+`@kition/tessera` from npm, at the versions the committed `web/pnpm-lock.yaml` pins, so the editor
+needs no other checkout. To develop against local checkouts instead, clone `kition-sdk` and
+`kition-tessera` next to this repository (or set `KITION_SDK` and `KITION_TESSERA`), run
+`pnpm install` in each of them and build the two packages (`pnpm build` in kition-sdk's
+`packages/sdk` and kition-tessera's `packages/tessera`: their exports are the built `dist/`), then
+run `KITION_LINK=1 pnpm install` in `web/`: `web/.pnpmfile.cjs` links them. The linked install
+rewrites `web/pnpm-lock.yaml`; do not commit a lockfile changed that way.
 
 ## Take the README pictures
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ALargeSmallIcon as ALargeSmall, PaintbrushIcon as Paintbrush, PaletteIcon as Palette, RectangleHorizontalIcon as RectangleHorizontal } from '@kition/tessera-icons/react'
-import { MenuItem, RibbonGroup, RibbonButton, CommandItem } from '@kition/kit-editor'
+import { ALargeSmallIcon as ALargeSmall, PaintbrushIcon as Paintbrush, PaletteIcon as Palette, RectangleHorizontalIcon as RectangleHorizontal } from '@kition/tessera/icons/react'
+import { MenuItem, RibbonGroup, RibbonButton, CommandItem } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { ColorGrid, RibbonMenu } from './common'
 import { themeIcon } from './themeIcon'

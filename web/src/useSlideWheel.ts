@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import type { KitCanvasHandle, RasterView } from '@kition/kit-editor'
+import type { KitCanvasHandle, RasterView } from '@kition/sdk/editor'
 import type { Slides } from './slides'
 
 const CANVAS_MARGIN = 28

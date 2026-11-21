@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { AlignVerticalJustifyCenterIcon as AlignVerticalJustifyCenter, BetweenHorizontalEndIcon as BetweenHorizontalEnd, BetweenHorizontalStartIcon as BetweenHorizontalStart, BetweenVerticalEndIcon as BetweenVerticalEnd, BetweenVerticalStartIcon as BetweenVerticalStart, Columns2Icon as Columns2, Grid2x2Icon as Grid2X2, MergeIcon as Merge, PaintBucketIcon as PaintBucket, PaintbrushIcon as Paintbrush, Rows3Icon as Rows3, SplitIcon as Split, TextCursorInputIcon as TextCursorInput, TrashIcon as Trash2, SquareDashedMousePointerIcon, SquareDashedIcon, AlignVerticalJustifyStartIcon, AlignVerticalJustifyEndIcon, RulerIcon as Ruler } from '@kition/tessera-icons/react'
-import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack } from '@kition/kit-editor'
+import { AlignVerticalJustifyCenterIcon as AlignVerticalJustifyCenter, BetweenHorizontalEndIcon as BetweenHorizontalEnd, BetweenHorizontalStartIcon as BetweenHorizontalStart, BetweenVerticalEndIcon as BetweenVerticalEnd, BetweenVerticalStartIcon as BetweenVerticalStart, Columns2Icon as Columns2, Grid2x2Icon as Grid2X2, MergeIcon as Merge, PaintBucketIcon as PaintBucket, PaintbrushIcon as Paintbrush, Rows3Icon as Rows3, SplitIcon as Split, TextCursorInputIcon as TextCursorInput, TrashIcon as Trash2, SquareDashedMousePointerIcon, SquareDashedIcon, AlignVerticalJustifyStartIcon, AlignVerticalJustifyEndIcon, RulerIcon as Ruler } from '@kition/tessera/icons/react'
+import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { ColorGrid } from './common'
 

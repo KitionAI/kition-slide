@@ -33,7 +33,7 @@ import {
   TransitionWindIcon,
   TransitionWipeIcon,
   type IconComponent,
-} from '@kition/tessera-icons/react'
+} from '@kition/tessera/icons/react'
 
 /** Each animation effect's own Tessera icon (engine effect ids); others draw the generic sparkles. */
 const ANIMATIONS: Readonly<Record<string, IconComponent>> = {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CommentsPanel, type CommentsPanelProps } from '@kition/kit-editor'
+import { CommentsPanel, type CommentsPanelProps } from '@kition/sdk/editor'
 import { useSlides, type CommentAnchor } from './slides'
 
 /**

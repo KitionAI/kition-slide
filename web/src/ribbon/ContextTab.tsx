@@ -1,5 +1,5 @@
-import { AlignHorizontalJustifyCenterIcon as AlignHorizontalJustifyCenter, BringToFrontIcon as BringToFront, CropIcon as Crop, GroupIcon as Group, LayersIcon as Layers, PaintBucketIcon as PaintBucket, RotateCwIcon as RotateCw, RulerIcon as Ruler, SendToBackIcon as SendToBack, SlidersHorizontalIcon as SlidersHorizontal, TextCursorInputIcon as TextCursorInput, UngroupIcon as Ungroup, type IconComponent } from '@kition/tessera-icons/react'
-import { CommandButton, DrawingWarpMenu, RibbonGroup, useKitEditor } from '@kition/kit-editor'
+import { AlignHorizontalJustifyCenterIcon as AlignHorizontalJustifyCenter, BringToFrontIcon as BringToFront, CropIcon as Crop, GroupIcon as Group, LayersIcon as Layers, PaintBucketIcon as PaintBucket, RotateCwIcon as RotateCw, RulerIcon as Ruler, SendToBackIcon as SendToBack, SlidersHorizontalIcon as SlidersHorizontal, TextCursorInputIcon as TextCursorInput, UngroupIcon as Ungroup, type IconComponent } from '@kition/tessera/icons/react'
+import { CommandButton, DrawingWarpMenu, RibbonGroup, useKitEditor } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 
 const ICONS: Array<[string, IconComponent]> = [['bringforward', BringToFront], ['sendbackward', SendToBack], ['ungroup', Ungroup], ['group', Group], ['arrange.align', AlignHorizontalJustifyCenter], ['fill', PaintBucket], ['crop', Crop], ['rotate', RotateCw], ['size', Ruler], ['text', TextCursorInput], ['arrange', Layers]]

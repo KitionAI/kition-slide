@@ -1,4 +1,4 @@
-import { useKitTools } from '@kition/kit-editor'
+import { useKitTools } from '@kition/sdk/editor'
 
 /** The engine's active tool and how to choose one, for the ribbon's tool buttons. */
 export function useTools() {

@@ -1,5 +1,5 @@
-import { CircleIcon as Circle, MinusIcon as Minus, MoveRightIcon as MoveRight, PencilIcon as Pencil, SplineIcon as Spline, SquareIcon as Square, StarIcon as Star, TriangleIcon as Triangle, type IconComponent } from '@kition/tessera-icons/react'
-import { CommandButton, MenuItem, RibbonMenu } from '@kition/kit-editor'
+import { CircleIcon as Circle, MinusIcon as Minus, MoveRightIcon as MoveRight, PencilIcon as Pencil, SplineIcon as Spline, SquareIcon as Square, StarIcon as Star, TriangleIcon as Triangle, type IconComponent } from '@kition/tessera/icons/react'
+import { CommandButton, MenuItem, RibbonMenu } from '@kition/sdk/editor'
 import { useEffect, useState } from 'react'
 import { useSlides } from '../slides'
 import { useTools } from '../tools'

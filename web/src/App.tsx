@@ -11,7 +11,7 @@ import {
   type HostConnection,
   type KitCanvasHandle,
   type RasterView,
-} from '@kition/kit-editor'
+} from '@kition/sdk/editor'
 import { SlidesProvider, type Slides } from './slides'
 import { CATALOGS } from './strings'
 import { SlidesPanel } from './SlidesPanel'

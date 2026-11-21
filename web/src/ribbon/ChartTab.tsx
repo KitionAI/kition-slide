@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChartDesignGroups, useKitEditor } from '@kition/kit-editor'
+import { ChartDesignGroups, useKitEditor } from '@kition/sdk/editor'
 import { ContextTab } from './ContextTab'
 
 /**

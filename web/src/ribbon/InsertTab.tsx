@@ -1,5 +1,5 @@
-import { AudioLinesIcon as AudioLines, CalendarClockIcon as CalendarClock, CameraIcon as Camera, CaseSensitiveIcon as CaseSensitive, HashIcon as Hash, ImageIcon as Image, LinkIcon as Link, MessageSquarePlusIcon as MessageSquarePlus, PanelTopIcon as PanelTop, SigmaIcon as Sigma, FaceSlightlySmilingIcon as Smile, SquarePlusIcon as SquarePlus, TableIcon as Table, TextCursorInputIcon as TextCursorInput, VideoIcon as Video, WorkflowIcon as Workflow, ShapesIcon as Shapes } from '@kition/tessera-icons/react'
-import { ChartInsertMenu, MenuItem, RibbonButton, RibbonGroup, CommandItem } from '@kition/kit-editor'
+import { AudioLinesIcon as AudioLines, CalendarClockIcon as CalendarClock, CameraIcon as Camera, CaseSensitiveIcon as CaseSensitive, HashIcon as Hash, ImageIcon as Image, LinkIcon as Link, MessageSquarePlusIcon as MessageSquarePlus, PanelTopIcon as PanelTop, SigmaIcon as Sigma, FaceSlightlySmilingIcon as Smile, SquarePlusIcon as SquarePlus, TableIcon as Table, TextCursorInputIcon as TextCursorInput, VideoIcon as Video, WorkflowIcon as Workflow, ShapesIcon as Shapes } from '@kition/tessera/icons/react'
+import { ChartInsertMenu, MenuItem, RibbonButton, RibbonGroup, CommandItem } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { useTools } from '../tools'
 import { CommandButton, RibbonMenu, ShapesMenu } from './common'

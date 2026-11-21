@@ -1,4 +1,4 @@
-import type { IconComponent } from '@kition/tessera-icons/react'
+import type { IconComponent } from '@kition/tessera/icons/react'
 
 /**
  * A theme's thumbnail as an icon: a slide in the theme's light background with a title bar in its

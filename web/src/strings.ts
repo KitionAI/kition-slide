@@ -1,4 +1,4 @@
-import type { Catalog } from '@kition/kit-editor'
+import type { Catalog } from '@kition/sdk/editor'
 import ribbonEN from './i18n/locales/en-US/ribbon.json'
 import ribbonZH from './i18n/locales/zh-CN/ribbon.json'
 
@@ -321,4 +321,4 @@ const zhCN: Catalog = {
 
 export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN }, 'zh-CN': { ...zhCN, ...ribbonZH } }
 
-export type { Strings as T } from '@kition/kit-editor'
+export type { Strings as T } from '@kition/sdk/editor'

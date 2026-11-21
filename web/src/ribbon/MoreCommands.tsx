@@ -1,5 +1,5 @@
-import { EllipsisIcon as Ellipsis } from '@kition/tessera-icons/react'
-import { CommandItem, MenuSeparator, RibbonGroup, RibbonMenu } from '@kition/kit-editor'
+import { EllipsisIcon as Ellipsis } from '@kition/tessera/icons/react'
+import { CommandItem, MenuSeparator, RibbonGroup, RibbonMenu } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 
 /** Complete access to engine menu paths, including commands omitted by a compact gallery. */

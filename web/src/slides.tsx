@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { KitCommentAnchor, KitShownThread } from '@kition/kit-ui-protocol'
-import { useKitEditorState, useKitSession, usePresence, useRemoteSelections, type HostConnection, type KitEngineInfo, type KitPresence, type KitModuleManifest, type PresenceRect, type Strings } from '@kition/kit-editor'
+import type { KitCommentAnchor, KitShownThread } from '@kition/sdk/protocol'
+import { useKitEditorState, useKitSession, usePresence, useRemoteSelections, type HostConnection, type KitEngineInfo, type KitPresence, type KitModuleManifest, type PresenceRect, type Strings } from '@kition/sdk/editor'
 import { useSlideView } from './useSlideView'
 import { canvasColor } from './backdrop'
 import kit from '../../kit.json'

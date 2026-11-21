@@ -77,7 +77,7 @@ precision without snapping, F6 pane cycling, ribbon KeyTips (Windows).
 ## Visual fidelity
 
 Colours come from the host's theme tokens and the ribbon, panes and dialogs from kit-editor's
-components (AGENTS.md "Kition kit rules"); icons come from kition-sdk's `@kition/tessera-icons`
+components (AGENTS.md "Kition kit rules"); icons come from Kition Tessera's `@kition/tessera/icons`
 and must not imitate Microsoft's. The editor has not been compared with PowerPoint screenshots
 pixel by pixel. Icon consistency across Kition's kits is open.
 

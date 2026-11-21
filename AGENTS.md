@@ -30,7 +30,7 @@
 This repository is Kition's `kit.slide` kit. These rules come first; the rules below still apply
 to the engine.
 
-- The kit draws **its own editor**: `web/` is a React app on `@kition/kit-editor` (kition-sdk's
+- The kit draws **its own editor**: `web/` is a React app on `@kition/sdk/editor` (kition-sdk's
   shared kit UI library) with Kition Slide's ribbon, slide thumbnails, notes, and status bar; a host
   (Kition, or `web/dev.html` for development) shows it in an iframe and talks to it over the Kit UI
   protocol (`kition-kit-ui/1`, Kit Standard `spec/reference/ui-protocol.md`). Style it only with the host's

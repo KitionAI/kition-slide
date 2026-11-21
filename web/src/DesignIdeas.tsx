@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useReadOnly } from '@kition/kit-editor'
+import { useReadOnly } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { Thumb } from './SlidesPanel'
 

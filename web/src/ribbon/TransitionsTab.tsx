@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { CopyCheckIcon as CopyCheck, SparkleIcon as Sparkle, PlayIcon as Play, ZapIcon as Zap, TimerIcon as Timer } from '@kition/tessera-icons/react'
-import { RibbonButton, RibbonGroup, RibbonStack, MenuItem } from '@kition/kit-editor'
+import { CopyCheckIcon as CopyCheck, SparkleIcon as Sparkle, PlayIcon as Play, ZapIcon as Zap, TimerIcon as Timer } from '@kition/tessera/icons/react'
+import { RibbonButton, RibbonGroup, RibbonStack, MenuItem } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { CommandButton, RibbonMenu } from './common'
 import { transitionIcon } from './motionIcons'

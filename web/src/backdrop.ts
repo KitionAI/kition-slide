@@ -6,7 +6,7 @@
  * on-screen editor does this; previews, export and print never call `setBackdrop`.
  */
 import { useEffect, type RefObject } from 'react'
-import type { KitCanvasHandle, KitEngine } from '@kition/kit-editor'
+import type { KitCanvasHandle, KitEngine } from '@kition/sdk/editor'
 
 const HEX = /^#[0-9a-f]{6}$/i
 

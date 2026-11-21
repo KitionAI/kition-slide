@@ -6,9 +6,9 @@
  * co-editing host keeps its room, so anchors made in one session are found in the next; `reopen`
  * opens the document again, as `viewer` or `commenter` too.
  */
-import { mountKit, type KitConnection } from '@kition/kit-host'
-import type { KitCommentAnchor, KitShownThread, StoredReplica } from '@kition/kit-ui-protocol'
-import { modesInit, roleInit } from '@kition/kit-dev-host'
+import { mountKit, type KitConnection } from '@kition/sdk/host'
+import type { KitCommentAnchor, KitShownThread, StoredReplica } from '@kition/sdk/protocol'
+import { modesInit, roleInit } from '@kition/sdk/dev-host'
 
 type CommentsHost = {
   connection: KitConnection | null

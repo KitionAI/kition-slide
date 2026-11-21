@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
-import { BookOpenIcon as BookOpen, Columns2Icon as Columns2, FileTextIcon as FileText, Grid2x2Icon as Grid2X2, LayersIcon as Layers, Maximize2Icon as Maximize2, MoonIcon as Moon, PanelsTopLeftIcon as PanelsTopLeft, PaletteIcon as Palette, PresentationIcon as Presentation, SearchIcon as Search, StickyNoteIcon as StickyNote } from '@kition/tessera-icons/react'
-import { MenuItem, RibbonButton, RibbonGroup, RibbonStack, type KitCanvasHandle } from '@kition/kit-editor'
+import { BookOpenIcon as BookOpen, Columns2Icon as Columns2, FileTextIcon as FileText, Grid2x2Icon as Grid2X2, LayersIcon as Layers, Maximize2Icon as Maximize2, MoonIcon as Moon, PanelsTopLeftIcon as PanelsTopLeft, PaletteIcon as Palette, PresentationIcon as Presentation, SearchIcon as Search, StickyNoteIcon as StickyNote } from '@kition/tessera/icons/react'
+import { MenuItem, RibbonButton, RibbonGroup, RibbonStack, type KitCanvasHandle } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { RibbonMenu } from './common'
 import type { ViewMode } from '../useSlideView'

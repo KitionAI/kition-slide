@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KitEngine } from '@kition/kit-editor'
-import { Button } from '@kition/kit-editor'
+import type { KitEngine } from '@kition/sdk/editor'
+import { Button } from '@kition/sdk/editor'
 import type { SlideShowOptions } from './useSlideView'
 import { useSlides } from './slides'
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
-import { CopyIcon as Copy, EyeOffIcon as EyeOff, PlusIcon as Plus, TrashIcon as Trash2 } from '@kition/tessera-icons/react'
-import { MenuItem, MenuSeparator, useReadOnly } from '@kition/kit-editor'
+import { CopyIcon as Copy, EyeOffIcon as EyeOff, PlusIcon as Plus, TrashIcon as Trash2 } from '@kition/tessera/icons/react'
+import { MenuItem, MenuSeparator, useReadOnly } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { ThumbMarkers } from './HostComments'
 

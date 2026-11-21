@@ -1,4 +1,4 @@
-import { base64, toast } from '@kition/kit-editor'
+import { base64, toast } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 
 /** Media bytes are picked and read only through the host, as with pictures. */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useReadOnly } from '@kition/kit-editor'
+import { useReadOnly } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 
 const SAVE_MS = 600

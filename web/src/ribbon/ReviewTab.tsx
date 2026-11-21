@@ -1,5 +1,5 @@
-import { AccessibilityIcon as Accessibility, LanguagesIcon as Languages, MessageSquareIcon as MessageSquare, MessageSquarePlusIcon as MessageSquarePlus, SpellCheckIcon as SpellCheck, TrashIcon as Trash2, BookOpenIcon as BookOpen } from '@kition/tessera-icons/react'
-import { RibbonButton, RibbonGroup } from '@kition/kit-editor'
+import { AccessibilityIcon as Accessibility, LanguagesIcon as Languages, MessageSquareIcon as MessageSquare, MessageSquarePlusIcon as MessageSquarePlus, SpellCheckIcon as SpellCheck, TrashIcon as Trash2, BookOpenIcon as BookOpen } from '@kition/tessera/icons/react'
+import { RibbonButton, RibbonGroup } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { CommandButton } from './common'
 

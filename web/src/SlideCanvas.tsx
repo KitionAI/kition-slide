@@ -1,5 +1,5 @@
 import { useState, type PointerEvent, type RefObject } from 'react'
-import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/kit-editor'
+import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
 

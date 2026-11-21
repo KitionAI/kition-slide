@@ -1,5 +1,5 @@
-import { PenIcon as Pen, PencilIcon as Pencil, SplineIcon as Spline, ShapesIcon as Shapes, TypeIcon as Type, SigmaIcon as Sigma } from '@kition/tessera-icons/react'
-import { InkGroup, RibbonButton, RibbonGroup } from '@kition/kit-editor'
+import { PenIcon as Pen, PencilIcon as Pencil, SplineIcon as Spline, ShapesIcon as Shapes, TypeIcon as Type, SigmaIcon as Sigma } from '@kition/tessera/icons/react'
+import { InkGroup, RibbonButton, RibbonGroup } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { useTools } from '../tools'
 

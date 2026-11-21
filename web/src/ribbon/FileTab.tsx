@@ -1,5 +1,5 @@
-import { DownloadIcon as Download } from '@kition/tessera-icons/react'
-import { RibbonButton, RibbonGroup } from '@kition/kit-editor'
+import { DownloadIcon as Download } from '@kition/tessera/icons/react'
+import { RibbonButton, RibbonGroup } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 
 /** File: Export, the slides as a PDF or pictures written next to them (Save is the host's own). */

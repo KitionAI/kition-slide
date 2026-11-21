@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Button, CommandTab, IconButton, useReadOnly } from '@kition/kit-editor'
-import { XIcon as X } from '@kition/tessera-icons/react'
+import { Button, CommandTab, IconButton, useReadOnly } from '@kition/sdk/editor'
+import { XIcon as X } from '@kition/tessera/icons/react'
 import { useSlides } from './slides'
 import { MediaPlayer } from './MediaPlayer'
 import { DesignIdeas } from './DesignIdeas'

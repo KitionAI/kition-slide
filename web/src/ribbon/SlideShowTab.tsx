@@ -1,5 +1,5 @@
-import { CameraIcon as Camera, EyeOffIcon as EyeOff, MonitorPlayIcon as MonitorPlay, PlayIcon as Play, PresentationIcon as Presentation, TimerIcon as Timer, VideoIcon as Video, ListVideoIcon, MonitorCogIcon } from '@kition/tessera-icons/react'
-import { RibbonButton, RibbonGroup, RibbonStack } from '@kition/kit-editor'
+import { CameraIcon as Camera, EyeOffIcon as EyeOff, MonitorPlayIcon as MonitorPlay, PlayIcon as Play, PresentationIcon as Presentation, TimerIcon as Timer, VideoIcon as Video, ListVideoIcon, MonitorCogIcon } from '@kition/tessera/icons/react'
+import { RibbonButton, RibbonGroup, RibbonStack } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 
 import { CommandButton } from './common'

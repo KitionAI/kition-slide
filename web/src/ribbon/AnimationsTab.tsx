@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ListVideoIcon as ListVideo, PaintbrushIcon as Paintbrush, PlayIcon as Play, SparklesIcon as Sparkles, ZapIcon as Zap, TimerIcon as Timer } from '@kition/tessera-icons/react'
-import { MenuItem, RibbonButton, RibbonGroup, RibbonStack } from '@kition/kit-editor'
+import { ListVideoIcon as ListVideo, PaintbrushIcon as Paintbrush, PlayIcon as Play, SparklesIcon as Sparkles, ZapIcon as Zap, TimerIcon as Timer } from '@kition/tessera/icons/react'
+import { MenuItem, RibbonButton, RibbonGroup, RibbonStack } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { CommandButton, RibbonMenu } from './common'
 import { animationIcon } from './motionIcons'

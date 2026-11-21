@@ -7,16 +7,18 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   resolve: {
-    // One React for the page (also when KITION_LINK=1 links a kition-sdk checkout's packages).
+    // One React for the page (also when KITION_LINK=1 links the kition-sdk and Tessera checkouts).
     dedupe: ['react', 'react-dom'],
-    // kit-editor's engine worker reads replicas with @kition/kdm (the object model, a commenter's
-    // comments). loro-crdt's browser entry loads its WebAssembly itself, as a build picks it; the
-    // development entry Vite's server would pick imports it as a module, which needs a plugin.
+    // @kition/sdk/editor's engine worker reads replicas with @kition/sdk/kdm (the object model, a
+    // commenter's comments). loro-crdt's browser entry loads its WebAssembly itself, as a build
+    // picks it; the development entry Vite's server would pick imports it as a module, which needs
+    // a plugin.
     alias: [{ find: /^loro-crdt$/, replacement: 'loro-crdt/browser' }],
   },
-  // loro-crdt stays unbundled, so its WebAssembly is found next to it, and kit-editor so its engine
-  // worker is found next to it; the CommonJS module its components import is bundled for the page.
-  optimizeDeps: { exclude: ['@kition/kit-editor', 'loro-crdt'], include: ['@kition/kit-editor > use-sync-external-store/shim'] },
+  // loro-crdt stays unbundled, so its WebAssembly is found next to it, and @kition/sdk so the
+  // editor's engine worker is found next to it; the CommonJS module its components import is
+  // bundled for the page.
+  optimizeDeps: { exclude: ['@kition/sdk', 'loro-crdt'], include: ['@kition/sdk > use-sync-external-store/shim'] },
   worker: { format: 'es' },
   server: {
     port: 5180,
