@@ -1,8 +1,9 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import type { KitCanvasHandle, RasterView } from '@kition/sdk/editor'
+import type { KitCanvasHandle, RasterRect, RasterView } from '@kition/sdk/editor'
 import type { Slides } from './slides'
 
-const CANVAS_MARGIN = 28
+/** How far past the slide's edge an enlarged slide scrolls, in screen pixels. */
+export const CANVAS_MARGIN = 28
 const PAGE_DELAY_MS = 350
 const PAGE_THRESHOLD = 18
 
@@ -78,4 +79,15 @@ export function useSlideWheel(
       window.removeEventListener('blur', reset)
     }
   }, [canvas, region, viewMemory])
+}
+
+/**
+ * The slide and `CANVAS_MARGIN` screen pixels of canvas around it, in document pixels at `zoom`:
+ * where an enlarged slide's scrolling stops (the wheel's, a drag's and the scrollbars'), and what
+ * the scrollbars measure. A view that holds it all keeps the slide centred.
+ */
+export function slideScrollArea(area: RasterRect | null | undefined, zoom: number): RasterRect | null {
+  if (!area || !(zoom > 0)) return null
+  const margin = CANVAS_MARGIN / zoom
+  return { x0: area.x0 - margin, y0: area.y0 - margin, x1: area.x1 + margin, y1: area.y1 + margin }
 }

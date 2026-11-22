@@ -31,6 +31,8 @@ const pixels = async () => {
   await page.waitForTimeout(350)
   return surface.screenshot()
 }
+// The canvas's scrollbars: one along an axis only while the slide and its margin are longer than the view there.
+const scrollbars = kit.getByTestId('slides-scrollbars').locator('[role="scrollbar"]')
 const zoom = async () => Number((await kit.getByTestId('kit-zoom').textContent()).replace('%', ''))
 
 try {
@@ -52,6 +54,7 @@ try {
   await wheel(0, 100)
   assert.equal(await current(), 0)
   assert.ok(first.equals(await pixels()), 'Boundary, tiny, and horizontal wheels must not move a fitted slide')
+  assert.equal(await scrollbars.count(), 0, 'A fitted slide has no scrollbar')
   console.log('PASS fitted wheels page both ways without moving the canvas, including the first and last slides')
 
   // Pointer gestures cannot turn into a slide change midway through a drag.
@@ -110,9 +113,21 @@ try {
   assert.ok(!beforePan.equals(await pixels()), 'An enlarged slide must pan instead of page')
   await wheel(10000, 10000)
   const panEnd = await pixels()
+  const shown = await scrollbars.count()
+  assert.ok(shown >= 1, 'An enlarged slide has a scrollbar along each axis it is longer than the view on')
+  for (let index = 0; index < shown; index += 1) {
+    const bar = scrollbars.nth(index)
+    const at = Number(await bar.getAttribute('aria-valuenow')), end = Number(await bar.getAttribute('aria-valuemax'))
+    assert.ok(end > 0 && Math.abs(at - end) <= 1, `A scrollbar is at its end when the slide is panned to its far edge (${at} of ${end})`)
+    await bar.focus()
+    await page.keyboard.press('Home')
+    await until(async () => Number(await bar.getAttribute('aria-valuenow')) === 0)
+  }
+  assert.ok(!panEnd.equals(await pixels()), 'Home on the scrollbars moves the slide back to its near edge')
   await wheel(10000, 10000)
   assert.ok(panEnd.equals(await pixels()), 'Panning must clamp to the slide edges')
   await kit.getByRole('button', { name: 'Fit', exact: true }).click()
+  await until(async () => (await scrollbars.count()) === 0)
   await wheel(100)
   await until(async () => (await current()) === 1)
   console.log('PASS modifier zoom, bounded panning when enlarged, and paging after fit')

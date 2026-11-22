@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-enlarged-slide-scrollbars
+feature: slide.editor.canvas-scroll
+intent: >-
+  A fitted slide has no scrollbar and the wheel pages it; an enlarged slide scrolls only a margin past its
+  edges and has a scrollbar along each axis it is longer than the view on, at the view's position, which moves
+  the view (Home), and Fit removes them. Before, an enlarged slide had no scrollbar, and a drag (unlike the
+  wheel) moved it any distance off the canvas (owner report, 2026-11-22).
+layer: gate
+source:
+  kind: probe
+  from: web/tests/scroll.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/scroll.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-22"

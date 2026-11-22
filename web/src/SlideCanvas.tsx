@@ -1,13 +1,18 @@
-import { useState, type PointerEvent, type RefObject } from 'react'
+import { useMemo, useState, type PointerEvent, type RefObject } from 'react'
 import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
+import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
+import { slideScrollArea } from './useSlideWheel'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint } = useSlides()
   const tools = useKitTools()
   const [position, setPosition] = useState<RasterView>({ x: 0, y: 0, zoom: 1 })
   const area = session.state?.area
+  // An enlarged slide scrolls only a margin past its edges, by a drag as by the wheel; the scrollbars follow the view.
+  const views = useMemo(createViewStore, [])
+  const panBounds = useMemo(() => slideScrollArea(area, position.zoom), [area?.x0, area?.y0, area?.x1, area?.y1, position.zoom])
   const decorate: RasterDecoration = (context, toScreen, raster) => {
     if (area) {
       const a = toScreen(area.x0, area.y0), b = toScreen(area.x1, area.y1)
@@ -69,8 +74,10 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
   }
   return <div className="slides-canvas-view" data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed}>
     {view.ruler ? <>{ruler('x')}{ruler('y')}</> : null}
-    <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={area ?? null} framed={false} decorate={decorate} onView={(raster) => { setPosition(raster); onZoom(raster.zoom) }} testId="slides-canvas-region">
+    <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={area ?? null} panBounds={panBounds} framed={false} decorate={decorate} onView={(raster) => { setPosition(raster); views.set(raster); onZoom(raster.zoom) }} testId="slides-canvas-region">
       {hostComments ? <CanvasMarkers view={position} /> : null}
+      {/* The scrollbars: there only while the slide and its margin are longer than the view. */}
+      <CanvasScrollbars views={views} content={(shown) => slideScrollArea(area, shown.zoom)} canvas={canvas} />
     </KitDocumentCanvas>
   </div>
 }

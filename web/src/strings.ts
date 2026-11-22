@@ -4,6 +4,8 @@ import ribbonZH from './i18n/locales/zh-CN/ribbon.json'
 
 /** The editor's strings. `en-US` is required (UI protocol section 4); the others fall back to it. */
 const enUS: Catalog = {
+  'verticalScroll': 'Vertical scroll',
+  'horizontalScroll': 'Horizontal scroll',
   'tab.file': 'File',
   'group.export': 'Export',
   'export': 'Export',
@@ -162,6 +164,8 @@ const enUS: Catalog = {
 }
 
 const zhCN: Catalog = {
+  'verticalScroll': '纵向滚动',
+  'horizontalScroll': '横向滚动',
   'tab.file': '文件',
   'group.export': '导出',
   'export': '导出',

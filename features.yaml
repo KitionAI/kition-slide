@@ -432,6 +432,15 @@ features:
     gap: "Export, print and previews never take the host's canvas color by design. Slide thumbnails, the notes pane and the rulers are not checked in the dark scheme yet."
     cases: [regressions/issue-dark-backdrop]
     since: "2026-11-19"
+  - id: slide.editor.canvas-scroll
+    title: "The wheel pages a fitted slide and scrolls an enlarged one only a margin past its edges, as a drag does; a scrollbar is over the canvas's right or bottom edge only while the slide and its margin are longer than the view there"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/useSlideWheel.ts, web/src/SlideCanvas.tsx, web/src/CanvasScrollbars.tsx, web/tests/scroll.mjs]
+    gap: "The margin is 28 screen pixels on every side."
+    cases: [regressions/issue-enlarged-slide-scrollbars]
+    since: "2026-11-22"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

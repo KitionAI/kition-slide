@@ -226,3 +226,34 @@
 .slides-comment-marker:focus-visible { outline: 2px solid var(--kit-text); outline-offset: 1px; }
 .slides-comment-marker[data-small='true'] { min-width: 10px; height: 10px; padding: 0; transform: translate(-50%, -50%); font-size: 0; border-radius: 5px 5px 5px 1px; }
 .slides-thumb-frame { position: relative; min-width: 0; }
+
+/* The canvas's scrollbars, over its right and bottom edges; there only while the content is longer than the view. */
+.slides-scrollbars {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.slides-scrollbars > .kui-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.slides-scrollbars > .kui-scrollbar[aria-orientation='horizontal'] {
+  top: auto;
+  left: 0;
+}
+
+/* Both: each stops short of the corner they share. */
+.slides-scrollbars[data-both] > .kui-scrollbar[aria-orientation='vertical'] {
+  bottom: 14px;
+}
+
+.slides-scrollbars[data-both] > .kui-scrollbar[aria-orientation='horizontal'] {
+  right: 14px;
+}
