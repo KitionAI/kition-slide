@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type RefObject } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { useKitEditor, type KitCanvasHandle, type KitCanvasView, type RasterRect } from '@kition/sdk/editor'
 import { Scrollbar } from '@kition/tessera/ui'
 
@@ -21,6 +21,33 @@ export function createViewStore() {
 export type ViewStore = ReturnType<typeof createViewStore>
 
 /**
+ * The view, a frame after the canvas reports it. The canvas reports a new size from inside its
+ * ResizeObserver; a scrollbar mounted or resized there is a layout change in that same delivery,
+ * which the browser reports as a ResizeObserver loop error. One update a frame is also all a
+ * scrollbar needs.
+ */
+function useViewNextFrame(views: ViewStore) {
+  const [view, setView] = useState(views.get)
+  useEffect(() => {
+    let frame = 0
+    const later = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        setView(views.get())
+      })
+    }
+    later()
+    const stop = views.subscribe(later)
+    return () => {
+      stop()
+      cancelAnimationFrame(frame)
+    }
+  }, [views])
+  return view
+}
+
+/**
  * The canvas's scrollbars, over its right and bottom edges. Each is there only while the content
  * (`content`, in document pixels at the view's zoom) is longer than the view along its axis; it
  * shows where the view is in the content and moves it. Rendered inside the canvas (its children).
@@ -31,7 +58,7 @@ export function CanvasScrollbars({ views, content, canvas }: {
   canvas: RefObject<KitCanvasHandle | null>
 }) {
   const { t } = useKitEditor()
-  const view = useSyncExternalStore(views.subscribe, views.get)
+  const view = useViewNextFrame(views)
   const area = view && view.zoom > 0 ? content(view) : null
   if (!view || !area) return null
   const pageX = view.width / view.zoom
