@@ -71,9 +71,12 @@ resolution and overlays an invisible real-text layer with embedded font subsets.
 ## Quality gates
 
 `cargo xtask ci`: rustfmt check, clippy `-D warnings`, tests, layering, asset attribution
-(`cargo xtask assets`), wasm32 check. This repository's only workflow is
+(`cargo xtask assets`), wasm32 check. It runs in the kit's CI run on GitHub: the CI workflow
+(`.github/workflows/ci.yml`) calls Kition's reusable `kit-ci.yml`, which also runs clippy,
+`cargo test --workspace` and every `test:*` script of `web/`. The repository's other workflow is
 the Package workflow (`.github/workflows/package.yml`), which builds and publishes the kit's
-package on GitHub with Kition's reusable `kit-package.yml` (see `docs/kits.md` there).
+package on GitHub with Kition's reusable `kit-package.yml` (see `docs/kits.md` there); only the
+owner starts it.
 
 ## Revision history
 

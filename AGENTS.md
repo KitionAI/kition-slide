@@ -190,11 +190,19 @@ egui, eframe, winit or rfd.
   editor is a plain React app (see "Kition kit rules" at the top of this file).
 - **Never break wasm** (`cargo xtask wasm`).
 
-## 5. Quality gates (before every commit)
+## 5. Quality checks
 
-`cargo xtask ci` = fmt check, clippy `-D warnings`, tests, layering check, asset check, wasm
-check. Commit after each landed arc with a task id in the message (`M1.2: smart guides`); this
-repository has no push policy of its own (see "Kition kit rules" at the top of this file).
+On your machine run only the fast checks: `cargo fmt --all -- --check`,
+`cargo check -p <touched crates> --all-targets`, the wasm `cargo check` (`cargo xtask wasm`), and
+`pnpm typecheck` in `web/`. The full checks run in the kit's CI run on GitHub
+(`.github/workflows/ci.yml` calls Kition's reusable kit CI): clippy, `cargo test --workspace`,
+this kit's `cargo xtask ci` (fmt check, clippy `-D warnings`, tests, layering check, asset check,
+wasm check) and every `test:*` script of `web/` as its own job. Commit after each landed arc with
+a task id in the message (`M1.2: smart guides`), then push HEAD with Kition's
+`scripts/kit-ci.sh push slide`, `wait` for its run and `land` it: a task is done when the CI run
+of HEAD is green and HEAD is on `origin/main` (see "Kition kit rules" at the top of this file).
+Add no other workflows, and do not start the Package workflow (`.github/workflows/package.yml`):
+releasing is the owner's step.
 
 ## 6. Running and looking at the app
 
@@ -202,9 +210,10 @@ repository has no push policy of its own (see "Kition kit rules" at the top of t
   Protocol (`kition-kit/1`; `kit.json`'s `headless.protocol`); kition-sdk's `kition-headless`
   implements the host side.
 - For the web editor: `cd web && pnpm engine && pnpm dev`, open `dev.html`. `pnpm test:flow`,
-  `pnpm test:ribbon` and `pnpm test:scroll` drive it with Playwright (Chromium and WebKit) and are
-  how you "look at" UI work here — there is no screenshot/control-channel workflow in this
-  repository.
+  `pnpm test:ribbon`, `pnpm test:scroll` and the other `test:*` scripts drive it with Playwright
+  (Chromium and WebKit) and are how you "look at" UI work here — there is no
+  screenshot/control-channel workflow in this repository. They run as jobs of the kit's CI run,
+  not on your machine; `kit-ci.sh failures slide` downloads their screenshots and traces.
 - Shell gotcha on the dev machine: `mv`/`cp` are aliased interactive; use `/bin/mv -f`, `/bin/cp -f`.
 - Parallel agents: separate `CARGO_TARGET_DIR` per agent; edit only the crates you own.
 

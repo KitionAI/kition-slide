@@ -32,7 +32,8 @@ one `KITION_FONTS_DIR` names). `pnpm dev` serves `dev.html`, which hosts the edi
 does; `web/package.json` lists the other browser tests (`test:ribbon`, `test:scroll`,
 `test:table`, `test:chart`, …).
 
-The check every change passes is `cargo xtask ci` ([quality.md](quality.md)); `cargo xtask --help`
+The check every change passes is `cargo xtask ci`, which the kit's CI run on GitHub runs with the
+other tests ([quality.md](quality.md)); `cargo xtask --help`
 lists the other tasks. `cargo xtask parity` recomputes the summary of
 [parity/parity-checklist.md](parity/parity-checklist.md). The visual reference workflow, which uses
 `tools/scripts`, is in [features/visual-reference-workflow.md](features/visual-reference-workflow.md).
@@ -93,4 +94,5 @@ machine: the Package workflow (`.github/workflows/package.yml`, which calls Kiti
 KitionAI/kition-slide`, and publishes the Release with the package's lock entry,
 `kition-slide-<version>.json`. Kition pins it with `node scripts/pin-kits.mjs slide` (see
 `docs/kits.md` there). A version is published once: bump `version` in `kit.json` to publish a
-change.
+change. Releasing is the owner's step: a change is done when it is green on `main`, and only the
+owner bumps the version and starts the Package workflow.

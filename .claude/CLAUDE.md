@@ -12,12 +12,16 @@ win over anything here.
 
 ## Start every session
 1. Read `plan/STATUS.md`, then the current milestone in `plan/execution-plan.md`.
-2. Run `cargo xtask ci` before you change anything, so you know the tree is green.
+2. Check that HEAD has a green CI run (Kition's `scripts/kit-ci.sh status slide`), so you know
+   the tree is green. On this machine run only the fast checks; `cargo xtask ci` and
+   `cargo test --workspace` belong to the CI run (AGENTS.md §5).
 
 ## Habits
 - Every user-visible action is a command with tests (`crates/engine/engine/src/cmd/*`).
-- Look at UI changes: `cd web && pnpm test:flow` (and `test:ribbon`, `test:scroll`); there is no
-  desktop UI or screenshot workflow in this repository (AGENTS.md §6).
-- Commit after each landed arc (`M<n>.<k>: what`); this repository has no push policy of its own.
+- Look at UI changes through `web/`'s `test:flow` (and `test:ribbon`, `test:scroll`, …), which run
+  in the kit's CI run; there is no desktop UI or screenshot workflow in this repository
+  (AGENTS.md §6).
+- Commit after each landed arc (`M<n>.<k>: what`), then `kit-ci.sh push`, `wait` and `land`: a
+  task is done when the CI run of HEAD is green and HEAD is on `origin/main` (AGENTS.md §5).
 - Keep the progress docs in `docs/` (AGENTS.md §7) and `plan/STATUS.md` current.
 - Don't ask the user questions; record genuinely-theirs decisions in `plan/STATUS.md`.
