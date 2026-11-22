@@ -12,8 +12,8 @@ It freezes two original reference pages per feature deck, or the sole page of a 
 sample: currently 315 decks and 526 pages instead of 15,547. Formula pages 2 and 20 and
 art text pages 18 and 22 were selected by visual review. Other pairs prioritize substantive
 content, feature-type diversity and page spread. Similarity scores never rank selection.
-The unchanged original reference images remain the golden standard; current renderer
-output is only a regression baseline, never a replacement reference.
+The unchanged original reference images remain the standard every comparison measures
+against; current renderer output is only a regression baseline, never a replacement reference.
 
 ```sh
 KITION_SLIDE_REFERENCE_ROOT="<reference-root>" \
