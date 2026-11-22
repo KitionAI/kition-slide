@@ -161,6 +161,7 @@ features:
     paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/recovery.rs, bindings/wasm/src/lib.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands.
+    cases: [regressions/issue-recovery-discard-uid]
     since: "2026-11-17"
   - id: slide.platform.document-identity
     title: "A host reads the document id a slide file carries (none: a .kslide or .pptx embeds no replica) and forks it into the same bytes (document.identity, document.fork; Kit Process Protocol 5.6)"
@@ -371,7 +372,7 @@ features:
     paths: [crates/engine/engine/src/cmd/animation.rs, crates/engine/engine/src/sample.rs, web/src/ribbon/AnimationsTab.tsx, crates/engine/engine/src/tools.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and reopen as .kslide and .pptx is proven by command for adding an entrance animation; the feature's other commands are covered by engine tests only.
-    cases: [slide.animations.set/save-reopen, regressions/issue-7]
+    cases: [slide.animations.set/save-reopen, regressions/issue-7, regressions/issue-appear-timing]
     since: "2026-11-17"
   - id: slide.tables.edit
     title: "Table rows, columns, cells, merging, borders, shading and styles"

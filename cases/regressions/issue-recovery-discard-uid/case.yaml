@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-recovery-discard-uid
+feature: slide.file.presentations
+intent: >-
+  file.recovery.discard with the uid file.recovery.list answered removes that one entry and keeps
+  the others; a uid of the wrong type or of no entry is refused and discards nothing; only a call
+  without uid discards every entry. The calls are checked against the kit's declared schemas first,
+  as an agent's are. A uid given as a string passed the schema and discarded every entry.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/tests/recovery_discard.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: recovery_discard
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-22"
+timeout_s: 120

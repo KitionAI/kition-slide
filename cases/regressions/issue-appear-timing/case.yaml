@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-appear-timing
+feature: slide.animations.set
+intent: >-
+  An Appear entrance keeps its delay and its start (on click, with previous, after previous, on a
+  click on another shape) across saving as .pptx and reopening, written on the effect's own time
+  node as PresentationML keeps them; the file keeps no duration for Appear, so one given to it is
+  not stored and reads back as none.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/formats/pptx/tests/appear_timing.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-pptx
+      test: appear_timing
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-22"
+timeout_s: 120
