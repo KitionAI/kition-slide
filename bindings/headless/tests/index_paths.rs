@@ -1,7 +1,8 @@
 //! C8-land-13-slide: independent saved writers shifting an observed insertion index.
 //! Waiting for the SDK at 34dff06: batch index guards, held-path resolution, and structural
-//! windows for table/animation lists flattened into holder fields. The conservative command
-//! premises still refuse those changes as changed, including necessary before-gap refusals.
+//! windows for table/animation lists flattened into holder fields. `animation.move` holds only its
+//! two windows; the table insertions still hold the whole table, so a change after their gap is
+//! refused `changed` (command_indexes_hold_the_gap_and_allow_later_insertions).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::path::PathBuf;
@@ -385,7 +386,21 @@ async fn command_indexes_hold_the_gap_and_allow_later_insertions() {
                     .flat_map(|e| e["conflicts"].as_array().into_iter().flatten())
                     .filter_map(|c| c["reason"].as_str().map(str::to_owned))
                     .collect();
-                let correct = if before { reasons.iter().any(|r| r == "relocated") } else { answer.is_ok() };
+                // The four table insertions hold the whole table (table.cells, table.cols,
+                // table.rows, xfrm; rests_tables.rs): cmd/table.rs's handler rewrites every cell's
+                // merge flags and recomputes the frame size, so a change anywhere in the table,
+                // here a row or column after the gap, is refused `changed` and nothing else for
+                // today's handler. Narrowing them (the neighbour rows or columns by identity, the
+                // merges crossing the gap, the frame size recomputed) is post-launch work
+                // (features.yaml slide.agent.premises gap).
+                let whole_table = family.starts_with("table.insert");
+                let correct = if before {
+                    reasons.iter().any(|r| r == "relocated")
+                } else if whole_table {
+                    answer.as_ref().err().is_some_and(|error| error["error"]["code"] == "conflict") && reasons == ["changed"]
+                } else {
+                    answer.is_ok()
+                };
                 println!("index: {family} remove={remove} before={before}: applied={} reasons={reasons:?}", answer.is_ok());
                 if !correct {
                     failures.push(format!("{family} remove={remove} before={before}: applied={} reasons={reasons:?}", answer.is_ok()));

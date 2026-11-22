@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-animation-move-holds-places
+feature: slide.agent.premises
+intent: >-
+  animation.move reads no animation's content: it holds only the item it takes and the gap it
+  puts it into. Another writer's edit of the same slide's animations that leaves both places
+  alone (an animation's timing, the moved one's too; a removal or insertion after the gap)
+  applies, and the saved order is the intended one with the other writer's edit kept. A
+  deletion or move of the moved item, an insertion into the gap, and an insertion or removal
+  that shifts either place are refused by place (relocated or deleted), never as changed.
+  Before, the move held its two places' content too and refused every edit of the list.
+layer: gate
+source:
+  kind: issue
+  from: kit CI run 44919131995 (index_paths command_indexes_hold_the_gap_and_allow_later_insertions, animation.move after cells)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide
+      test: animation_move
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-21"
+timeout_s: 300

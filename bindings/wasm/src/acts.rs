@@ -357,7 +357,8 @@ pub fn moves_the_editor(id: &str) -> bool {
 /// that the slide there is the one that was ([`crate::SlideDocument`]'s `under`). A slide named by
 /// `at.part` (`{slide: n}`) is the part premise's, and a shape's number on its slide (`id: 13`)
 /// is its id there, not a place. Animation commands' `index` names an item in the slide's animation
-/// list; its `under` premise holds that item (the whole list for a reorder).
+/// list; its `under` premise holds that item (for a reorder, the window of that item and the gap
+/// it goes into, not any animation's content).
 pub fn places(id: &str) -> &'static [&'static str] {
     match id {
         "slide.duplicate" | "slide.delete" | "slide.hide" | "slide.layout" | "slide.reset" | "slide.notes" | "slide.rename" | "transition.set"

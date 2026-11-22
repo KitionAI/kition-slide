@@ -1381,8 +1381,9 @@ impl KitDocument for SlideDocument {
                     }
                     let id = format!("slide:{}", slide.id.0);
                     found.objects.push(json!(id));
-                    let field = if command == "animation.move" { "animations".to_owned() } else { format!("animations.{at}") };
-                    found.premises.push(kition_kit::Premise::on(id.as_str()).fields([field]));
+                    // A move reads no animation's content: only the two windows below (rests_deck).
+                    let fields = if command == "animation.move" { Vec::new() } else { vec![format!("animations.{at}")] };
+                    found.premises.push(kition_kit::Premise::on(id.as_str()).fields(fields));
                     found.within.push(kition_kit::Within {
                         parent: json!(id),
                         field: "animations".into(),

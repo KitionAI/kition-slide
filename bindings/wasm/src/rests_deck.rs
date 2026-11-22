@@ -960,11 +960,15 @@ fn animations(doc: &SlideDocument, state: &DocState, command: &str, params: &Val
     let id = slide_id(slide);
     let by_index = matches!(command, "animation.remove" | "animation.timing" | "animation.options" | "animation.move");
     if let (true, Some(first)) = (by_index, index(params, "index")) {
-        holds.read_owned(&id, [format!("animations.{first}")]);
-        if command == "animation.move"
-            && let Some(to) = index(params, "to")
-        {
-            holds.read_owned(&id, [format!("animations.{}", to.min(slide.animations.len().saturating_sub(1)))]);
+        if command == "animation.move" {
+            // cmd/animation.rs move_anim reads no animation's content: it takes the item at
+            // `index` out of the slide's list and puts it back at `to` (clamped to the length
+            // left). `under` holds both places as windows of the slide's `animations` (lib.rs):
+            // the item at `index` and the gap it goes into. The moved item is carried whole, so
+            // an edit of any animation's content, the moved one's too, does not change the result.
+            holds.read(&id, &[]);
+        } else {
+            holds.read_owned(&id, [format!("animations.{first}")]);
         }
     } else {
         let targets: Vec<&Shape> = shapes.iter().filter_map(|shape| kition_slide_model::find_shape(&slide.shapes, *shape)).collect();

@@ -664,8 +664,12 @@ pub const ROWS: &[Rest] = &[
     r("animation.remove", r##"{"ids": ["$Oval"]}"##, "", &[("$Oval", "-", "-"), ("$S2", "animations.0.props.shape,animations.1", "-")]),
     r("animation.remove", r##"{}"##, "part,selection", &[("$Rect", "-", "-"), ("$S2", "animations.0,animations.1.props.shape", "-")]),
     // animation.move: the current slide's animation `index` moved to `to` (after the ones now before that place).
-    r("animation.move", r##"{"index": 0, "to": 1}"##, "part", &[("$S2", "animations.0,animations.1", "-")]),
-    r("animation.move", r##"{"index": 1, "to": 0, "onSlide": 2}"##, "", &[("$S2", "animations.0,animations.1", "*")]),
+    // Reviewed 2026-11-21 (task slide-animation-move-narrow): cmd/animation.rs move_anim reads no animation's
+    // content (Vec::remove at `index`, Vec::insert at `to` clamped to the length left; Session::edit's refit,
+    // reroute, settle and autofit passes read no animation). Its two places are held as `within` windows of the
+    // slide's `animations` (lib.rs under), not as content: the slide is held only as there.
+    pinned(r("animation.move", r##"{"index": 0, "to": 1}"##, "part", &[("$S2", "-", "-")])),
+    pinned(r("animation.move", r##"{"index": 1, "to": 0, "onSlide": 2}"##, "", &[("$S2", "-", "*")])),
     // animation.timing: `index` on the current slide, else every animation of the targets; edits its timing from its current value;
     //   `trigger` names a shape of the slide (a tool id there makes its slide current).
     r("animation.timing", r##"{"index": 0, "duration": 1000}"##, "part", &[("$S2", "animations.0", "-")]),
