@@ -46,7 +46,9 @@ pub fn describe(id: &str) -> &'static str {
         "file.recovery.save" => "Writes an AutoRecover copy of the presentation to the host's recovery folder now.",
         "file.recovery.list" => "Lists the AutoRecover copies in the host's recovery folder (uid, path, title, saved time).",
         "file.recovery.open" => "Opens every AutoRecover copy as a recovered presentation.",
-        "file.recovery.discard" => "Deletes one AutoRecover copy (`uid`) or all of them.",
+        "file.recovery.discard" => {
+            "Deletes the AutoRecover copy `uid` names (the number `file.recovery.list` answers), or every copy when `uid` is left out; a `uid` that names no copy is refused and deletes nothing."
+        }
         "file.revert" => "Throws away unsaved changes and reloads the presentation from its file.",
         "window.next" => "Switches the editor to the next open presentation window (or window `index`).",
         "edit.undo" => {
@@ -351,7 +353,7 @@ pub fn describe(id: &str) -> &'static str {
         "animation.remove" => "Removes animation `index` on the slide, or all animations of shapes in `ids`.",
         "animation.move" => "Moves animation `index` to position `to` in the slide's animation order.",
         "animation.timing" => {
-            "Sets start (on click, with or after previous), duration and delay of animation `index` or the selected shapes' animations."
+            "Sets start (on click, with or after previous), duration and delay of animation `index` or the selected shapes' animations. Appear and Disappear happen at once and take no duration, as a .pptx stores none for them: a duration given to them stays 0."
         }
         "animation.options" => "Sets an animation's effect option and text build (as one, by paragraph, word or letter).",
         "animation.clear" => "Removes every animation from slide `index` or the current slide.",
@@ -516,7 +518,7 @@ pub fn output(id: &str) -> Option<Value> {
             r#"{"type":"object","additionalProperties":true,"properties":{"id":{"type":"integer"},"name":{"type":"string"},"contentType":{"type":"string"},"bytes":{"type":"integer"},"durationMs":{"type":"number"},"video":{"type":"boolean"},"width":{"type":"integer"},"height":{"type":"integer"},"probe":{"type":"json"},"options":{"type":"json"},"status":{"type":"json"}}}"#
         }
         "file.recovery.list" => {
-            r#"{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"uid":{"type":"string"},"path":{"type":"string"},"title":{"type":"string"},"saved":{"type":"json"}}}}"#
+            r#"{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"uid":{"type":"integer","description":"the entry's uid, as file.recovery.discard takes it"},"path":{"type":"string"},"title":{"type":"string"},"saved":{"type":"json"}}}}"#
         }
         "table.state" => {
             r#"{"type":"json","description":"the table selection's cells, rows, columns and style options; null when no table is selected"}"#
@@ -557,7 +559,6 @@ fn key_type(id: &str, key: &str) -> Option<Value> {
         ("file.properties", "company") => r#"{"type":"string"}"#,
         ("file.properties", "keywords") => r#"{"type":"string"}"#,
         ("file.properties", "subject") => r#"{"type":"string"}"#,
-        ("file.recovery.discard", "uid") => r#"{"type":"string","description":"one entry's uid; without it all are discarded"}"#,
         ("edit.cut", "scope") => r#"{"type":"string","description":"slides: act on the selected slides","enum":["slides"]}"#,
         ("edit.copy", "scope") => r#"{"type":"string","description":"slides: act on the selected slides","enum":["slides"]}"#,
         ("edit.paste", "scope") => r#"{"type":"string","description":"slides: paste as slides","enum":["slides"]}"#,

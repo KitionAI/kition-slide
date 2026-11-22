@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!(noundo "file.recovery.save", "Save AutoRecover Information", [], None, "{} → {written}", has_doc, recovery_save),
         cmd!(query "file.recovery.list", "Recovered slide files", [], None, "{} → [{uid, path, title, saved}]", always, recovery_list),
         cmd!(noundo "file.recovery.open", "Open Recovered slide files", [], None, "{} → {opened: [document index]}", always, recovery_open),
-        cmd!(noundo "file.recovery.discard", "Discard Recovered slide files", [], None, "{uid?: one entry, else all}", always, recovery_discard),
+        cmd!(noundo "file.recovery.discard", "Discard Recovered slide files", [], None, "{uid?: u64 (one entry, as file.recovery.list answers it; without uid, every entry)}", always, recovery_discard),
         cmd!(noundo "file.revert", "Revert", [], None, "{}", has_doc, revert),
         cmd!(noundo "window.next", "Next Window", ["Window"], Some("Cmd+`"), "{index?}", has_doc, next_window),
     ]
@@ -490,12 +490,24 @@ fn recovery_open(s: &mut Session, _p: &Value) -> Result<Value> {
     Ok(json!({"opened": crate::recovery::open(s, &dir)?}))
 }
 
+/// Discards the entry `uid` names (the number `file.recovery.list` answers), or every entry when
+/// `uid` is left out. A `uid` that is given but names no entry (of another type, `null`, or of an
+/// entry that is not there) is refused and discards nothing: it never falls back to all of them.
 fn recovery_discard(s: &mut Session, p: &Value) -> Result<Value> {
     let dir = recovery_dir(s)?;
-    match p.get("uid").and_then(Value::as_u64) {
-        Some(uid) => crate::recovery::discard(&dir, uid),
+    let entries = crate::recovery::list(&dir);
+    match p.get("uid") {
+        Some(given) => {
+            let uid = given.as_u64().filter(|uid| entries.iter().any(|(entry, _)| entry == uid)).ok_or_else(|| {
+                bad(
+                    "file.recovery.discard",
+                    format!("`uid` is {given}, which names no recovery entry: give a uid as file.recovery.list answers it (a number), or leave `uid` out to discard every entry"),
+                )
+            })?;
+            crate::recovery::discard(&dir, uid);
+        }
         None => {
-            for (uid, _) in crate::recovery::list(&dir) {
+            for (uid, _) in entries {
                 crate::recovery::discard(&dir, uid);
             }
         }
