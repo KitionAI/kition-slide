@@ -264,6 +264,7 @@ features:
     paths: [crates/engine/engine/src/cmd/media.rs, crates/engine/engine/src/cmd/shape.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-video-feed-seek]
     since: "2026-11-17"
   - id: slide.drawing.objects
     title: "Drawing objects: insert, transform, format, connect, group, arrange; ink"

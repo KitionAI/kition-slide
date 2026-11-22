@@ -25,6 +25,10 @@ pub struct VideoFeed {
     next: Option<Arc<Frame>>,
     generation: u64,
     ended: bool,
+    /// The worker's first answer to the latest seek, met while draining stale frames (`None` in
+    /// it: the stream ended).
+    #[cfg(not(target_arch = "wasm32"))]
+    held: Option<Option<Frame>>,
     #[cfg(not(target_arch = "wasm32"))]
     tx: std::sync::mpsc::Sender<Cmd>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -45,7 +49,7 @@ impl VideoFeed {
             if let Err(e) = std::thread::Builder::new().name("kition-slide-video-decode".into()).spawn(worker) {
                 return Err(crate::MediaError::Corrupt(format!("couldn't start the decoder: {e}")));
             }
-            Ok(VideoFeed { size, current: None, next: None, generation: 0, ended: false, tx, rx })
+            Ok(VideoFeed { size, current: None, next: None, generation: 0, ended: false, held: None, tx, rx })
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -65,9 +69,17 @@ impl VideoFeed {
         self.ended = false;
         #[cfg(not(target_arch = "wasm32"))]
         {
+            self.held = None;
             let _ = self.tx.send(Cmd::Seek(t, self.generation));
-            // Unblock the worker if it's waiting to hand over a stale frame.
-            while self.rx.try_recv().is_ok() {}
+            // Unblock the worker if it's waiting to hand over a stale frame. The worker may already
+            // have answered this seek: keep its first frame (the frames after it stay queued), or
+            // the feed would show a later frame, or wait for one forever when the stream had ended.
+            while let Ok((g, f)) = self.rx.try_recv() {
+                if g == self.generation {
+                    self.held = Some(f);
+                    break;
+                }
+            }
         }
         #[cfg(target_arch = "wasm32")]
         self.dec.seek(t);
@@ -75,6 +87,10 @@ impl VideoFeed {
 
     /// The next decoded frame, if one is ready (`Err(())` at the end of the stream).
     fn pull(&mut self) -> std::result::Result<Option<Arc<Frame>>, ()> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(f) = self.held.take() {
+            return f.map(|f| Some(Arc::new(f))).ok_or(());
+        }
         #[cfg(not(target_arch = "wasm32"))]
         loop {
             match self.rx.try_recv() {
@@ -176,5 +192,59 @@ fn worker(mut dec: VideoDecoder, cmds: std::sync::mpsc::Receiver<Cmd>, frames: s
         if frames.send((generation, frame)).is_err() {
             return;
         }
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+
+    fn frame(time: f64) -> Frame {
+        Frame { time, width: 1, height: 1, rgba: vec![0; 4] }
+    }
+
+    /// A feed whose worker is the test: it reads the feed's commands and hands it frames.
+    fn feed() -> (VideoFeed, std::sync::mpsc::Receiver<Cmd>, std::sync::mpsc::SyncSender<(u64, Option<Frame>)>) {
+        let (tx, cmds) = std::sync::mpsc::channel();
+        let (frames, rx) = std::sync::mpsc::sync_channel(AHEAD);
+        (VideoFeed { size: (1, 1), current: None, next: None, generation: 0, ended: false, held: None, tx, rx }, cmds, frames)
+    }
+
+    fn time(f: Option<Arc<Frame>>) -> Option<f64> {
+        f.map(|f| f.time)
+    }
+
+    #[test]
+    fn a_seek_keeps_the_frames_the_worker_decoded_for_it_before_the_drain() {
+        let (mut feed, cmds, frames) = feed();
+        for k in 0..4 {
+            frames.send((0, Some(frame(k as f64 * 0.1)))).expect("queue");
+        }
+        assert_eq!(time(feed.frame_at(0.25)), Some(0.2));
+        // The clock jumps back (a loop). The worker answers the seek at once, before the feed has
+        // drained what it decoded ahead: a stale frame, then the new generation from 0.0.
+        frames.send((0, Some(frame(0.4)))).expect("queue");
+        frames.send((1, Some(frame(0.0)))).expect("queue");
+        frames.send((1, Some(frame(0.1)))).expect("queue");
+        assert_eq!(time(feed.frame_at(0.05)), Some(0.0));
+        assert!(matches!(cmds.try_recv(), Ok(Cmd::Seek(t, 1)) if t == 0.05));
+        assert_eq!(time(feed.frame_at(0.1)), Some(0.1));
+        frames.send((1, None)).expect("queue");
+        assert_eq!(time(feed.frame_at(0.3)), Some(0.1));
+        assert!(feed.ended());
+    }
+
+    #[test]
+    fn a_seek_answered_by_the_end_of_the_stream_ends_the_feed() {
+        let (mut feed, _cmds, frames) = feed();
+        frames.send((0, Some(frame(0.0)))).expect("queue");
+        frames.send((0, Some(frame(0.1)))).expect("queue");
+        assert_eq!(time(feed.frame_at(0.1)), Some(0.1));
+        // The worker's whole answer to the seek is the end of the stream, already queued when the
+        // feed drains.
+        frames.send((0, Some(frame(0.2)))).expect("queue");
+        frames.send((1, None)).expect("queue");
+        assert_eq!(time(feed.frame_at(0.0)), None);
+        assert!(feed.ended());
     }
 }

@@ -1,0 +1,30 @@
+format: 1
+id: regressions/issue-video-feed-seek
+feature: slide.media.playback
+intent: >-
+  When the playback clock jumps back (a loop or a seek), the video feed shows the frame due at the
+  new time. The feed sent the seek to its decoding thread and then threw away every frame queued
+  for it; when the thread answered the seek before that drain ran (a loaded machine), the frames it
+  had decoded for the new time went too, so the feed showed a later frame (0.3 s instead of 0.0 s
+  in a CI run) or, when the answer was the end of the stream, waited for a frame forever. The feed
+  now keeps the thread's answer to its latest seek.
+layer: gate
+source:
+  kind: issue
+  from: kit CI run of the media crate's decode tests (video_feed_follows_the_clock, twice in one run)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-media
+      filter: feed::tests::a_seek_
+  - cargo-test:
+      package: kition-slide-media
+      test: decode
+      filter: video_feed_follows_the_clock
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-21"
+timeout_s: 120

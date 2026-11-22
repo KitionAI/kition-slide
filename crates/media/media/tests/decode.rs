@@ -301,15 +301,18 @@ fn av1_mkv() {
 fn video_feed_follows_the_clock() {
     let mut feed = kition_slide_media::VideoFeed::new(fixture("clip-h264.mov")).expect("feed");
     assert_eq!(feed.size(), (64, 48));
-    let t = Duration::from_secs(5);
-    assert!(feed.frame_at_blocking(0.0, t).is_some_and(|f| f.time == 0.0));
-    let f = feed.frame_at_blocking(0.25, t).map(|f| f.time);
-    assert!(f.is_some_and(|v| (v - 0.2).abs() < 0.02), "{f:?}");
-    // Jumping back (a loop) seeks.
-    let f = feed.frame_at_blocking(0.05, t).map(|f| f.time);
-    assert_eq!(f, Some(0.0));
-    let f = feed.frame_at_blocking(0.55, t).map(|f| f.time);
-    assert!(f.is_some_and(|v| (v - 0.5).abs() < 0.02), "{f:?}");
+    // The clip's frames are 0.1 s apart; at each clock time the feed shows frame k, the last one
+    // due, with frame k's picture. Jumping back (a loop) seeks; the jumps back come while the
+    // decoder is ahead of the clock and after it has reached the end of the stream.
+    let clock = [(0.0, 0), (0.25, 2), (0.05, 0), (0.55, 5), (0.0, 0), (0.35, 3), (0.1, 1), (0.15, 1), (0.5, 5), (0.2, 2)];
+    for (t, k) in clock {
+        let f = feed.frame_at_blocking(t, Duration::from_secs(5)).unwrap_or_else(|| panic!("no frame at {t}"));
+        assert!((f.time - k as f64 * 0.1).abs() < 1e-9, "at {t}: frame at {}, not frame {k}", f.time);
+        let (c, e) = (centre(&f), expected_centre(64, 48, k));
+        for i in 0..3 {
+            assert!((c[i] - e[i]).abs() < 24.0, "at {t}: channel {i}: {c:?} vs frame {k}'s {e:?}");
+        }
+    }
 }
 
 #[test]
