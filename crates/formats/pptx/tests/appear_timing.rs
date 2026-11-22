@@ -3,8 +3,10 @@
 //! where PresentationML keeps them: the delay on the effect's own `p:cTn`
 //! (`p:stCondLst/p:cond delay`), the start as that `p:cTn`'s `nodeType` (and a trigger as an
 //! `interactiveSeq`). Appear's only behaviour in the file is a `p:set` of `style.visibility` whose
-//! `p:cTn` has `dur="1"`: the file keeps no duration for it, so a duration given to an Appear is
-//! not stored and reads back as none (0) (case regressions/issue-appear-timing).
+//! `p:cTn` has `dur="1"`: the file keeps no duration for it. The engine takes a value into the
+//! model as the file stores it, when it enters (`crates/engine/engine/src/stored.rs`, which settles
+//! a slide's animations through `kition_slide_pptx::stored`), so a duration given to an Appear is
+//! none (0) at once, not only after saving and reopening (case regressions/issue-appear-timing).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::io::Read;
@@ -118,7 +120,11 @@ fn a_duration_given_to_appear_is_not_stored_in_pptx() {
     let (mut s, _) = appear_deck();
     run(&mut s, "animation.timing", json!({ "index": 0, "duration": 2000 }));
     let before = animations(&s);
-    assert_eq!(before[0].duration_ms, 2000, "the command took the duration");
+    assert_eq!(
+        (before[0].effect.as_str(), before[0].delay_ms, before[0].duration_ms),
+        ("appear", 750, 0),
+        "the duration enters the model as the file stores it: none"
+    );
     let bytes = kition_slide_pptx::export(&s.doc().unwrap().doc).expect("export");
     let nodes = appear_nodes(&slide_xml(&bytes));
     assert!(!nodes[0].2.contains("dur=\"2000\""), "the file has no place for Appear's duration: {}", nodes[0].2);
