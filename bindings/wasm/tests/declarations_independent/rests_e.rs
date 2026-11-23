@@ -712,8 +712,8 @@ pub const ROWS: &[Rest] = &[
     pinned(r("comment.add", r##"{"text": "Hi", "id": 263, "onSlide": 2}"##, "", &[("$S2", "-", "*"), ("$Rect", "-", "address")])),
     // comment.reply: `thread` by id on any slide (or `@slide:index`), else the current slide's thread `index`; a reply appended.
     r("comment.reply", r##"{"thread": "$Thread", "text": "Re"}"##, "", &[("$Thread", "-", "-")]),
-    r("comment.reply", r##"{"index": 0, "text": "Re"}"##, "part", &[("root", "~commentOrder.slide:260.0", "-")]),
-    r("comment.reply", r##"{"thread": "@1:0", "text": "Re"}"##, "", &[("$S2", "-", "*"), ("root", "~commentOrder.slide:260.0", "-")]),
+    r("comment.reply", r##"{"index": 0, "text": "Re"}"##, "part", &[("root", "~commentOrder.$S2.0", "-")]),
+    r("comment.reply", r##"{"thread": "@1:0", "text": "Re"}"##, "", &[("$S2", "-", "*"), ("root", "~commentOrder.$S2.0", "-")]),
     // comment.delete: `thread` (+`comment`): a reply removed, the first comment replaced by its first reply, or the whole thread;
     //   `index`: the current slide's thread at that ordinal; nothing: every thread of the current slide; `all`: every thread.
     r("comment.delete", r##"{"thread": "$Thread"}"##, "", &[("$Thread", "comments", "-")]),
@@ -724,19 +724,14 @@ pub const ROWS: &[Rest] = &[
         "",
         &[("$Thread", "comments", "-")],
     ),
-    r("comment.delete", r##"{"index": 0}"##, "part", &[("root", "~commentOrder.slide:260.0", "-"), ("$Thread", "comments", "-")]),
-    r("comment.delete", r##"{}"##, "part", &[("root", "~commentOrder.slide:260", "-"), ("$Thread", "comments", "-")]),
+    r("comment.delete", r##"{"index": 0}"##, "part", &[("root", "~commentOrder.$S2.0", "-"), ("$Thread", "comments", "-")]),
+    r("comment.delete", r##"{}"##, "part", &[("root", "~commentOrder.$S2", "-"), ("$Thread", "comments", "-")]),
     // normalized after review: the handler walks the deck's slide list (crates/engine/engine/src/cmd/review.rs:255); the fields it reads of each slide are held on the slide, and `slides` would hold every slide's content: the list is `~slideOrder`
     pinned(r("comment.delete", r##"{"all": true}"##, "", &[("root", "~commentOrder,~slideOrder", "-"), ("$Thread", "comments", "-")])),
     // comment.resolve: the thread as comment.reply; replaces its resolved flag.
     r("comment.resolve", r##"{"thread": "$Thread"}"##, "", &[("$Thread", "resolved", "-")]),
-    r("comment.resolve", r##"{"index": 0, "resolved": false}"##, "part", &[("root", "~commentOrder.slide:260.0", "-"), ("$Thread", "resolved", "-")]),
-    r(
-        "comment.resolve",
-        r##"{"thread": "@1:0"}"##,
-        "",
-        &[("$S2", "-", "*"), ("root", "~commentOrder.slide:260.0", "-"), ("$Thread", "resolved", "-")],
-    ),
+    r("comment.resolve", r##"{"index": 0, "resolved": false}"##, "part", &[("root", "~commentOrder.$S2.0", "-"), ("$Thread", "resolved", "-")]),
+    r("comment.resolve", r##"{"thread": "@1:0"}"##, "", &[("$S2", "-", "*"), ("root", "~commentOrder.$S2.0", "-"), ("$Thread", "resolved", "-")]),
     // review.rs:425 replaces supplied members individually; its final
     // serialization of all settings shapes the receipt only. Range remains slide numbers.
     r("show.setup", r##"{"type": "kiosk"}"##, "", &[("root", "show.loopUntilEsc,show.showType", "-")]),
