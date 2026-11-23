@@ -146,6 +146,19 @@ fn section(deck: &SlideFile, at: usize, fields: &[&str], holds: &mut Holds) {
     }
 }
 
+/// Where the section at `at` starts: its first member (its entry `slides.<slide tool id>`) and
+/// with `placed`, where the section is (an index locates it); all its members when it has none.
+fn section_start(deck: &SlideFile, at: usize, placed: bool, holds: &mut Holds) {
+    let Some(id) = section_id(deck, at) else { return holds.read(ROOT, &["sections"]) };
+    match deck.sections.get(at).and_then(|section| section.slides.first()) {
+        Some(first) => holds.read_owned(&id, [format!("slides.slide:{}", first.0)]),
+        None => holds.read(&id, &["slides"]),
+    }
+    if placed {
+        holds.placed(&id);
+    }
+}
+
 /// The section at `at`, named by its place: every field of it and where it is.
 fn section_at(deck: &SlideFile, at: usize, holds: &mut Holds) {
     match section_id(deck, at) {
@@ -618,7 +631,7 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
             if deck.sections.is_empty() {
                 holds.read(ROOT, &["sections"]);
             } else if let Some(slide) = deck.slides.get(at) {
-                section(deck, deck.section_of(slide.id).unwrap_or(0), &["slides"], &mut holds);
+                section_start(deck, deck.section_of(slide.id).unwrap_or(0), false, &mut holds);
             }
             // The boundary and its anchor locate the split; later slides keep their edits.
             if let Some(slide) = deck.slides.get(at) {
@@ -668,7 +681,7 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
             } else {
                 section_at(deck, from, &mut holds);
                 for at in gap.checked_sub(1).into_iter().chain(Some(gap)) {
-                    section(deck, at, &["slides"], &mut holds);
+                    section_start(deck, at, true, &mut holds);
                 }
             }
         }

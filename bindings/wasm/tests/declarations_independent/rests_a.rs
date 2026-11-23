@@ -753,8 +753,8 @@ pub const ROWS: &[Rest] = &[
     r("slide.rename", r#"{"name": "N"}"#, "part", &[("$S2", "props.name", "-")]),
     // C8-slide-pin r2: slide.rs:521-542 splits only the addressed section at its slide anchor.
     // section.add: the slide at `at` (else the current one) starts a new section split off the one holding it (its members); with no sections, the slides before it go to a Default Section.
-    r("section.add", r#"{"name": "X", "at": 2}"#, "", &[("$S3", "-", "*"), ("$Section:Main", "slides", "-")]),
-    r("section.add", r#"{"name": "X"}"#, "part", &[("$S2", "-", "-"), ("$Section:Main", "slides", "-")]),
+    r("section.add", r#"{"name": "X", "at": 2}"#, "", &[("$S3", "-", "*"), ("$Section:Main", "slides.$S2", "-")]),
+    r("section.add", r#"{"name": "X"}"#, "part", &[("$S2", "-", "-"), ("$Section:Main", "slides.$S2", "-")]),
     rs(r#"[["section.removeAll", {}]]"#, "section.add", r#"{"name": "X", "at": 1}"#, "", &[("$S2", "-", "*"), ("root", "sections", "-")]),
     // section.rename: the section at `index` (where it is): its name replaced.
     r("section.rename", r#"{"index": 1, "name": "X"}"#, "", &[("$Section:Main", "name", "*")]),
@@ -790,7 +790,7 @@ pub const ROWS: &[Rest] = &[
     r("section.removeAll", r#"{}"#, "", &[("root", "sections", "-"), ("$Section:Intro", "*", "-"), ("$Section:Main", "*", "-")]),
     // C8-slide-pin r2: slide.rs:588-600 moves the addressed section; the sections beside its destination locate it.
     // section.move: the section at `index` (where it is) moves to `to`; the slides are resorted by section order.
-    r("section.move", r#"{"index": 1, "to": 0}"#, "", &[("$Section:Main", "*", "*"), ("$Section:Intro", "slides", "-")]),
+    r("section.move", r#"{"index": 1, "to": 0}"#, "", &[("$Section:Main", "*", "*"), ("$Section:Intro", "slides.$S1", "*")]),
     // slide.fromOutline: a slide per top-level line on the first master's Title and Content layout (by kind), title and body placeholders filled; inserted after the current slide; they refit.
     r(
         "slide.fromOutline",

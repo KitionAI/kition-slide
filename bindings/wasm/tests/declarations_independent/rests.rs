@@ -289,6 +289,13 @@ pub fn held(
                         }
                     });
                 }
+                // An id inside a path (a section's member entry `slides.slide:262`) by its name.
+                if let Some(fields) = &mut plain {
+                    for field in fields.iter_mut() {
+                        *field =
+                            field.split('.').map(|part| known.get(part).cloned().unwrap_or_else(|| part.to_owned())).collect::<Vec<_>>().join(".");
+                    }
+                }
                 ids.insert(label, (spelled(plain.as_ref()), spelled(premise.positions.as_ref())));
             }
         }
