@@ -1,21 +1,14 @@
-//! A chart as its own `Chart` object (schema version 4, `KitDrawing` DR14): a shape of kind
-//! `chart` names it in its `chart` ref, and each of the chart's members (its type, title, legend,
-//! categories and series, style, kept part…) is an entry of its `parts` map, so two people
-//! changing different members of one chart at once both keep their change. The kept chart part
-//! (`raw`) is never changed by an edit, only by a new file, so it never fights an edit.
-//!
-//! A schema 3 replica holds a chart in its shape's `props`: it reads as it is, and the first write
-//! of the shape makes its `Chart` object (under an id derived from the shape's, so two replicas
-//! doing so at once make the same object) and raises the minimum schema version, so a schema 3
-//! build refuses the replica instead of writing charts it no longer reads.
+//! A chart as its own `Chart` object (`KitDrawing` DR14): a shape of kind `chart` names it in its
+//! `chart` ref, and each of the chart's members (its type, title, legend, categories and series,
+//! style, kept part…) is an entry of its `parts` map, so two people changing different members of
+//! one chart at once both keep their change. The kept chart part (`raw`) is never changed by an
+//! edit, only by a new file, so it never fights an edit. The object is made under an id derived
+//! from the shape's, so two replicas making it at once make the same object.
 
 use kition_kit::kdm::{ObjectId, Tx};
 use serde_json::{Map, Value};
 
 use crate::KdmResult;
-
-/// The minimum schema version once a chart is its own object.
-pub const CHART_SCHEMA_VERSION: u32 = 4;
 
 /// The object type.
 pub(crate) const CHART: &str = "Chart";
@@ -56,7 +49,6 @@ pub(crate) fn write(tx: &mut Tx<'_>, shape: &ObjectId, parts: &Map<String, Value
             tx.map_set(&object, "parts", k, v.clone())?;
         }
         tx.set(shape, "chart", Value::String(object.as_str().to_owned()))?;
-        tx.raise_schema_version(CHART_SCHEMA_VERSION)?;
         return Ok(true);
     };
     let have: Map<String, Value> = tx.map_entries(&object, "parts")?.into_iter().collect();
@@ -74,8 +66,7 @@ pub(crate) fn write(tx: &mut Tx<'_>, shape: &ObjectId, parts: &Map<String, Value
     Ok(wrote)
 }
 
-/// The members of shape `shape`'s chart object, or `None` when it has none (a schema 3 replica's
-/// chart, in the shape's `props`).
+/// The members of shape `shape`'s chart object, or `None` when it has none.
 pub(crate) fn read(replica: &kition_kit::kdm::Replica, shape: &ObjectId) -> KdmResult<Option<Map<String, Value>>> {
     let Value::String(object) = replica.get(shape, "chart")? else { return Ok(None) };
     let object = ObjectId::from_string(object);

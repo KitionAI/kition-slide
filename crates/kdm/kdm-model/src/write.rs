@@ -14,7 +14,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use kition_kit::kdm::{ObjectId, TextRun, Tx};
-use kition_kit::session::{BlobSink, MemoryBlobs, write_rich_text};
+use kition_kit::session::{BlobSink, write_rich_text};
 use kition_slide_model::table::Cell;
 use kition_slide_model::text::{Paragraph, TextBody};
 use kition_slide_model::{Animation, Layout, Master, MediaItem, Shape, ShapeId, ShapeKind, Slide, SlideFile, Table};
@@ -24,7 +24,7 @@ use serde_json::{Map, Value, json};
 use crate::ids::{BodyIds, BodyOwner, Ids, TableIds, check_unique};
 use crate::list::{align, sync_list};
 use crate::pieces::{self, Anchor, Composition, Piece, assign, canon, char_len, compose, text_of};
-use crate::refs::{each_slide_list, shape_out, slides_out, to_objects};
+use crate::refs::{shape_out, to_objects};
 use crate::text::{INLINE, INLINE_MARK, align_paragraphs, body_props, paragraph_props, to_runs};
 use crate::{KdmResult, kdm_err, root_id};
 
@@ -64,52 +64,6 @@ pub fn write_comment_changes(tx: &mut Tx<'_>, before: &SlideFile, after: &SlideF
     crate::comments::write(tx, &threads, after, ids)
 }
 
-/// Converts the comments a 0.4.x replica kept on its slides (as `view`, read from it, holds them)
-/// into comment threads and raises the minimum schema version to
-/// [`crate::COMMENTS_SCHEMA_VERSION`] (rule M20), so a 0.4.x build refuses the document rather
-/// than show it without its comments. Run it as a `system` transaction before a write
-/// ([`crate::SlideSession::record`] does). Answers whether it wrote.
-pub fn migrate_comments(tx: &mut Tx<'_>, view: &SlideFile, ids: &mut Ids) -> KdmResult<bool> {
-    crate::comments::migrate(tx, view, ids)
-}
-
-/// Raises the document's minimum schema version to [`MIGRATED_SCHEMA_VERSION`] (rule M20, so a
-/// 0.3.x reader, which reads text bodies only as registers, refuses the document instead of
-/// showing it without its text) and rewrites into the paragraph form (K6) the 0.3.x text bodies
-/// the next write changes: each shape text, table cell and slide notes whose text differs between
-/// `before` (the view `ids` describe) and `after`. The rest stay registers, read as they are,
-/// until a write changes them, so two people who migrate one document offline only ever both
-/// rewrite a text body they both changed.
-///
-/// A rewritten body is written as it was (`before`'s), under ids derived from its holder plus a
-/// fresh part (`<holder>-text:<uuid>`, its paragraphs `<body>-p<index>`), and records that text
-/// (`migratedFrom` in its `props`): when two replicas rewrote the same body at once, both bodies
-/// survive the merge (only the holder's reference to one wins), and the session's read repair
-/// (`crate::siblings`) merges the other one's paragraphs into it by comparing both with that
-/// text. Run it as a `system` transaction before the write ([`crate::SlideSession::record`]
-/// does), so the rewrite is no undo step. Answers whether it wrote.
-pub fn migrate(tx: &mut Tx<'_>, before: &SlideFile, after: &SlideFile, ids: &mut Ids) -> KdmResult<bool> {
-    let mut blobs = MemoryBlobs::default();
-    let wrote = Writer { tx, ids, blobs: &mut blobs, fresh: HashSet::new() }.migrate(before, after)?;
-    let raised = tx.raise_schema_version(MIGRATED_SCHEMA_VERSION)?;
-    Ok(wrote || raised)
-}
-
-/// The key of a body's `props` holding the text a migration rewrote it from (see [`migrate`]).
-pub(crate) const MIGRATED_FROM: &str = "migratedFrom";
-
-/// The id a migration gives the body it rewrites for the holder `key` names: derived from it,
-/// with a fresh part, so two replicas' bodies never collide; `None` when too long to derive the
-/// paragraphs' ids from (the body gets a plain fresh id, and a merge keeps one of two such).
-fn migrated_body_id(key: &str) -> Option<String> {
-    let id = format!("{key}:{}", ObjectId::new().as_str());
-    (id.len() + "-p00000".len() <= 128).then_some(id)
-}
-
-/// The schema version that introduced the paragraph form of text bodies (K6): the minimum a
-/// migrated document requires of its readers.
-pub const MIGRATED_SCHEMA_VERSION: u32 = 2;
-
 struct Writer<'w, 'tx> {
     tx: &'w mut Tx<'tx>,
     ids: &'w mut Ids,
@@ -134,11 +88,11 @@ struct RootProps<'a> {
     tags: &'a [kition_slide_model::TagList],
     #[serde(skip_serializing_if = "<[kition_slide_model::FontFace]>::is_empty")]
     font_faces: &'a [kition_slide_model::FontFace],
-    /// Additive (`SlideFile::pres_props`, `view_props`): a 0.4.x reader ignores them.
+    /// The file's presentation properties (`SlideFile::pres_props`). The view properties
+    /// (`SlideFile::view_props`: the last view, zoom, guides) are private to whoever opened the
+    /// file and never replicated.
     #[serde(skip_serializing_if = "Option::is_none")]
     pres_props: &'a Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    view_props: &'a Option<String>,
 }
 
 #[derive(Serialize)]
@@ -217,10 +171,6 @@ fn refs_out(mut v: Value, ids: &Ids, scope: Option<&ObjectId>) -> Value {
 }
 
 fn root_fields(p: &SlideFile, ids: &Ids) -> KdmResult<Fields> {
-    let mut sections = value(&p.sections)?;
-    each_slide_list(&mut sections, &mut |list| slides_out(list, ids));
-    let mut shows = value(&p.custom_shows)?;
-    each_slide_list(&mut shows, &mut |list| slides_out(list, ids));
     let fonts: Vec<Value> =
         p.embedded_fonts.iter().map(|(name, media)| json!([name, ids.media.object(*media).map_or(json!(media.0), |o| json!(o.as_str()))])).collect();
     Ok(vec![
@@ -234,14 +184,11 @@ fn root_fields(p: &SlideFile, ids: &Ids) -> KdmResult<Fields> {
                 tags: &p.tags,
                 font_faces: &p.font_faces,
                 pres_props: &p.pres_props,
-                view_props: &p.view_props,
             })?,
         ),
         ("show", value(&p.show)?),
         ("headerFooter", value(&p.header_footer)?),
         ("defaultTextStyle", refs_out(value(&p.default_text_style)?, ids, None)),
-        ("sections", sections),
-        ("customShows", shows),
         ("embeddedFonts", Value::Array(fonts)),
         ("embeddedFontList", value(&p.embedded_font_list)?),
         ("embeddedFontRels", refs_out(value(&p.embedded_font_rels)?, ids, None)),
@@ -260,12 +207,9 @@ fn root_unchanged(b: &SlideFile, a: &SlideFile) -> bool {
         && b.tags == a.tags
         && b.font_faces == a.font_faces
         && b.pres_props == a.pres_props
-        && b.view_props == a.view_props
         && b.show == a.show
         && b.header_footer == a.header_footer
         && b.default_text_style == a.default_text_style
-        && b.sections == a.sections
-        && b.custom_shows == a.custom_shows
         && b.embedded_fonts == a.embedded_fonts
         && b.embedded_font_list == a.embedded_font_list
         && b.embedded_font_rels == a.embedded_font_rels
@@ -334,10 +278,6 @@ fn slide_fields(s: &Slide, scope: &ObjectId, ids: &Ids) -> KdmResult<Fields> {
         ("background", refs_out(value(&s.background)?, ids, None)),
         ("transition", refs_out(value(&s.transition)?, ids, None)),
         ("rawExt", value(&s.raw_ext)?),
-        // The 0.3.x register form of the notes; they live in `notesBody` now (K4).
-        ("notes", Value::Null),
-        // The 0.4.x comments; threads live beside the slides now (M23, `crate::comments`), and
-        // only the conversion clears this register.
         // The slide's id, as slide_inspect lists it: its tool id `slide:<id>` (OM9).
         ("slideId", json!(s.id.0)),
     ])
@@ -410,8 +350,6 @@ fn shape_fields(s: &Shape, scope: &ObjectId, ids: &Ids) -> KdmResult<Fields> {
         ("name", json!(s.name)),
         ("xfrm", value(&s.xfrm)?),
         ("props", props),
-        // The 0.3.x register form of the text; it lives in `body` now (K4).
-        ("text", Value::Null),
         ("media", media.and_then(|m| ids.media.object(m)).map_or(Value::Null, |o| json!(o.as_str()))),
         ("key", shape_key(s, scope, ids).map_or(Value::Null, Value::String)),
         // A layout's or master's shape has no tool id; its identity is kept here.
@@ -702,7 +640,21 @@ impl Writer<'_, '_> {
             wrote |= self.write_notes(&object, old.map(|o| &o.notes), &slide.notes)?;
             wrote |= self.write_animations(&object, old.map(|o| o.animations.as_slice()), &slide.animations)?;
         }
-        // 4. Comment threads (beside the slides, M23), the deleted slides' ones with them.
+        // 4. Sections and custom shows: their members name slides, every one of which has its
+        // object now.
+        let fresh_slide = after.slides.iter().any(|s| self.ids.slides.object(s.id).is_some_and(|o| self.fresh.contains(o)));
+        if fresh_slide || before.is_none_or(|b| b.sections != after.sections) {
+            let old =
+                before.map(|b| b.sections.iter().map(|s| Group { identity: Some(s.identity.as_str()), name: &s.name, slides: &s.slides }).collect());
+            let new = after.sections.iter().map(|s| Group { identity: Some(s.identity.as_str()), name: &s.name, slides: &s.slides }).collect();
+            wrote |= self.write_groups(crate::members::SECTION, "sections", old, new)?;
+        }
+        if fresh_slide || before.is_none_or(|b| b.custom_shows != after.custom_shows) {
+            let old = before.map(|b| b.custom_shows.iter().map(|s| Group { identity: None, name: &s.name, slides: &s.slides }).collect());
+            let new = after.custom_shows.iter().map(|s| Group { identity: None, name: &s.name, slides: &s.slides }).collect();
+            wrote |= self.write_groups(crate::members::SHOW, "customShows", old, new)?;
+        }
+        // 5. Comment threads (beside the slides, M23), the deleted slides' ones with them.
         wrote |= crate::comments::write(self.tx, &before_threads, after, self.ids)?;
         let masters: Vec<ObjectId> = after.masters.iter().filter_map(|m| self.ids.masters.object(m.id).cloned()).collect();
         let slides: Vec<ObjectId> = after.slides.iter().filter_map(|s| self.ids.slides.object(s.id).cloned()).collect();
@@ -713,6 +665,66 @@ impl Writer<'_, '_> {
         wrote |= sync_list(self.tx, &root, "masters", &masters)? > 0;
         wrote |= sync_list(self.tx, &root, "slides", &slides)? > 0;
         wrote |= sync_list(self.tx, &root, "media", &media)? > 0;
+        Ok(wrote)
+    }
+
+    /// Writes the sections or custom shows (`ty`, listed in the root's `field`): `before` the view's
+    /// (whose objects `ids` holds in order), `after` the new ones. Each is paired with the one it
+    /// was by its content, else its identity (a section's) or its name, so a rename, a move or a
+    /// change of members writes only that; members are written by entry (`crate::members`).
+    fn write_groups(&mut self, ty: &str, field: &str, before: Option<Vec<Group<'_>>>, after: Vec<Group<'_>>) -> KdmResult<bool> {
+        let known = if ty == crate::members::SECTION { self.ids.sections.clone() } else { self.ids.shows.clone() };
+        // A view whose objects do not match it has nothing to pair with: its objects go.
+        let before = before.filter(|b| b.len() == known.len()).unwrap_or_default();
+        let key = |g: &Group<'_>| g.identity.filter(|i| !i.is_empty()).unwrap_or(g.name).to_owned();
+        let old: Vec<_> = before.iter().map(|g| (g.clone(), key(g))).collect();
+        let new: Vec<_> = after.iter().map(|g| (g.clone(), key(g))).collect();
+        let partner = align(&old, &new);
+        let mut wrote = false;
+        let mut objects = Vec::with_capacity(after.len());
+        for (j, group) in after.iter().enumerate() {
+            let paired =
+                partner.get(j).copied().flatten().and_then(|i| known.get(i).cloned().map(|object| (i, object))).filter(|(_, o)| self.tx.exists(o));
+            let object = match paired {
+                Some((i, object)) => {
+                    let was = before.get(i);
+                    if was.map(|g| g.name) != Some(group.name) {
+                        self.tx.set(&object, "name", json!(group.name))?;
+                        wrote = true;
+                    }
+                    if let Some(identity) = group.identity
+                        && was.and_then(|g| g.identity) != Some(identity)
+                    {
+                        self.tx.set(&object, "identity", if identity.is_empty() { Value::Null } else { json!(identity) })?;
+                        wrote = true;
+                    }
+                    object
+                }
+                None => {
+                    let mut values = fields(vec![("name", json!(group.name))]);
+                    if let Some(identity) = group.identity.filter(|i| !i.is_empty()) {
+                        values.insert("identity".into(), json!(identity));
+                    }
+                    wrote = true;
+                    self.tx.create(ty, values)?
+                }
+            };
+            wrote |= crate::members::write(self.tx, &object, &crate::members::entries(group.slides, self.ids))?;
+            objects.push(object);
+        }
+        let used: HashSet<&ObjectId> = objects.iter().collect();
+        for object in &known {
+            if !used.contains(object) && self.tx.exists(object) {
+                self.tx.delete(object)?;
+                wrote = true;
+            }
+        }
+        wrote |= sync_list(self.tx, &root_id(), field, &objects)? > 0;
+        if ty == crate::members::SECTION {
+            self.ids.sections = objects;
+        } else {
+            self.ids.shows = objects;
+        }
         Ok(wrote)
     }
 
@@ -922,16 +934,7 @@ impl Writer<'_, '_> {
         }
         match &after.kind {
             ShapeKind::Chart(_) => {
-                let made = self.tx.get(&object, "chart")?.is_null();
                 wrote |= crate::charts::write(self.tx, &object, &chart_parts(after, scope, self.ids)?)?;
-                // A schema 3 chart's members leave the shape's `props` with it.
-                if made {
-                    let props = shape_fields(after, scope, self.ids)?.into_iter().find(|(k, _)| *k == "props").map(|(_, v)| v).unwrap_or_default();
-                    for key in self.tx.map_entries(&object, "look").unwrap_or_default().into_iter().map(|(k, _)| k) {
-                        self.tx.map_delete(&object, "look", &key)?;
-                    }
-                    crate::look::write(self.tx, &object, None, &props)?;
-                }
             }
             _ => {
                 if let Value::String(chart) = self.tx.get(&object, "chart")? {
@@ -980,7 +983,7 @@ impl Writer<'_, '_> {
                 let row_object = self.tx.create("Row", fields(vec![("identity", json!(row.identity)), ("height", json!(row.height))]))?;
                 self.tx.list_insert(&table, "rows", r, &row_object)?;
                 for (c, col) in ids.cols.iter().enumerate() {
-                    let (_, v) = self.cell_entry(&table, &row_object, col, scope, None, row.cells.get(c), None)?;
+                    let (_, v) = self.cell_entry(&table, &row_object, col, scope, None, row.cells.get(c))?;
                     self.tx.map_set(&table, "cells", &cell_key(&row_object, col), v)?;
                 }
                 ids.rows.push(row_object);
@@ -1084,7 +1087,7 @@ impl Writer<'_, '_> {
                     Some(None) => Some(Value::Null),
                     None => None,
                 };
-                let (w, v) = self.cell_entry(&table, row_object, col_object, scope, old_cell.flatten(), new_cell, None)?;
+                let (w, v) = self.cell_entry(&table, row_object, col_object, scope, old_cell.flatten(), new_cell)?;
                 wrote |= w;
                 if old_v.as_ref() != Some(&v) {
                     self.tx.map_set(&table, "cells", &cell_key(row_object, col_object), v)?;
@@ -1122,7 +1125,6 @@ impl Writer<'_, '_> {
         scope: &ObjectId,
         before: Option<&Cell>,
         after: Option<&Cell>,
-        derive: Option<&str>,
     ) -> KdmResult<(bool, Value)> {
         let owner = BodyOwner::Cell { table: table.clone(), row: row.clone(), col: col.clone() };
         let Some(cell) = after else {
@@ -1132,7 +1134,7 @@ impl Writer<'_, '_> {
         let known = self.ids.bodies.get(&owner).map(|b| b.body.clone());
         let (wrote, body) = match known {
             Some(body) if before.map(|b| &b.text) == Some(&cell.text) => (false, body),
-            _ => self.write_body(owner, before.map(|b| &b.text), &cell.text, derive)?,
+            _ => self.write_body(owner, before.map(|b| &b.text), &cell.text)?,
         };
         Ok((wrote, self.cell_value(cell, Some(&body), scope)?))
     }
@@ -1154,40 +1156,30 @@ impl Writer<'_, '_> {
         self.ids.bodies.retain(|owner, _| !matches!(owner, BodyOwner::Cell { table: t, .. } if t == table));
     }
 
-    /// A shape's text: its `TextBody` written (or deleted when the shape has no text), and the
-    /// 0.3.x `text` register cleared once the body holds the text.
+    /// A shape's text: its `TextBody` written, or deleted when the shape has no text.
     fn write_shape_text(&mut self, object: &ObjectId, before: Option<&Shape>, after: &Shape) -> KdmResult<bool> {
         let owner = BodyOwner::Shape(object.clone());
         let old_body = self.ids.bodies.get(&owner).map(|b| b.body.clone());
         let old_text = before.and_then(|b| b.text.as_ref());
         let mut wrote = false;
-        let mut clear_legacy = false;
         match &after.text {
-            // A 0.3.x shape whose text did not change stays as it is until `migrate`.
-            Some(text) if old_body.is_some() || before.is_none() || old_text != Some(text) => {
+            Some(text) => {
                 if old_body.is_none() || old_text != Some(text) {
-                    let (w, body) = self.write_body(owner, old_text, text, None)?;
+                    let (w, body) = self.write_body(owner, old_text, text)?;
                     wrote |= w;
                     if old_body.as_ref() != Some(&body) {
                         self.tx.set(object, "body", json!(body.as_str()))?;
                         wrote = true;
-                        clear_legacy = true;
                     }
                 }
             }
-            Some(_) => {}
             None => {
                 if let Some(ids) = self.ids.bodies.remove(&owner) {
                     self.delete_tree(&ids.body, &HashSet::new(), 0)?;
                     self.tx.set(object, "body", Value::Null)?;
                     wrote = true;
                 }
-                clear_legacy = true;
             }
-        }
-        if clear_legacy && !self.tx.get(object, "text")?.is_null() {
-            self.tx.set(object, "text", Value::Null)?;
-            wrote = true;
         }
         Ok(wrote)
     }
@@ -1202,37 +1194,21 @@ impl Writer<'_, '_> {
         if before == Some(after) {
             return Ok(false);
         }
-        let mut wrote = false;
-        let (w, body) = self.write_body(owner, before, after, None)?;
-        wrote |= w;
+        let (mut wrote, body) = self.write_body(owner, before, after)?;
         if old_body.as_ref() != Some(&body) {
             self.tx.set(slide, "notesBody", json!(body.as_str()))?;
             wrote = true;
-            if !self.tx.get(slide, "notes")?.is_null() {
-                self.tx.set(slide, "notes", Value::Null)?;
-            }
         }
         Ok(wrote)
     }
 
-    /// Creates an object, with the id `derive` names when it is free (a migration: replicas that
-    /// migrate at once make the same object), else a fresh one.
-    fn create_derived(&mut self, ty: &str, values: Map<String, Value>, derive: Option<String>) -> KdmResult<ObjectId> {
-        if let Some(id) = derive
-            && let Ok(object) = self.tx.create_with_id(ty, &ObjectId::from_string(id), values.clone())
-        {
-            return Ok(object);
-        }
-        self.tx.create(ty, values)
-    }
-
     /// A new `Paragraph` holding `p`.
-    fn new_paragraph(&mut self, p: &Paragraph, derive: Option<String>) -> KdmResult<ObjectId> {
+    fn new_paragraph(&mut self, p: &Paragraph) -> KdmResult<ObjectId> {
         let ids = &*self.ids;
         let fix = |v: &mut Value| to_objects(v, ids, None);
         let props = paragraph_props(p, &fix)?;
         let runs = to_runs(p, &fix)?;
-        let object = self.create_derived("Paragraph", fields(vec![("props", props)]), derive)?;
+        let object = self.tx.create("Paragraph", fields(vec![("props", props)]))?;
         write_rich_text(self.tx, &object, "text", &[], &runs).map_err(kdm_err)?;
         self.ids.texts.insert(object.clone(), Arc::new(canon(runs)));
         Ok(object)
@@ -1240,10 +1216,9 @@ impl Writer<'_, '_> {
 
     /// Writes `after` as `owner`'s text body: the body the view holds for it diffed against
     /// `before` (paragraphs aligned by [`align_paragraphs`], text and run properties written by
-    /// character), or, when it holds none matching `before`, a new `TextBody` (ids derived from
-    /// `derive` when given, see [`Writer::create_derived`]). Answers whether it wrote, and the
-    /// body's object (the caller points the owner at it when it changed).
-    fn write_body(&mut self, owner: BodyOwner, before: Option<&TextBody>, after: &TextBody, derive: Option<&str>) -> KdmResult<(bool, ObjectId)> {
+    /// character), or, when it holds none matching `before`, a new `TextBody`. Answers whether it
+    /// wrote, and the body's object (the caller points the owner at it when it changed).
+    fn write_body(&mut self, owner: BodyOwner, before: Option<&TextBody>, after: &TextBody) -> KdmResult<(bool, ObjectId)> {
         let known = self
             .ids
             .bodies
@@ -1254,27 +1229,14 @@ impl Writer<'_, '_> {
             if let Some(stale) = self.ids.bodies.remove(&owner) {
                 self.delete_tree(&stale.body, &HashSet::new(), 0)?;
             }
-            let mut props = {
+            let props = {
                 let ids = &*self.ids;
                 body_props(after, &|v: &mut Value| to_objects(v, ids, None))?
             };
-            if derive.is_some()
-                && let Some(map) = props.as_object_mut()
-            {
-                // A migration writes the text it rewrites: the base a merge of two compares with.
-                let ids = &*self.ids;
-                let fix = |v: &mut Value| to_objects(v, ids, None);
-                let mut base = Vec::with_capacity(after.paragraphs.len());
-                for p in &after.paragraphs {
-                    let runs: Vec<Value> = canon(to_runs(p, &fix)?).iter().map(TextRun::to_json).collect();
-                    base.push(json!({ "props": paragraph_props(p, &fix)?, "runs": runs }));
-                }
-                map.insert(MIGRATED_FROM.into(), Value::Array(base));
-            }
-            let body = self.create_derived("TextBody", fields(vec![("props", props)]), derive.map(str::to_owned))?;
+            let body = self.tx.create("TextBody", fields(vec![("props", props)]))?;
             let mut paragraphs = Vec::with_capacity(after.paragraphs.len());
             for (j, p) in after.paragraphs.iter().enumerate() {
-                let object = self.new_paragraph(p, derive.map(|_| format!("{}-p{j}", body.as_str())))?;
+                let object = self.new_paragraph(p)?;
                 self.tx.list_insert(&body, "paragraphs", j, &object)?;
                 paragraphs.push(object);
             }
@@ -1331,7 +1293,7 @@ impl Writer<'_, '_> {
             match partner.get(j).copied().flatten().and_then(|i| known.paragraphs.get(i)) {
                 Some(object) => objects.push(object.clone()),
                 None => {
-                    let object = self.new_paragraph(p, None)?;
+                    let object = self.new_paragraph(p)?;
                     if let Some(truth) = self.ids.texts.get(&object) {
                         fields.insert(object.clone(), compose(truth));
                     }
@@ -1529,91 +1491,6 @@ impl Writer<'_, '_> {
         Ok(out)
     }
 
-    /// See [`migrate`]: every shape text, cell and slide notes the view holds without a body whose
-    /// text `after` changes, rewritten as `before` holds it.
-    fn migrate(&mut self, before: &SlideFile, after: &SlideFile) -> KdmResult<bool> {
-        let mut wrote = false;
-        let after_masters: HashMap<_, &Arc<Master>> = after.masters.iter().map(|m| (m.id, m)).collect();
-        let after_slides: HashMap<_, &Arc<Slide>> = after.slides.iter().map(|s| (s.id, s)).collect();
-        let mut scopes: Vec<(ObjectId, &[Shape], &[Shape])> = Vec::new();
-        for master in &before.masters {
-            let Some(new) = after_masters.get(&master.id).filter(|m| !Arc::ptr_eq(m, master)) else { continue };
-            if let Some(object) = self.ids.masters.object(master.id) {
-                scopes.push((object.clone(), &master.shapes, &new.shapes));
-            }
-            for layout in &master.layouts {
-                let Some(new_layout) = new.layouts.iter().find(|l| l.id == layout.id) else { continue };
-                if let Some(object) = self.ids.layouts.object(layout.id) {
-                    scopes.push((object.clone(), &layout.shapes, &new_layout.shapes));
-                }
-            }
-        }
-        let mut notes: Vec<(ObjectId, &TextBody)> = Vec::new();
-        for slide in &before.slides {
-            let Some(new) = after_slides.get(&slide.id).filter(|s| !Arc::ptr_eq(s, slide)) else { continue };
-            let Some(object) = self.ids.slides.object(slide.id).cloned() else { continue };
-            if new.notes != slide.notes {
-                notes.push((object.clone(), &slide.notes));
-            }
-            scopes.push((object, &slide.shapes, &new.shapes));
-        }
-        for (scope, shapes, new_shapes) in scopes {
-            let changed = index_shapes(new_shapes);
-            let mut all: Vec<&Shape> = Vec::new();
-            kition_slide_model::walk(shapes, &mut |s, _| all.push(s));
-            for shape in all {
-                let Some(new) = changed.get(&shape.id).copied().filter(|n| *n != shape) else { continue };
-                let Some(object) = self.ids.shape(&scope, shape.id).cloned() else { continue };
-                let owner = BodyOwner::Shape(object.clone());
-                if let Some(text) = &shape.text
-                    && new.text.as_ref() != Some(text)
-                    && !self.ids.bodies.contains_key(&owner)
-                {
-                    let id = migrated_body_id(&format!("{}-text", object.as_str()));
-                    let (_, body) = self.write_body(owner, None, text, id.as_deref())?;
-                    self.tx.set(&object, "body", json!(body.as_str()))?;
-                    self.tx.set(&object, "text", Value::Null)?;
-                    wrote = true;
-                }
-                let (ShapeKind::Table(t), ShapeKind::Table(new_t), Some(table_ids)) = (&shape.kind, &new.kind, self.ids.tables.get(&object).cloned())
-                else {
-                    continue;
-                };
-                if t == new_t || t.rows.len() != table_ids.rows.len() || t.cols.len() != table_ids.cols.len() {
-                    continue;
-                }
-                for (row, row_object) in t.rows.iter().zip(&table_ids.rows) {
-                    for (c, col_object) in table_ids.cols.iter().enumerate() {
-                        let owner = BodyOwner::Cell { table: table_ids.table.clone(), row: row_object.clone(), col: col_object.clone() };
-                        let Some(cell) = row.cells.get(c) else { continue };
-                        if self.ids.bodies.contains_key(&owner) {
-                            continue;
-                        }
-                        let id = migrated_body_id(&format!("{}-{}-cell", row_object.as_str(), col_object.as_str()));
-                        let (_, v) = self.cell_entry(&table_ids.table, row_object, col_object, &scope, None, Some(cell), id.as_deref())?;
-                        self.tx.map_set(&table_ids.table, "cells", &cell_key(row_object, col_object), v)?;
-                        wrote = true;
-                    }
-                }
-            }
-        }
-        for (object, text) in notes {
-            let owner = BodyOwner::Notes(object.clone());
-            // Slides without notes get an (empty) body too, as new slides do ([`Writer::write_notes`]).
-            if self.ids.bodies.contains_key(&owner) {
-                continue;
-            }
-            let id = migrated_body_id(&format!("{}-notes", object.as_str()));
-            let (_, body) = self.write_body(owner, None, text, id.as_deref())?;
-            self.tx.set(&object, "notesBody", json!(body.as_str()))?;
-            if !self.tx.get(&object, "notes")?.is_null() {
-                self.tx.set(&object, "notes", Value::Null)?;
-            }
-            wrote = true;
-        }
-        Ok(wrote)
-    }
-
     /// A slide's animations: aligned by content (then by the shape they animate), so an edit,
     /// insert, delete or reorder keeps every other animation's object.
     fn write_animations(&mut self, slide: &ObjectId, before: Option<&[Animation]>, after: &[Animation]) -> KdmResult<bool> {
@@ -1673,6 +1550,15 @@ impl Writer<'_, '_> {
         self.ids.animations.insert(slide.clone(), objects);
         Ok(wrote)
     }
+}
+
+/// A section or custom show as [`Writer::write_groups`] pairs and writes it (a custom show has no
+/// identity).
+#[derive(Clone, PartialEq)]
+struct Group<'a> {
+    identity: Option<&'a str>,
+    name: &'a str,
+    slides: &'a [kition_slide_model::SlideId],
 }
 
 /// A paragraph merge kept with a merge anchor (`crate::pieces`): view paragraph `after` is old

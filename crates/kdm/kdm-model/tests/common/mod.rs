@@ -175,12 +175,13 @@ pub fn shape_object(session: &Session, slide: usize, name: &str) -> ObjectId {
 }
 
 /// The replica itself holds no reference to a deleted object (what the repair after a merge
-/// clears): list entries, slide layouts, animation shapes and triggers, connector ends, sections.
+/// clears): list entries, slide layouts, animation shapes and triggers, connector ends, section and
+/// custom show members.
 pub fn assert_replica_clean(replica: &Replica) {
     let gone =
         |v: Option<&serde_json::Value>| matches!(v, Some(serde_json::Value::String(id)) if !replica.exists(&ObjectId::from_string(id.as_str())));
     let lists: &[(&str, &[&str])] = &[
-        ("SlideFile", &["masters", "slides", "media"]),
+        ("SlideFile", &["masters", "slides", "media", "sections", "customShows"]),
         ("Master", &["layouts", "shapes"]),
         ("Layout", &["shapes"]),
         ("Slide", &["shapes", "animations"]),
@@ -208,17 +209,17 @@ pub fn assert_replica_clean(replica: &Replica) {
     }
     for shape in replica.objects_of_type("Shape") {
         assert!(!gone(Some(&replica.get(&shape, "body").unwrap_or_default())), "shape {shape} names a deleted text body");
-        let props = replica.get(&shape, "props").unwrap_or_default();
+        let kind = replica.map_get(&shape, "look", "kind").unwrap_or_default();
         for side in ["start", "end"] {
-            let end = props.get("kind").and_then(|k| k.get(side)).and_then(|e| e.as_array()).and_then(|pair| pair.first());
+            let end = kind.get(side).and_then(|e| e.as_array()).and_then(|pair| pair.first());
             assert!(!gone(end), "connector {shape}'s {side} names a deleted shape");
         }
     }
-    let root = ObjectId::from_string("slide-file");
-    for field in ["sections", "customShows"] {
-        for entry in replica.get(&root, field).unwrap_or_default().as_array().into_iter().flatten() {
-            for slide in entry.get("slides").and_then(|s| s.as_array()).into_iter().flatten() {
-                assert!(!gone(Some(slide)), "{field} names a deleted slide");
+    for ty in ["Section", "CustomShow"] {
+        for group in replica.objects_of_type(ty) {
+            for (key, _) in replica.map_entries(&group, "slides").unwrap_or_default() {
+                let slide = key.split_once('#').map_or(key.as_str(), |(slide, _)| slide).to_owned();
+                assert!(!gone(Some(&serde_json::Value::String(slide))), "{ty} {group} names a deleted slide");
             }
         }
     }

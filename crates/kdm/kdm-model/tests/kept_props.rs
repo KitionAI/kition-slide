@@ -1,9 +1,10 @@
 //! What a saved PPTX keeps beyond the drawn model (phase 7 fidelity, second round) replicates:
 //! theme system colours, the handout master, header and footer switches, an empty notes page,
-//! the slide and view properties, a chart's carried parts, default paragraph styles and
-//! the line spacing compatibility switch. All of it lives in registers that already exist (no
-//! schema change), so a 0.4.x peer, whose model lacks these keys, still reads every register it
-//! knows.
+//! the slide properties, a chart's carried parts, default paragraph styles and the line spacing
+//! compatibility switch. All of it lives in registers, so a peer whose model lacks these keys
+//! still reads every register it knows. The view properties (last view, zoom, guides) are the
+//! opening person's own: they stay in that person's view (and the file it saves), never in the
+//! replica.
 
 mod common;
 
@@ -64,6 +65,7 @@ fn kept_properties_read_back_from_a_replica() {
     let (replica, _) = new_replica(&p, &blobs);
     let (read, _) = read_document(&replica, &blobs).unwrap_or_else(|error| panic!("read: {error}"));
     assert_eq!(canonical(&read), canonical(&p));
+    assert_eq!(read.view_props, None, "the view properties are not replicated");
     let rels = chart_rels(&read);
     assert_eq!(read.media(rels[0].media).map(|m| m.data.as_slice()), Some(&b"<cs:chartStyle/>"[..]), "the carried part names its media item");
 }
@@ -78,13 +80,17 @@ fn kept_properties_replicate_to_a_peer() {
     sync(&mut a, &mut b);
     assert_eq!(canonical(&b.model().slide_file), canonical(&a.model().slide_file));
     let q = &b.model().slide_file;
-    assert_eq!((&q.pres_props, &q.view_props, &q.slides[0].notes_page), (&r.pres_props, &r.view_props, &r.slides[0].notes_page));
+    assert_eq!((&q.pres_props, &q.slides[0].notes_page), (&r.pres_props, &r.slides[0].notes_page));
+    assert_eq!(q.view_props, None, "the peer does not get the view properties");
+    assert_eq!(a.model().slide_file.view_props, r.view_props, "the view that set them keeps them");
     assert_eq!((&q.masters[0].hf, &q.masters[0].layouts[0].hf), (&r.masters[0].hf, &r.masters[0].layouts[0].hf));
     assert_eq!(q.masters[0].theme.system_colors, r.masters[0].theme.system_colors);
     assert_eq!(q.handout_master, r.handout_master);
     assert_eq!(chart_rels(q).len(), 1);
-    // Both sides edit different new fields; both edits survive.
+    // A change of the view properties writes nothing; a change of another kept field does.
+    let version = a.version();
     edit(&mut a, &blobs, |p| p.view_props = None);
+    assert_eq!(a.version(), version, "the view properties are not replicated");
     edit(&mut b, &blobs, |p| Arc::make_mut(&mut p.masters[0]).layouts[0].hf = None);
     sync(&mut a, &mut b);
     for q in [&a.model().slide_file, &b.model().slide_file] {
@@ -126,7 +132,8 @@ fn a_0_4_reader_reads_registers_with_the_new_keys() {
     let (replica, ids) = new_replica(&p, &blobs);
     let root = kition_kit::kdm::ObjectId::from_string("slide-file");
     let props = replica.get(&root, "props").unwrap_or_else(|error| panic!("props: {error}"));
-    assert!(props.get("presProps").is_some() && props.get("viewProps").is_some(), "{props}");
+    assert!(props.get("presProps").is_some(), "{props}");
+    assert!(props.get("viewProps").is_none(), "the view properties are not replicated: {props}");
     let old: OldRootProps = serde_json::from_value(props).unwrap_or_else(|error| panic!("old root props: {error}"));
     assert_eq!(old.first_slide_number, p.first_slide_number);
 

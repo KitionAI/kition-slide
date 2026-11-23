@@ -139,8 +139,8 @@ pub fn fixture() -> (SlideDocument, Vec<(&'static str, String)>) {
 }
 
 /// A readable name for every object of the replica the roles leave out: `$Layout:<name>`, a
-/// layout's or master's shape `$Layout:<name>/<shape>` or `$Master/<shape>`, `$Media:<name>`, and
-/// otherwise `<type>:<id>`.
+/// layout's or master's shape `$Layout:<name>/<shape>` or `$Master/<shape>`, `$Media:<name>`,
+/// `$Section:<name>` (by its object id and its tool id), and otherwise `<type>:<id>`.
 pub fn labels(doc: &mut SlideDocument) -> Vec<(String, String)> {
     let state = Exchange::new().replica(doc).unwrap().state_json().unwrap();
     let objects = state["objects"].as_object().unwrap();
@@ -167,6 +167,11 @@ pub fn labels(doc: &mut SlideDocument) -> Vec<(String, String)> {
                 }
             }
             "Media" => out.push((id.clone(), format!("$Media:{}", object["props"]["name"].as_str().unwrap_or_default()))),
+            "Section" => {
+                let name = format!("$Section:{}", object["name"].as_str().unwrap_or_default());
+                out.push((id.clone(), name.clone()));
+                out.push((format!("section:{}", object["identity"].as_str().unwrap_or_default()), name));
+            }
             _ => {}
         }
     }

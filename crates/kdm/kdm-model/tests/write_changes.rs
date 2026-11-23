@@ -23,7 +23,11 @@ fn editing_one_shapes_text_writes_only_that_text() {
     let index = before.slides[0].shapes.iter().position(|s| s.name == "A").unwrap_or_else(|| panic!("shape A"));
     let object = ids.shape(&slide, before.slides[0].shapes[index].id).cloned().unwrap_or_else(|| panic!("shape"));
     let fields = |replica: &kition_kit::kdm::Replica| -> Vec<Value> {
-        ["name", "xfrm", "props", "kind"].iter().map(|f| replica.get(&object, f).unwrap_or(Value::Null)).collect()
+        let mut out: Vec<Value> = ["name", "xfrm", "kind"].iter().map(|f| replica.get(&object, f).unwrap_or(Value::Null)).collect();
+        out.extend(
+            replica.map_entries(&object, "look").unwrap_or_default().into_iter().map(|(key, member)| Value::Array(vec![Value::String(key), member])),
+        );
+        out
     };
     let untouched = fields(&replica);
     let paragraph = ids.body(&BodyOwner::Shape(object.clone())).unwrap_or_else(|| panic!("a text body")).paragraphs[0].clone();
@@ -37,7 +41,7 @@ fn editing_one_shapes_text_writes_only_that_text() {
     assert_eq!(replica.take_changed(), BTreeSet::from([paragraph.clone()]), "only the edited paragraph changed");
     assert_eq!(fields(&replica), untouched, "the shape's other fields are as they were");
     assert_eq!(replica.text(&paragraph, "text").unwrap_or_else(|error| panic!("text: {error}")), "Edited");
-    assert!(replica.get(&object, "text").unwrap_or_default().is_null(), "no 0.3.x text register");
+    assert!(replica.schema().field("Shape", "text").is_err(), "a shape's text lives in its body only");
 
     // Nothing more to write.
     let wrote =

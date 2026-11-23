@@ -20,7 +20,7 @@ use serde_json::Value;
 
 use crate::ids::{BodyIds, BodyOwner, Ids, Known, TableIds};
 use crate::pieces;
-use crate::refs::{Locals, each_comment_shape, each_slide_list, shape_in, slides_in, to_locals};
+use crate::refs::{Locals, shape_in, to_locals};
 use crate::{KdmResult, MediaCache, kdm_err, root_id};
 
 const MAX_DEPTH: usize = 64;
@@ -58,7 +58,6 @@ struct RootProps {
     tags: Vec<TagList>,
     font_faces: Vec<FontFace>,
     pres_props: Option<String>,
-    view_props: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -352,8 +351,8 @@ pub(crate) struct ReadSlides {
 /// view), as a full read would read them where the rest of the view (`context`, holding the
 /// objects `guard`) stays as it is; with `root`, the slide's own fields too, into it.
 /// `None` when they list an object the rest of the view holds (only a full read can say which
-/// place keeps it). Each slide's `comments` hold only the 0.4.x comments kept on it: comment
-/// threads are read with the whole view.
+/// place keeps it). Each slide's `comments` are empty: comment threads are read with the whole
+/// view.
 pub(crate) fn read_slides(
     replica: &Replica,
     known: &Known,
@@ -410,8 +409,10 @@ pub(crate) fn read_slides(
 }
 
 impl Reader<'_> {
-    /// The slide file's own fields (not its masters, slides or media), read into `p`.
-    fn root_fields(&self, root: &ObjectId, p: &mut SlideFile) -> KdmResult<()> {
+    /// The slide file's own fields (not its masters, slides or media), read into `p`, with its
+    /// sections and custom shows (`crate::members`). The view properties are not replicated: `p`
+    /// keeps its own.
+    fn root_fields(&mut self, root: &ObjectId, p: &mut SlideFile) -> KdmResult<()> {
         let props: RootProps = from(self.replica.get(root, "props")?)?;
         p.props = props.doc;
         p.slide_size = props.slide_size;
@@ -420,18 +421,31 @@ impl Reader<'_> {
         p.tags = props.tags;
         p.font_faces = props.font_faces;
         p.pres_props = props.pres_props;
-        p.view_props = props.view_props;
         p.show = from(self.replica.get(root, "show")?)?;
         p.header_footer = from(self.replica.get(root, "headerFooter")?)?;
         p.default_text_style = from(self.translated(root, "defaultTextStyle", false)?)?;
-        for (field, slot) in [("sections", 0), ("customShows", 1)] {
-            let mut v = self.replica.get(root, field)?;
-            each_slide_list(&mut v, &mut |list| slides_in(list, &self.locals));
-            if slot == 0 {
-                p.sections = from(v)?;
-            } else {
-                p.custom_shows = from(v)?;
-            }
+        // A slide belongs to one section at most: the first that lists it (see `crate::members`).
+        p.sections = Vec::new();
+        self.ids.sections = Vec::new();
+        let mut placed = HashSet::new();
+        for object in self.listed(root, "sections")? {
+            let mut slides = crate::members::read(self.replica.map_entries(&object, crate::members::MEMBERS)?, &self.locals);
+            slides.retain(|slide| placed.insert(*slide));
+            p.sections.push(kition_slide_model::Section {
+                identity: self.replica.get(&object, "identity")?.as_str().unwrap_or("").to_owned(),
+                name: self.replica.get(&object, "name")?.as_str().unwrap_or("").to_owned(),
+                slides,
+            });
+            self.ids.sections.push(object);
+        }
+        p.custom_shows = Vec::new();
+        self.ids.shows = Vec::new();
+        for object in self.listed(root, "customShows")? {
+            p.custom_shows.push(kition_slide_model::CustomShow {
+                name: self.replica.get(&object, "name")?.as_str().unwrap_or("").to_owned(),
+                slides: crate::members::read(self.replica.map_entries(&object, crate::members::MEMBERS)?, &self.locals),
+            });
+            self.ids.shows.push(object);
         }
         p.embedded_fonts = Vec::new();
         if let Value::Array(fonts) = self.replica.get(root, "embeddedFonts")? {
@@ -499,6 +513,13 @@ impl Reader<'_> {
                 return self.next;
             }
         }
+    }
+
+    /// The list's objects that exist, each once (sections and custom shows: no other list holds
+    /// them).
+    fn listed(&self, owner: &ObjectId, field: &str) -> KdmResult<Vec<ObjectId>> {
+        let mut seen = HashSet::new();
+        Ok(self.replica.list(owner, field)?.into_iter().filter(|o| self.replica.exists(o) && seen.insert(o.clone())).collect())
     }
 
     /// The list's objects that exist and were not listed before (anywhere in this read).
@@ -586,14 +607,14 @@ impl Reader<'_> {
         }
         to_locals(&mut v, &self.locals, true);
         let mut shape: Shape = serde_json::from_value(v).map_err(kdm_err)?;
-        shape.text = self.text_of(BodyOwner::Shape(node.object.clone()), &node.object, "body", "text")?;
+        shape.text = self.text_of(BodyOwner::Shape(node.object.clone()), &node.object, "body")?;
         if let Some(children) = shape.children_mut() {
             *children = self.shapes(&node.children, depth + 1)?;
         }
         if let ShapeKind::Table(table) = &mut shape.kind {
             *table = self.table(&node.object)?;
         }
-        // A chart's members are its `Chart` object's (a schema 3 chart's are in `props`, read above).
+        // A chart's members are its `Chart` object's.
         if matches!(shape.kind, ShapeKind::Chart(_))
             && let Some(parts) = crate::charts::read(replica, &node.object)?
         {
@@ -633,9 +654,6 @@ impl Reader<'_> {
                     Some(v) if !v.is_null() => {
                         let mut v = v.clone();
                         let body = v.as_object_mut().and_then(|map| map.remove("body"));
-                        if body.is_none() && v.get("text").is_some() {
-                            self.ids.legacy = true;
-                        }
                         to_locals(&mut v, &self.locals, false);
                         let mut cell: Cell = serde_json::from_value(v).map_err(kdm_err)?;
                         if let Some(Value::String(body)) = body {
@@ -654,20 +672,12 @@ impl Reader<'_> {
         Ok(table)
     }
 
-    /// The text body `owner` holds: the `TextBody` its `field` names, else (a 0.3.x replica) the
-    /// register `legacy`, else none.
-    fn text_of(&mut self, owner: BodyOwner, object: &ObjectId, field: &str, legacy: &str) -> KdmResult<Option<TextBody>> {
-        if let Value::String(body) = self.replica.get(object, field)?
-            && let Some(text) = self.body(owner, &ObjectId::from_string(body))?
-        {
-            return Ok(Some(text));
+    /// The text body `owner` holds: the `TextBody` its `field` names, else none.
+    fn text_of(&mut self, owner: BodyOwner, object: &ObjectId, field: &str) -> KdmResult<Option<TextBody>> {
+        match self.replica.get(object, field)? {
+            Value::String(body) => self.body(owner, &ObjectId::from_string(body)),
+            _ => Ok(None),
         }
-        let v = self.translated(object, legacy, false)?;
-        if v.is_null() {
-            return Ok(None);
-        }
-        self.ids.legacy = true;
-        serde_json::from_value(v).map_err(kdm_err)
     }
 
     /// A `TextBody` object and its paragraphs, recorded in the id maps under `owner`; `None` if
@@ -747,10 +757,6 @@ impl Reader<'_> {
             animation_objects.push(item);
         }
         self.ids.animations.insert(object.clone(), animation_objects);
-        // A 0.4.x replica's comments, kept on the slide (`crate::comments` reads them as threads).
-        let mut comments = replica.get(object, "comments")?;
-        each_comment_shape(&mut comments, &mut |shape| *shape = shape_in(shape, &self.locals).unwrap_or(Value::Null), 0);
-        to_locals(&mut comments, &self.locals, false);
         Ok(Slide {
             id: node.id,
             layout,
@@ -762,9 +768,9 @@ impl Reader<'_> {
             transition: serde_json::from_value(self.translated(object, "transition", false)?).map_err(kdm_err)?,
             animations,
             timing: self.kept_timing(props.timing)?,
-            notes: self.text_of(BodyOwner::Notes(object.clone()), object, "notesBody", "notes")?.unwrap_or_default(),
+            notes: self.text_of(BodyOwner::Notes(object.clone()), object, "notesBody")?.unwrap_or_default(),
             notes_page: props.notes_page,
-            comments: from(comments)?,
+            comments: Vec::new(),
             tags: props.tags,
             raw_ext: serde_json::from_value(replica.get(object, "rawExt")?).map_err(kdm_err)?,
             file_id: props.file_id,

@@ -1,6 +1,13 @@
-//! The native `.kslide` format: a zip holding `slide.json` (the model, minus media
-//! bytes), `media/<id>` files with the embedded media, and `mimetype`. Readers ignore unknown
+//! The native `.kslide` format (version 1): a zip holding `mimetype`, `slide.json` (the model,
+//! minus media bytes) and `media/<id>` files with the embedded media. Readers ignore unknown
 //! fields, so newer files open in older builds with what those builds understand.
+//!
+//! `slide.json` leaves out every member equal to its default (`lean`): the reader fills it back
+//! (every model type reads a missing member as its default), so a file holds what its slides
+//! hold, not the model's every field. The slide master and layouts a new deck starts with are
+//! written out in full like any other: they are made by code (`kition_slide_model::defaults`,
+//! from the slide size and theme), not a fixed set kept under a versioned name, so a file that
+//! only named them would change appearance whenever that code does.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
@@ -10,13 +17,14 @@ use std::sync::Arc;
 use kition_slide_model::text::{Paragraph, TextBody};
 use kition_slide_model::{LayoutType, SlideFile, defaults};
 
+mod lean;
+
 pub const MIMETYPE: &str = "application/vnd.kition.slide+zip";
 pub const EXTENSION: &str = "kslide";
 /// Format version written into the manifest.
-pub const VERSION: u32 = 2;
-/// The format id, model entry, and model field version 1 files used; they still open.
-const V1_FORMAT: &str = "kitionslide";
-const V1_ENTRY: &str = "presentation.json";
+pub const VERSION: u32 = 1;
+/// The format id written into the manifest.
+const FORMAT: &str = "kslide";
 /// Largest entry we will inflate (guards against zip bombs).
 const MAX_ENTRY: u64 = 2 << 30;
 
@@ -32,13 +40,20 @@ pub enum FormatError {
 
 pub type Result<T> = std::result::Result<T, FormatError>;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+/// `slide.json` as read.
+#[derive(serde::Deserialize)]
 struct Manifest {
     format: String,
+    slide: SlideFile,
+}
+
+/// `slide.json` as written: the slide without its default members.
+#[derive(serde::Serialize)]
+struct Written {
+    format: &'static str,
     version: u32,
     generator: String,
-    #[serde(alias = "presentation")]
-    slide: SlideFile,
+    slide: serde_json::Value,
 }
 
 /// Serialize a slide.
@@ -51,11 +66,11 @@ pub fn save(p: &SlideFile) -> Result<Vec<u8>> {
         let w = |e: zip::result::ZipError| FormatError::Write(e.to_string());
         z.start_file("mimetype", stored).map_err(w)?;
         z.write_all(MIMETYPE.as_bytes()).map_err(|e| FormatError::Write(e.to_string()))?;
-        let m = Manifest {
-            format: "kslide".into(),
+        let m = Written {
+            format: FORMAT,
             version: VERSION,
             generator: format!("Kition Slide {}", env!("CARGO_PKG_VERSION")),
-            slide: p.clone(),
+            slide: lean::slide_file(p).map_err(|e| FormatError::Write(e.to_string()))?,
         };
         let json = serde_json::to_vec(&m).map_err(|e| FormatError::Write(e.to_string()))?;
         z.start_file("slide.json", deflate).map_err(w)?;
@@ -101,10 +116,9 @@ fn read_entry(z: &mut zip::ZipArchive<Cursor<&[u8]>>, name: &str) -> Result<Vec<
 /// Read a slide.
 pub fn load(bytes: &[u8]) -> Result<SlideFile> {
     let mut z = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| FormatError::NotOurs(e.to_string()))?;
-    let json =
-        read_entry(&mut z, "slide.json").or_else(|_| read_entry(&mut z, V1_ENTRY)).map_err(|_| FormatError::NotOurs("no slide.json".into()))?;
+    let json = read_entry(&mut z, "slide.json").map_err(|_| FormatError::NotOurs("no slide.json".into()))?;
     let m: Manifest = serde_json::from_slice(&json).map_err(|e| FormatError::Damaged(e.to_string()))?;
-    if m.format != "kslide" && m.format != V1_FORMAT {
+    if m.format != FORMAT {
         return Err(FormatError::NotOurs(m.format));
     }
     let mut p = m.slide;
@@ -233,28 +247,90 @@ mod tests {
         assert_eq!(serde_json::to_value(&q.slides).unwrap(), serde_json::to_value(&p.slides).unwrap());
     }
 
+    /// The model as a file holds it, without media bytes.
+    fn model(p: &SlideFile) -> serde_json::Value {
+        serde_json::to_value(p).unwrap()
+    }
+
+    fn slide_json(bytes: &[u8]) -> serde_json::Value {
+        let mut z = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        serde_json::from_slice(&read_entry(&mut z, "slide.json").unwrap()).unwrap()
+    }
+
     #[test]
-    fn version_1_files_still_open() {
-        let mut p = SlideFile::default();
-        let id = p.add_media("a.png", "image/png", vec![1, 2, 3, 4]);
-        let mut buf = Cursor::new(Vec::new());
-        {
-            let mut z = zip::ZipWriter::new(&mut buf);
-            let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-            z.start_file("mimetype", opts).unwrap();
-            z.write_all(MIMETYPE.as_bytes()).unwrap();
-            let manifest = serde_json::json!({ "format": V1_FORMAT, "version": 1, "generator": "Kition Slide", "presentation": p });
-            z.start_file(V1_ENTRY, opts).unwrap();
-            z.write_all(&serde_json::to_vec(&manifest).unwrap()).unwrap();
-            z.start_file(format!("media/{}", id.0), opts).unwrap();
-            z.write_all(&[1, 2, 3, 4]).unwrap();
-            z.finish().unwrap();
+    fn a_file_is_version_1_and_leaves_out_default_members() {
+        let p = SlideFile::default();
+        let bytes = save(&p).unwrap();
+        let written = slide_json(&bytes);
+        assert_eq!((written["format"].as_str(), written["version"].as_u64()), (Some("kslide"), Some(1)));
+        let lean = serde_json::to_vec(&written["slide"]).unwrap().len();
+        let full = serde_json::to_vec(&model(&p)).unwrap().len();
+        // A new deck's file was 106 KB, most of it members at their defaults.
+        assert!(lean * 2 < full, "slide.json holds {lean} bytes of a {full}-byte model");
+        let layout = &written["slide"]["masters"][0]["layouts"][0]["shapes"][0];
+        for member in ["fill", "line", "effects", "style", "click", "hover", "hidden", "locked", "descr"] {
+            assert!(layout.get(member).is_none(), "a layout shape's default {member} is written: {layout}");
         }
-        let bytes = buf.into_inner();
-        assert!(sniff(&bytes));
-        let q = load(&bytes).unwrap();
-        assert_eq!(q.slides.len(), p.slides.len());
-        assert_eq!(q.media(id).map(|m| m.data.as_slice()), Some(&[1u8, 2, 3, 4][..]));
+        // The built-in content is written, never left to the code that makes it.
+        for member in ["masters", "slides", "defaultTextStyle", "slideSize"] {
+            assert!(written["slide"].get(member).is_some(), "{member} is not written");
+        }
+        assert!(written["slide"]["masters"][0].get("theme").is_some(), "the master's theme is not written");
+        assert_eq!(model(&load(&bytes).unwrap()), model(&p), "the reader fills every default back");
+    }
+
+    #[test]
+    fn members_unlike_their_default_are_kept() {
+        let mut p = SlideFile::default();
+        let layout = p.masters[0].layouts[0].id;
+        let mut slide = defaults::new_slide(&mut p, layout);
+        // Defaults that are not empty: a slide shows its master's shapes, a shape has a geometry.
+        slide.show_master_shapes = false;
+        slide.hidden = true;
+        slide.notes = TextBody::from_text("Notes\nmore");
+        let mut shape = kition_slide_model::Shape { id: kition_slide_model::ShapeId(p.alloc_id()), name: "Box".into(), ..Default::default() };
+        shape.text = Some(TextBody::from_text("Bold"));
+        if let Some(run) = shape.text.as_mut().and_then(|t| t.paragraphs.first_mut()).and_then(|para| para.runs.first_mut()) {
+            run.props.bold = Some(true);
+        }
+        let mut table = kition_slide_model::Shape { id: kition_slide_model::ShapeId(p.alloc_id()), name: "Table".into(), ..Default::default() };
+        let mut grid = kition_slide_model::Table::new(2, 2, 200.0, 30.0);
+        grid.rows[1].cells[0].text = TextBody::from_text("cell");
+        grid.first_row = false;
+        table.kind = kition_slide_model::ShapeKind::Table(grid);
+        let mut group = kition_slide_model::Shape { id: kition_slide_model::ShapeId(p.alloc_id()), name: "Group".into(), ..Default::default() };
+        let inner =
+            kition_slide_model::Shape { id: kition_slide_model::ShapeId(p.alloc_id()), name: "Inner".into(), locked: true, ..Default::default() };
+        group.kind = kition_slide_model::ShapeKind::Group { children: vec![inner], child: kition_slide_model::Xfrm::new(0.0, 0.0, 10.0, 10.0) };
+        slide.shapes.extend([shape, table, group]);
+        p.slides.push(Arc::new(slide));
+        p.show.use_timings = false;
+        p.sections =
+            vec![kition_slide_model::Section { identity: String::new(), name: "One".into(), slides: p.slides.iter().map(|s| s.id).collect() }];
+        let bytes = save(&p).unwrap();
+        assert_eq!(model(&load(&bytes).unwrap()), model(&p));
+        let written = slide_json(&bytes);
+        assert_eq!(written["slide"]["slides"][1]["showMasterShapes"], false);
+        assert_eq!(written["slide"]["show"]["useTimings"], false);
+    }
+
+    #[test]
+    fn another_format_is_refused() {
+        let p = SlideFile::default();
+        for (format, entry) in [("kitionslide", "presentation.json"), ("kitionslide", "slide.json"), ("kslide", "presentation.json")] {
+            let mut buf = Cursor::new(Vec::new());
+            {
+                let mut z = zip::ZipWriter::new(&mut buf);
+                let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+                z.start_file("mimetype", opts).unwrap();
+                z.write_all(MIMETYPE.as_bytes()).unwrap();
+                let manifest = serde_json::json!({ "format": format, "version": 1, "generator": "Kition Slide", "slide": p });
+                z.start_file(entry, opts).unwrap();
+                z.write_all(&serde_json::to_vec(&manifest).unwrap()).unwrap();
+                z.finish().unwrap();
+            }
+            assert!(matches!(load(&buf.into_inner()), Err(FormatError::NotOurs(_))), "{format} in {entry} opened");
+        }
     }
 
     #[test]

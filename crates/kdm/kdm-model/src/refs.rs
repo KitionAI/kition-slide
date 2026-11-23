@@ -10,8 +10,9 @@
 //! - a shape id at the first element of `start`/`end` of a `{"type": "connector"}` object, scoped to
 //!   the slide, layout or master holding the connector.
 //!
-//! Animations (`shape`, `trigger`), comments (`shape`), sections, custom shows and embedded fonts
-//! are translated explicitly by their writers and readers, with the helpers below.
+//! Animations (`shape`, `trigger`), comments (`shape`) and embedded fonts are translated explicitly
+//! by their writers and readers, with the helpers below; sections' and custom shows' members are
+//! map keys (`crate::members`).
 //!
 //! A written id names its object as a JSON string; an id that names nothing (a file's dangling
 //! reference) stays the number it was, on both sides. A string whose object the reader does not
@@ -165,36 +166,8 @@ pub(crate) fn shape_in(value: &Value, locals: &Locals) -> Option<Value> {
     }
 }
 
-/// A list of slide ids (a section's, a custom show's), written as object ids.
-pub(crate) fn slides_out(list: &mut Value, ids: &Ids) {
-    if let Some(items) = list.as_array_mut() {
-        for item in items {
-            if let Some(n) = local_number(item)
-                && let Some(object) = ids.slides.object(SlideId(n))
-            {
-                *item = object_value(object);
-            }
-        }
-    }
-}
-
-/// Reads a list of slide ids back, dropping the slides the reader does not hold.
-pub(crate) fn slides_in(list: &mut Value, locals: &Locals) {
-    if let Some(items) = list.as_array_mut() {
-        items.retain_mut(|item| match item {
-            Value::String(s) => match locals.slides.get(&ObjectId::from_string(s.as_str())) {
-                Some(id) => {
-                    *item = Value::from(id.0);
-                    true
-                }
-                None => false,
-            },
-            _ => true,
-        });
-    }
-}
-
-/// `[{name, slides: [...]}, ...]` (sections, custom shows): every `slides` list through `f`.
+/// `[{name, slides: [...]}, ...]` (a view's sections and custom shows, as `crate::normalize` reads
+/// them): every `slides` list through `f`.
 pub(crate) fn each_slide_list(value: &mut Value, f: &mut dyn FnMut(&mut Value)) {
     if let Some(items) = value.as_array_mut() {
         for item in items {
@@ -205,7 +178,7 @@ pub(crate) fn each_slide_list(value: &mut Value, f: &mut dyn FnMut(&mut Value)) 
     }
 }
 
-/// Comments (and their replies): `shape` through `f`.
+/// A view's comments (and their replies), as `crate::normalize` reads them: `shape` through `f`.
 pub(crate) fn each_comment_shape(value: &mut Value, f: &mut dyn FnMut(&mut Value), depth: usize) {
     if depth > 32 {
         return;

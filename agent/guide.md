@@ -90,6 +90,9 @@ Most failed calls come from addressing a shape on the wrong slide. The rules:
   object model a shape's text body, table and chart, and their paragraphs, rows and columns, keep
   object ids (strings) that last only while the server has the file open; layouts, masters and
   media too. Receipts, `others` and `conflicts` name a change inside a shape by the shape's tool id.
+- **Sections have tool ids** (`section:<guid>`): each section is an object with its `name` and its
+  member `slides`, one entry per slide, so a section rename and moves of slides in or out of it are
+  separate changes. Custom shows are objects too (`name`, `slides`), listed by the deck.
 
 ## What a call changed, and what others changed
 

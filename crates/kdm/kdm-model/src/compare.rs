@@ -1,6 +1,6 @@
 //! [`normalize`]: an id-blind form of a [`SlideFile`], for comparing views. Local ids are minted
 //! by every read (never replicated), so two views of the same content — a round trip, or two
-//! replicas that converged — almost never share them.
+//! replicas that converged — almost never share them; nor are a view's own view properties.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -12,7 +12,8 @@ use crate::refs::{Fix, Ref, each_comment_shape, each_slide_list, walk};
 
 /// An id-blind copy of `p`: every slide, layout, master, media and shape id renumbered from 1 in
 /// document order (shapes per slide, layout or master), every reference to one rewritten to match,
-/// and `next_id` zeroed. A reference to nothing keeps its number. Two slides with the same
+/// `next_id` zeroed, and the view properties (the view's own, never replicated) left out. A
+/// reference to nothing keeps its number. Two slides with the same
 /// content normalize to the same value whatever ids either holds. Shape ids inside the notes and
 /// handout masters are left as they are (they are that JSON's own business, written verbatim).
 pub fn normalize(p: &SlideFile) -> SlideFile {
@@ -63,6 +64,7 @@ pub fn normalize(p: &SlideFile) -> SlideFile {
 
     if let Some(map) = v.as_object_mut() {
         map.insert("nextId".into(), Value::from(0));
+        map.remove("viewProps");
         for key in ["notesMaster", "handoutMaster", "defaultTextStyle"] {
             if let Some(x) = map.get_mut(key) {
                 globals.refs(x, None);

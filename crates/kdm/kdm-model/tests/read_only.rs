@@ -63,7 +63,7 @@ fn opaque_shapes_and_kept_xml_are_read_only_through_the_object_model() {
     // Writes to it fail with read-only and change nothing.
     for ops in [
         json!([{ "op": "set", "target": opaque.to_string(), "field": "name", "value": "Renamed" }]),
-        json!([{ "op": "set", "target": opaque.to_string(), "field": "props", "value": {} }]),
+        json!([{ "op": "set", "target": opaque.to_string(), "field": "xfrm", "value": { "x": 0, "y": 0, "w": 10, "h": 10 } }]),
         json!([{ "op": "delete", "target": opaque.to_string() }]),
         json!([{ "op": "set", "target": "root", "field": "rawExt", "value": "<p:extLst><x/></p:extLst>" }]),
         json!([{ "op": "set", "target": slide.to_string(), "field": "rawExt", "value": null }]),

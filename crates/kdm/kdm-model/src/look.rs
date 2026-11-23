@@ -1,38 +1,24 @@
-//! A shape's members other than its frame, name, text and children as entries of its `look` map
-//! (schema version 5), one per member written only where it changed, so two people changing two
-//! different ones of one shape at once (its fill and its outline, a connector's end and its line)
-//! both keep theirs (`KitDrawing 1.0` DR14). Before version 5 they were one `props` register: a
-//! shape still holding it reads it under its `look` entries, and moves it into `look` on its next
-//! write. An ink layer's strokes are entries of their own (schema version 6), so strokes two
-//! people draw on one slide at once both stay.
+//! A shape's members other than its frame, name, text and children as entries of its `look` map,
+//! one per member written only where it changed, so two people changing two different ones of one
+//! shape at once (its fill and its outline, a connector's end and its line) both keep theirs
+//! (`KitDrawing 1.0` DR14). An ink layer's strokes are entries of their own, so strokes two people
+//! draw on one slide at once both stay.
 
 use kition_kit::kdm::{ObjectId, Replica, Tx};
 use serde_json::{Map, Value};
 
 use crate::KdmResult;
 
-/// The prefix of an ink layer's stroke entries in its `look` (schema version 6).
+/// The prefix of an ink layer's stroke entries in its `look`.
 const STROKE: &str = "stroke:";
 
 /// Writes `after`'s members into `object`'s `look`: those that differ from `before` (every one
-/// for a new shape, or one still holding the `props` register, which is then cleared). An ink
-/// layer's strokes are entries of their own (see [`write_strokes`]).
+/// for a new shape). An ink layer's strokes are entries of their own (see [`write_strokes`]).
 pub(crate) fn write(tx: &mut Tx<'_>, object: &ObjectId, before: Option<&Value>, after: &Value) -> KdmResult<bool> {
-    let (before, mut wrote) = match before {
-        Some(b) => (Some(without_strokes(b).0), false),
-        None => (None, false),
-    };
+    let before = before.map(|b| without_strokes(b).0);
     let (after, strokes) = without_strokes(after);
-    wrote |= write_strokes(tx, object, strokes.as_deref().unwrap_or_default())?;
-    // A layer whose strokes rode in its `kind` entry (schema 5) moves them into their own entries.
-    if strokes.is_some() && tx.map_get(object, "look", "kind")?.get("strokes").is_some() {
-        tx.map_set(object, "look", "kind", after.get("kind").cloned().unwrap_or(Value::Null))?;
-        wrote = true;
-    }
-    let (before, after) = (before.as_ref(), &after);
-    let legacy = tx.get(object, "props")?;
-    let before = if legacy.is_null() { before } else { None };
-    let (was, now) = (before.and_then(Value::as_object), after.as_object());
+    let mut wrote = write_strokes(tx, object, strokes.as_deref().unwrap_or_default())?;
+    let (was, now) = (before.as_ref().and_then(Value::as_object), after.as_object());
     for (k, v) in now.into_iter().flatten() {
         if was.and_then(|w| w.get(k)) != Some(v) {
             tx.map_set(object, "look", k, v.clone())?;
@@ -43,16 +29,12 @@ pub(crate) fn write(tx: &mut Tx<'_>, object: &ObjectId, before: Option<&Value>, 
         tx.map_delete(object, "look", k)?;
         wrote = true;
     }
-    if !legacy.is_null() {
-        tx.set(object, "props", Value::Null)?;
-        wrote = true;
-    }
     Ok(wrote)
 }
 
-/// `object`'s members: its `props` register (before schema 5) under its `look` entries.
+/// `object`'s members: its `look` entries.
 pub(crate) fn of(replica: &Replica, object: &ObjectId) -> KdmResult<Value> {
-    let mut v: Map<String, Value> = replica.get(object, "props")?.as_object().cloned().unwrap_or_default();
+    let mut v: Map<String, Value> = Map::new();
     let mut strokes: Vec<(f64, String, Value)> = Vec::new();
     for (k, x) in replica.map_entries(object, "look").unwrap_or_default() {
         if k.starts_with(STROKE) {
@@ -65,7 +47,6 @@ pub(crate) fn of(replica: &Replica, object: &ObjectId) -> KdmResult<Value> {
     // An ink layer's strokes, in the order they were drawn (ties: by key).
     if let Some(kind) = v.get_mut("kind").and_then(Value::as_object_mut)
         && kind.get("type").and_then(Value::as_str) == Some("ink")
-        && (!strokes.is_empty() || !kind.contains_key("strokes"))
     {
         strokes.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         kind.insert("strokes".into(), Value::Array(strokes.into_iter().map(|(_, _, s)| s).filter(|s| !s.is_null()).collect()));
@@ -115,22 +96,12 @@ fn write_strokes(tx: &mut Tx<'_>, object: &ObjectId, strokes: &[Value]) -> KdmRe
     Ok(wrote)
 }
 
-/// One member of `object` in a transaction: its `look` entry, else its `props` register's.
+/// One member of `object` in a transaction: its `look` entry.
 pub(crate) fn member(tx: &Tx<'_>, object: &ObjectId, key: &str) -> KdmResult<Value> {
-    let v = tx.map_get(object, "look", key)?;
-    if !v.is_null() {
-        return Ok(v);
-    }
-    Ok(tx.get(object, "props")?.get(key).cloned().unwrap_or(Value::Null))
+    tx.map_get(object, "look", key)
 }
 
-/// Sets one member of `object` in a transaction: its `look` entry (moving a `props` register
-/// into `look` first).
+/// Sets one member of `object` in a transaction: its `look` entry.
 pub(crate) fn set_member(tx: &mut Tx<'_>, object: &ObjectId, key: &str, v: Value) -> KdmResult<()> {
-    let legacy = tx.get(object, "props")?;
-    if !legacy.is_null() {
-        write(tx, object, None, &legacy)?;
-    }
-    tx.map_set(object, "look", key, v)?;
-    Ok(())
+    tx.map_set(object, "look", key, v)
 }

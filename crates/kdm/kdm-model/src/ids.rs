@@ -54,11 +54,8 @@ pub struct Ids {
     pub(crate) tables: HashMap<ObjectId, TableIds>,
     /// Keyed by the slide's object: its `Animation` objects in the view's order.
     pub(crate) animations: HashMap<ObjectId, Vec<ObjectId>>,
-    /// Every text body the view holds in the paragraph form (K4), by what holds it.
+    /// Every text body the view holds, by what holds it.
     pub(crate) bodies: HashMap<BodyOwner, BodyIds>,
-    /// Whether the read found a text body in the 0.3.x register form (a shape's `text`, a slide's
-    /// `notes`, a cell's inline `text`), which [`crate::migrate`] rewrites (K6).
-    pub(crate) legacy: bool,
     /// Each paragraph's `text` field as last read or written (the replica's truth, split anchors
     /// and their tails included, `crate::pieces`): what the next write diffs from, so it writes
     /// exactly the view's runs whatever marks a merge left.
@@ -68,14 +65,13 @@ pub struct Ids {
     /// The objects of the view's comment threads and comments, by their key in the view (an id
     /// the view holds, or one derived from the comment, `crate::comments`).
     pub(crate) comments: HashMap<String, ObjectId>,
-    /// Whether the read found comments a 0.4.x replica kept on a slide (`crate::comments::migrate`
-    /// converts them).
-    pub(crate) legacy_comments: bool,
-    /// The keys the view gave the 0.4.x comments no replica converted yet.
-    pub(crate) legacy_keys: HashSet<String>,
-    /// Threads two replicas converted from one 0.4.x comment, as the read merged them (the read
-    /// repair merges them in the replica).
-    pub(crate) siblings: Vec<crate::comments::Siblings>,
+    /// Threads whose comment list holds an entry twice or a deleted one, as the read listed them
+    /// (the read repair lists them so in the replica).
+    pub(crate) relist: Vec<crate::comments::Relist>,
+    /// The `Section` objects behind the view's sections, in its order.
+    pub(crate) sections: Vec<ObjectId>,
+    /// The `CustomShow` objects behind the view's custom shows, in its order.
+    pub(crate) shows: Vec<ObjectId>,
 }
 
 impl Ids {
@@ -99,14 +95,9 @@ impl Ids {
         self.bodies.get(owner)
     }
 
-    /// How many text bodies the view holds in the paragraph form.
+    /// How many text bodies the view holds.
     pub fn body_count(&self) -> usize {
         self.bodies.len()
-    }
-
-    /// Whether some text body is still in the 0.3.x register form (see [`crate::migrate`]).
-    pub fn needs_migration(&self) -> bool {
-        self.legacy
     }
 
     /// The object of the view's comment or thread `key` (its id in the view).
@@ -114,9 +105,14 @@ impl Ids {
         self.comments.get(key)
     }
 
-    /// Whether some slide still holds comments the 0.4.x way (see [`crate::migrate`]).
-    pub fn needs_comment_migration(&self) -> bool {
-        self.legacy_comments
+    /// The `Section` objects behind the view's sections, in its order.
+    pub fn sections(&self) -> &[ObjectId] {
+        &self.sections
+    }
+
+    /// The `CustomShow` objects behind the view's custom shows, in its order.
+    pub fn custom_shows(&self) -> &[ObjectId] {
+        &self.shows
     }
 
     /// The slide (its object) each object of the view belongs to: a slide itself, its shapes
@@ -188,8 +184,9 @@ impl Ids {
     }
 
     /// Replaces what the slides `slides` (their objects) hold, their shapes, tables, animations,
-    /// text bodies and paragraphs, with `read`, a read of just those slides (`crate::patch`).
-    pub(crate) fn replace_slides(&mut self, slides: &HashSet<ObjectId>, read: Ids) {
+    /// text bodies and paragraphs, with `read`, a read of just those slides (`crate::patch`), and,
+    /// when it read the slide file's own fields too (`root`), its sections and custom shows.
+    pub(crate) fn replace_slides(&mut self, slides: &HashSet<ObjectId>, read: Ids, root: bool) {
         let mut shapes = HashSet::new();
         self.shapes.retain(|(owner, _), object| {
             let held = slides.contains(owner);
@@ -230,7 +227,10 @@ impl Ids {
         self.bodies.extend(read.bodies);
         self.texts.extend(read.texts);
         self.pieces.extend(read.pieces);
-        self.legacy |= read.legacy;
+        if root {
+            self.sections = read.sections;
+            self.shows = read.shows;
+        }
     }
 
     /// Forgets shapes, tables and animations whose objects `exists` no longer finds.

@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-schema-freeze-kslide
+feature: slide.file.presentations
+intent: >-
+  A .kslide file is format version 1 and its slide.json leaves out every member equal to its
+  default (a new deck's was 106 KB, mostly defaults), keeps every member that differs from its
+  default (a slide not showing its master's shapes, a show not using timings), and reads back as
+  the same slide; a file of another format id is refused.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/formats/format/src/lib.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-format
+      filter: "tests::"
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-22"
+timeout_s: 120

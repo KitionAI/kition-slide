@@ -18,10 +18,7 @@ use kition_slide_model::SlideFile;
 
 use crate::blob_gc::{BlobIndex, Moved};
 use crate::validate::LocalRepair;
-use crate::{
-    COMMENTS_SCHEMA_VERSION, Ids, MIGRATED_SCHEMA_VERSION, Result, SlideModel, kit_err, migrate, migrate_comments, normalize, read_document,
-    siblings, write_changes, write_comment_changes, write_document,
-};
+use crate::{Ids, Result, SlideModel, kit_err, normalize, read_document, siblings, write_changes, write_comment_changes, write_document};
 
 /// One open slide as a KDM replica and the engine's view of it. See the module docs.
 pub struct SlideSession {
@@ -34,8 +31,8 @@ pub struct SlideSession {
     /// after it, for [`SlideSession::blobs_since`] (Kition Photo's blob log: chronological, so
     /// `since` cleanly splits it into "already has" and "needs"; trimmed with the store).
     blob_log: Vec<(Version, Vec<String>)>,
-    /// The person may only comment: a record writes only comment threads (M23) and never
-    /// converts the document (see [`SlideSession::set_comment_only`]).
+    /// The person may only comment: a record writes only comment threads (M23) (see
+    /// [`SlideSession::set_comment_only`]).
     comment_only: bool,
     /// What local writes left for the next repair after a deletion ([`LocalRepair`]).
     local: LocalRepair,
@@ -72,7 +69,7 @@ impl SlideSession {
         let index = BlobIndex::build(&replica);
         let mut session = Self { replica, model, blobs, index, blob_log: Vec::new(), comment_only: false, local: LocalRepair::unknown() };
         // Best effort: a replica merged elsewhere may need the read repair; a failure leaves it.
-        let _ = session.repair_read(None);
+        let _ = session.repair_read();
         session.index.collect_garbage(&mut session.blobs);
         Ok(session)
     }
@@ -89,13 +86,9 @@ impl SlideSession {
     /// Writes what differs between the view and `after` as one transaction of `origin`, then
     /// makes `after` the view. Answers how many undo steps that made: 1, or 0 when nothing
     /// replicated changed or `origin` is a `system`/`import` one (never an undo step). On failure
-    /// nothing is written and the view is unchanged. The 0.3.x text bodies this write changes are
-    /// migrated first ([`SlideSession::migrate`]).
+    /// nothing is written and the view is unchanged.
     pub fn record(&mut self, origin: &Origin, after: &SlideFile) -> Result<u32> {
         let comment_only = self.comment_only;
-        if !comment_only {
-            self.migrate(after)?;
-        }
         let mut ids = self.model.ids().clone();
         let before = self.replica.version();
         let (model, blobs) = (&self.model, &mut self.blobs);
@@ -125,37 +118,8 @@ impl SlideSession {
         Ok(u32::from(undoable))
     }
 
-    /// Before a write of `after`: raises a 0.3.x replica's minimum schema version and rewrites the
-    /// text bodies still in the register form that `after` changes into the paragraph form
-    /// ([`crate::migrate`], plan K6), as one `system` transaction (not an undo step); the view is
-    /// unchanged. Answers whether it wrote.
-    fn migrate(&mut self, after: &SlideFile) -> Result<bool> {
-        let min = self.replica.min_schema_version();
-        let text = self.model.ids().needs_migration() || min < MIGRATED_SCHEMA_VERSION;
-        let comments = self.model.ids().needs_comment_migration() || min < COMMENTS_SCHEMA_VERSION;
-        if !text && !comments {
-            return Ok(false);
-        }
-        let mut ids = self.model.ids().clone();
-        let slide_file = &self.model.slide_file;
-        let result = self.replica.transact(&Origin::system("migrate"), |tx| {
-            let wrote = if text { migrate(tx, slide_file, after, &mut ids)? } else { false };
-            Ok(migrate_comments(tx, slide_file, &mut ids)? || wrote)
-        });
-        let changed = self.replica.take_changed();
-        let wrote = result.map_err(kit_err)?;
-        if wrote {
-            self.local = LocalRepair::unknown();
-        }
-        let moved = self.index.update(&self.replica, &changed);
-        self.log_added(moved.added.iter().cloned());
-        let slide_file = self.model.slide_file.clone();
-        self.model.adopt(slide_file, ids);
-        Ok(wrote)
-    }
-
     /// Makes every later [`SlideSession::record`] write only what changed in the comment threads
-    /// (the `CommentThread` and `Comment` objects, rule M23) and never convert the document: all a
+    /// (the `CommentThread` and `Comment` objects, rule M23): all a
     /// principal with the sync protocol's `commenter` role may push. The engine refuses the
     /// person's other edits before they reach the view.
     pub fn set_comment_only(&mut self, on: bool) {
@@ -415,21 +379,19 @@ impl SlideSession {
         let moved = self.index.update(&self.replica, &changed);
         let damage = self.refresh(&changed).and_then(|damage| repaired.map(|()| damage));
         let damage = match damage {
-            Ok(damage) => self.repair_read(Some(&changed)).map(|repaired| if repaired { Damage::Full } else { damage }),
+            Ok(damage) => self.repair_read().map(|repaired| if repaired { Damage::Full } else { damage }),
             failed => failed,
         };
         (damage, moved)
     }
 
     /// The read repair (`crate::siblings`): what the view shows that the replica does not hold yet
-    /// (two migrations of one text body merged, a paragraph listed twice), written as a `system`
-    /// transaction (not an undo step), then the view refreshed. `changed`: what the last import,
-    /// undo or redo touched; `None` checks everything. Answers whether it wrote.
-    fn repair_read(&mut self, changed: Option<&BTreeSet<ObjectId>>) -> Result<bool> {
-        let fixes = siblings::plan(&self.replica, self.model.ids(), changed);
-        // Comment threads two replicas converted from one 0.4.x comment (a commenter leaves them
-        // to an editor: the view shows them merged either way).
-        let threads = if self.comment_only { Vec::new() } else { self.model.ids().siblings.clone() };
+    /// (a paragraph or a comment listed twice), written as a `system` transaction (not an undo
+    /// step), then the view refreshed. Answers whether it wrote.
+    fn repair_read(&mut self) -> Result<bool> {
+        let fixes = siblings::plan(&self.replica, self.model.ids());
+        // A commenter leaves them to an editor: the view shows them listed once either way.
+        let threads = if self.comment_only { Vec::new() } else { self.model.ids().relist.clone() };
         if fixes.is_empty() && threads.is_empty() {
             return Ok(false);
         }

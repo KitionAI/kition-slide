@@ -64,8 +64,11 @@ resolution and overlays an invisible real-text layer with embedded font subsets.
 - **PPTX** (`crates/formats/pptx`): lenient reader (unknown parts skipped, malformed parts logged and
   ignored, sizes and depths bounded, zip bombs capped), writer that PowerPoint opens without
   repair. Unknown elements round-trip through `Opaque` and `raw_ext` fields.
-- **Native** (`crates/formats/format`): zip with `mimetype`, `presentation.json` and `media/<id>`; readers
-  ignore unknown fields.
+- **Native** (`crates/formats/format`, `.kslide` format version 1): zip with `mimetype`, `slide.json`
+  and `media/<id>`. `slide.json` leaves out every member equal to its default (the reader fills it
+  back); the built-in master and layouts are written out like any other, as they are made by code
+  from the slide size and theme, not kept as a fixed set under a versioned name. Readers ignore
+  unknown fields.
 - Formats and their gaps: [file-format-parity.md](parity/file-format-parity.md).
 
 ## Quality gates

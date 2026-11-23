@@ -10,8 +10,23 @@ use crate::{KdmResult, kdm_err, root_id};
 
 /// The types of the objects a deck stores only inside a container: the root's lists, an owner's
 /// lists and owning references, a table's cells, a comment thread.
-const STORED_TYPES: &[&str] =
-    &["Master", "Layout", "Slide", "Shape", "TextBody", "Paragraph", "Table", "Row", "Col", "Animation", "Media", "Chart", "Comment"];
+const STORED_TYPES: &[&str] = &[
+    "Master",
+    "Layout",
+    "Slide",
+    "Shape",
+    "TextBody",
+    "Paragraph",
+    "Table",
+    "Row",
+    "Col",
+    "Animation",
+    "Media",
+    "Chart",
+    "Comment",
+    "Section",
+    "CustomShow",
+];
 
 /// A batch that is saved. `existing` holds the stored objects the document had
 /// before the batch: one the batch took out of every container (a raw `list.remove` without a
@@ -82,6 +97,20 @@ fn settle(tx: &mut Tx<'_>, floor: u32, blobs: &BTreeMap<String, u64>, missing: &
         }
         if before != id {
             tx.set(&layout, "identity", json!(id))?;
+        }
+    }
+    // A section's identity (its tool id): kept, else derived from its object, never repeated.
+    let mut sections_seen = BTreeSet::new();
+    for section in tx.objects_of_type(crate::members::SECTION) {
+        let before = tx.get(&section, "identity")?;
+        let mut id = before.as_str().and_then(kition_slide_model::identity::canonical).unwrap_or_default();
+        let mut salt = 0u64;
+        while id.is_empty() || !sections_seen.insert(id.clone()) {
+            id = kition_slide_model::identity::from_seed(&format!("section:{section}/{salt}"));
+            salt = salt.saturating_add(1);
+        }
+        if before != id {
+            tx.set(&section, "identity", json!(id))?;
         }
     }
     let slides = tx.list_items(&root_id(), "slides")?;
@@ -169,7 +198,7 @@ fn settle(tx: &mut Tx<'_>, floor: u32, blobs: &BTreeMap<String, u64>, missing: &
         if tx.get(&shape, "kind")?.is_null() {
             tx.set(&shape, "kind", json!("shape"))?;
         }
-        if tx.map_entries(&shape, "look")?.is_empty() && tx.get(&shape, "props")?.is_null() && tx.get(&shape, "kind")? == "shape" {
+        if tx.map_entries(&shape, "look")?.is_empty() && tx.get(&shape, "kind")? == "shape" {
             let default = Shape { kind: ShapeKind::Shape, ..Default::default() };
             let mut fields = serde_json::to_value(default).map_err(kdm_err)?.as_object().cloned().unwrap_or_default();
             for name in ["id", "name", "xfrm", "text"] {
@@ -326,9 +355,6 @@ fn validate_placement(tx: &Tx<'_>, blobs: &BTreeMap<String, u64>, missing: &BTre
                 return Err(kdm_err(format!("invalid placement: {kind} cannot hold {field}")));
             }
         }
-        if kind != "shape" && !tx.get(&shape, "text")?.is_null() {
-            return Err(kdm_err("invalid placement: only ordinary shapes hold text"));
-        }
     }
     for ty in ["Master", "Layout"] {
         for owner in tx.objects_of_type(ty) {
@@ -406,7 +432,7 @@ fn owned(tx: &Tx<'_>, object: &ObjectId, held: &mut BTreeSet<ObjectId>, depth: u
     }
     let ty = tx.object_type(object)?;
     let lists: &[&str] = match ty.as_str() {
-        "SlideFile" => &["masters", "slides", "media"],
+        "SlideFile" => &["masters", "slides", "media", "sections", "customShows"],
         "Master" => &["layouts", "shapes"],
         "Layout" => &["shapes"],
         "Slide" => &["shapes", "animations"],

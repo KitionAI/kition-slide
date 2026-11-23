@@ -70,14 +70,6 @@ impl Holds {
         });
     }
 
-    fn indexed_section(&mut self, index: usize, suffix: &str) {
-        let path = format!("sections.{index}{suffix}");
-        self.read_owned(ROOT, [path.clone()]);
-        self.entry(ROOT, |hold| {
-            hold.identities.insert(path, "identity".into());
-        });
-    }
-
     /// List membership and order, without holding each member's descendant content.
     fn order(&mut self, parent: &str, field: &str, objects: Vec<Value>) {
         if !objects.is_empty() {
@@ -140,14 +132,39 @@ fn slides_of(state: &DocState, params: &Value, selected: bool) -> (Vec<usize>, b
     (chosen, false)
 }
 
-/// Every section's member list, or the empty list when there are none: where slides are placed
+/// The section at `at` by its tool id (`section:<identity>`); `None` without an identity.
+fn section_id(deck: &SlideFile, at: usize) -> Option<String> {
+    deck.sections.get(at).filter(|section| !section.identity.is_empty()).map(|section| format!("section:{}", section.identity))
+}
+
+/// `fields` of the section at `at` (its `name`, its member `slides`); the slide file's section
+/// list when it has no identity.
+fn section(deck: &SlideFile, at: usize, fields: &[&str], holds: &mut Holds) {
+    match section_id(deck, at) {
+        Some(id) => holds.read(&id, fields),
+        None => holds.read(ROOT, &["sections"]),
+    }
+}
+
+/// The section at `at`, named by its place: every field of it and where it is.
+fn section_at(deck: &SlideFile, at: usize, holds: &mut Holds) {
+    match section_id(deck, at) {
+        Some(id) => {
+            holds.whole(&id);
+            holds.placed(&id);
+        }
+        None => holds.read(ROOT, &["sections"]),
+    }
+}
+
+/// Every section's members, or the section list when there are none: where slides are placed
 /// and taken (the names are not read).
 fn memberships(deck: &SlideFile, holds: &mut Holds) {
     if deck.sections.is_empty() {
         holds.read(ROOT, &["sections"]);
     } else {
         for at in 0..deck.sections.len() {
-            holds.indexed_section(at, ".slides");
+            section(deck, at, &["slides"], holds);
         }
     }
 }
@@ -601,7 +618,7 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
             if deck.sections.is_empty() {
                 holds.read(ROOT, &["sections"]);
             } else if let Some(slide) = deck.slides.get(at) {
-                holds.indexed_section(deck.section_of(slide.id).unwrap_or(0), ".slides.0");
+                section(deck, deck.section_of(slide.id).unwrap_or(0), &["slides"], &mut holds);
             }
             // The boundary and its anchor locate the split; later slides keep their edits.
             if let Some(slide) = deck.slides.get(at) {
@@ -613,12 +630,15 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
         }
         "section.rename" => {
             if let Some(at) = index(params, "index") {
-                holds.read_owned(ROOT, [format!("sections.{at}.name")]);
+                section(deck, at, &["name"], &mut holds);
+                if let Some(id) = section_id(deck, at) {
+                    holds.placed(&id);
+                }
             }
         }
         "section.remove" => {
             let Some(at) = index(params, "index") else { return Ok(()) };
-            holds.read_owned(ROOT, [format!("sections.{at}")]);
+            section_at(deck, at, &mut holds);
             if params.get("slides") == Some(&json!(true)) {
                 if let Some(section) = deck.sections.get(at) {
                     for slide in deck.slides.iter().filter(|slide| section.slides.contains(&slide.id)) {
@@ -626,12 +646,19 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
                     }
                 }
             } else if let Some(before) = at.checked_sub(1) {
-                holds.read_owned(ROOT, [format!("sections.{before}.slides")]);
+                section(deck, before, &["slides"], &mut holds);
             } else if deck.sections.len() > 1 {
-                holds.read_owned(ROOT, [format!("sections.{}.slides", at.saturating_add(1))]);
+                section(deck, at.saturating_add(1), &["slides"], &mut holds);
             }
         }
-        "section.removeAll" => holds.read(ROOT, &["sections"]),
+        "section.removeAll" => {
+            holds.read(ROOT, &["sections"]);
+            for at in 0..deck.sections.len() {
+                if let Some(id) = section_id(deck, at) {
+                    holds.whole(&id);
+                }
+            }
+        }
         "section.move" => {
             let from = index(params, "index").unwrap_or(0);
             let to = index(params, "to").unwrap_or(0).min(deck.sections.len().saturating_sub(1));
@@ -639,9 +666,9 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
             if gap >= deck.sections.len() {
                 holds.read(ROOT, &["sections"]);
             } else {
-                holds.indexed_section(from, "");
+                section_at(deck, from, &mut holds);
                 for at in gap.checked_sub(1).into_iter().chain(Some(gap)) {
-                    holds.indexed_section(at, ".slides.0");
+                    section(deck, at, &["slides"], &mut holds);
                 }
             }
         }

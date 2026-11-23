@@ -5,10 +5,10 @@
 //! Those slides are read again ([`crate::read::read_slides`]), with the slide file's own fields
 //! when they changed, and the rest of the view, its masters, layouts, media and every other slide,
 //! is kept as it is, the same `Arc`s, so the engine's per-slide caches stay warm. Anything else
-//! falls back to the full read, which stays the reference: masters, layouts, media or comment
-//! threads changed; a slide was deleted (other slides' links name it) or a shape a comment is
-//! anchored at; the view still holds 0.3.x or 0.4.x forms; or the change lists an object somewhere
-//! else in the view, or touches an object no slide read holds. The patched view is the one a full
+//! falls back to the full read, which stays the reference: masters, layouts, media, sections,
+//! custom shows or comment threads changed; a slide was deleted (other slides' links name it) or a
+//! shape a comment is anchored at; the view awaits a read repair; or the change lists an object
+//! somewhere else in the view, or touches an object no slide read holds. The patched view is the one a full
 //! read gives, up to the local ids it mints (`tests/convergence.rs` compares them after every
 //! import and undo).
 
@@ -59,7 +59,7 @@ const SLIDE_PARTS: &[&str] = &["Slide", "Shape", "TextBody", "Paragraph", "Table
 /// as it was, when only a full read can say what the view is now.
 pub(crate) fn patch(model: &mut SlideModel, replica: &Replica, changed: &BTreeSet<ObjectId>, blobs: &dyn BlobSource) -> bool {
     let ids = &model.ids;
-    if changed.is_empty() || ids.legacy || ids.legacy_comments || !ids.siblings.is_empty() {
+    if changed.is_empty() || !ids.relist.is_empty() {
         return false;
     }
     let p = &model.slide_file;
@@ -213,11 +213,6 @@ pub(crate) fn patch(model: &mut SlideModel, replica: &Replica, changed: &BTreeSe
     if fresh.iter().any(|object| !read.objects.contains(*object)) {
         return false;
     }
-    // A 0.4.x comment kept on a slide: the full read converts it.
-    if read.slides.iter().any(|(_, slide)| !slide.comments.is_empty()) {
-        return false;
-    }
-
     let mut read_slides: HashMap<ObjectId, kition_slide_model::Slide> = HashMap::with_capacity(read.slides.len());
     for (object, slide) in read.slides {
         new_ids.slides.insert(object.clone(), slide.id);
@@ -257,7 +252,7 @@ pub(crate) fn patch(model: &mut SlideModel, replica: &Replica, changed: &BTreeSe
     }
     view.slides = out;
     view.next_id = view.next_id.max(read.max).max(model.known.max);
-    new_ids.replace_slides(&purged, read.ids);
+    new_ids.replace_slides(&purged, read.ids, root);
     model.adopt(view, new_ids);
     model.missing.retain(|hash| !fetched.contains_key(hash));
     model.media.extend(fetched);

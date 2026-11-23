@@ -161,7 +161,7 @@ features:
     paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/recovery.rs, bindings/wasm/src/lib.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands.
-    cases: [regressions/issue-recovery-discard-uid]
+    cases: [regressions/issue-recovery-discard-uid, regressions/issue-schema-freeze-kslide]
     since: "2026-11-17"
   - id: slide.platform.document-identity
     title: "A host reads the document id a slide file carries (none: a .kslide or .pptx embeds no replica) and forks it into the same bytes (document.identity, document.fork; Kit Process Protocol 5.6)"
@@ -209,9 +209,10 @@ features:
     priority: P1
     status: partial
     commands: [section.add, section.rename, section.remove, section.removeAll, section.move]
-    paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/sample.rs]
+    paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/sample.rs, crates/kdm/kdm-model/src/members.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-schema-freeze-sections]
     since: "2026-11-17"
   - id: slide.shapes.edit
     title: "Insert, size, rotate, flip, adjust, fill, outline, effects, merge and lock shapes"

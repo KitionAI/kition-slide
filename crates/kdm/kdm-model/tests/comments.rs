@@ -1,6 +1,6 @@
 //! Comment threads (Kition Kit Standard 2.0 rule M23): threads and comments are their own
 //! objects beside the slides; concurrent comments all survive; a commenter's change touches only
-//! comment objects; a 0.4.x replica's comments convert once, the same way on every replica.
+//! comment objects.
 
 mod common;
 
@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use common::{SharedBlobs, actor, canonical, new_replica, person, slide_file};
-use kdm_model::{COMMENTS_SCHEMA_VERSION, SlideModel, SlideSession, read_document};
-use kition_kit::kdm::{DocId, ObjectId, Origin, Replica, Schema};
+use kdm_model::{SlideModel, SlideSession, read_document};
+use kition_kit::kdm::{ObjectId, Replica};
 use kition_kit::session::{KitModel, MemoryBlobs};
 use kition_slide_model::{Comment, CommentKept, SlideFile};
 use serde_json::{Value, json};
@@ -140,9 +140,7 @@ fn threads_are_objects_beside_the_slides_and_read_back() {
     let replica = s.replica();
     assert_eq!(replica.objects_of_type("CommentThread").len(), 2);
     assert_eq!(replica.objects_of_type("Comment").len(), 3);
-    for slide in replica.objects_of_type("Slide") {
-        assert!(replica.get(&slide, "comments").unwrap_or_default().is_null(), "no comments on a slide");
-    }
+    assert!(replica.schema().field("Slide", "comments").is_err(), "no comments on a slide");
     let object = ObjectId::from_string(first.id.as_str());
     let anchor = replica.get(&object, "anchor").unwrap_or_default();
     let view = s.slide_file();
@@ -319,147 +317,4 @@ fn comments_copied_with_a_slide_get_their_own_objects() {
     let (fresh, _) = read_document(s.replica(), s.blobs()).unwrap_or_else(|error| panic!("read: {error}"));
     assert_eq!(fresh.slides.iter().map(|s| s.comments.len()).sum::<usize>(), 2);
     assert_eq!(canonical(&fresh), canonical(s.slide_file()));
-}
-
-// --- 0.4.x replicas ------------------------------------------------------------------------------
-
-fn schema_version(version: u32) -> Arc<Schema> {
-    let current = format!("\"schemaVersion\": {}", SlideModel::schema().schema_version);
-    let json = include_str!("../model/schema.json").replacen(&current, &format!("\"schemaVersion\": {version}"), 1);
-    Arc::new(Schema::parse(&json).unwrap_or_else(|error| panic!("schema: {error}")))
-}
-
-/// A 0.4.x replica (schema version 2): slide 0's comments in its `comments` register, the way a
-/// 0.4.x build wrote them (the shape as its object id).
-fn legacy_snapshot() -> (Vec<u8>, MemoryBlobs, SlideFile) {
-    let p = slide_file();
-    let blobs = SharedBlobs::default();
-    let mut ids = kdm_model::Ids::default();
-    let (mut replica, ()) = Replica::create_with(schema_version(2), DocId::new(), actor(5), &Origin::system("create"), |tx| {
-        kdm_model::write_document(tx, &p, &mut ids, &mut blobs.clone()).map(|_| ())
-    })
-    .unwrap_or_else(|error| panic!("create: {error}"));
-    let slide = ids.slides.object(p.slides[0].id).unwrap_or_else(|| panic!("slide")).clone();
-    let shape = ids.shape(&slide, p.slides[0].shapes[0].id).unwrap_or_else(|| panic!("shape")).clone();
-    let comments = json!([
-        { "author": "Ann", "initials": "A", "text": "Old one", "date": "2026-01-01T10:00:00.000", "x": 10.0, "y": 20.0, "resolved": false,
-          "replies": [{ "author": "Bob", "initials": "B", "text": "Old reply", "date": "2026-01-01T11:00:00.000", "x": 0.0, "y": 0.0, "resolved": false, "replies": [], "shape": null }],
-          "shape": shape.as_str() },
-        { "author": "Cy", "initials": "C", "text": "Old two", "date": "2026-01-02T10:00:00.000", "x": 5.0, "y": 5.0, "resolved": true, "replies": [], "shape": null }
-    ]);
-    replica.transact(&Origin::system("legacy"), |tx| tx.set(&slide, "comments", comments)).unwrap_or_else(|error| panic!("{error}"));
-    let snapshot = replica.snapshot().unwrap_or_else(|error| panic!("{error}"));
-    let mut expected = p.clone();
-    let mut first = said("Ann", "Old one", "2026-01-01T10:00:00.000");
-    first.initials = "A".into();
-    first.x = 10.0;
-    first.y = 20.0;
-    first.shape = Some(p.slides[0].shapes[0].id);
-    first.replies = vec![Comment { initials: "B".into(), ..said("Bob", "Old reply", "2026-01-01T11:00:00.000") }];
-    let mut second = said("Cy", "Old two", "2026-01-02T10:00:00.000");
-    second.initials = "C".into();
-    second.x = 5.0;
-    second.y = 5.0;
-    second.resolved = true;
-    Arc::make_mut(&mut expected.slides[0]).comments = vec![first, second];
-    (snapshot, memory(&blobs), expected)
-}
-
-#[test]
-fn a_0_4_replica_reads_its_comments_and_converts_them_on_the_first_write() {
-    let (snapshot, blobs, expected) = legacy_snapshot();
-    let mut s = SlideSession::open_snapshot(&snapshot, blobs).unwrap_or_else(|error| panic!("open: {error}"));
-    assert_eq!(canonical(s.slide_file()), canonical(&expected), "the comments read as threads");
-    assert!(s.model().ids().needs_comment_migration());
-    assert_eq!(s.replica().min_schema_version(), 2, "reading converts nothing");
-
-    record_with(&mut s, "ann", |p| Arc::make_mut(&mut p.slides[1]).name = "Renamed".into());
-    assert_eq!(s.replica().min_schema_version(), COMMENTS_SCHEMA_VERSION);
-    assert!(!s.model().ids().needs_comment_migration());
-    assert_eq!(s.replica().objects_of_type("CommentThread").len(), 2);
-    assert_eq!(s.replica().objects_of_type("Comment").len(), 3);
-    for slide in s.replica().objects_of_type("Slide") {
-        assert!(s.replica().get(&slide, "comments").unwrap_or_default().is_null());
-    }
-    view_is_replica(&s);
-    // The conversion is no undo step: undo takes back the rename only.
-    assert!(s.undo().unwrap_or_else(|error| panic!("{error}")).0);
-    assert!(!s.can_undo());
-    assert_eq!(s.slide_file().slides[0].comments.len(), 2);
-
-    // A 0.4.x build refuses the converted replica rather than show it without its comments.
-    let converted = s.snapshot().unwrap_or_else(|error| panic!("{error}"));
-    assert!(Replica::load(schema_version(2), &converted, actor(9)).is_err());
-    assert!(Replica::load(schema_version(2), &snapshot, actor(9)).is_ok(), "it read the replica before");
-}
-
-#[test]
-fn two_replicas_converting_one_document_offline_converge_without_duplicates() {
-    let (snapshot, blobs, _) = legacy_snapshot();
-    let mut a = SlideSession::open_snapshot(&snapshot, blobs.clone()).unwrap_or_else(|error| panic!("{error}"));
-    let mut b = SlideSession::open_snapshot(&snapshot, blobs).unwrap_or_else(|error| panic!("{error}"));
-    record_with(&mut a, "ann", |p| Arc::make_mut(&mut p.slides[0]).comments[0].replies.push(reply("Ann", "New reply by A", "2026-10-19T10:00:00Z")));
-    record_with(&mut b, "bob", |p| {
-        let slide = Arc::make_mut(&mut p.slides[0]);
-        slide.comments[1].resolved = false;
-        slide.comments[0].replies.push(reply("Bob", "New reply by B", "2026-10-19T10:00:01Z"));
-    });
-    exchange(&mut a, &mut b);
-    assert_eq!(listing(a.replica()), 2, "one thread per comment, whoever converted it");
-    let comments = &a.slide_file().slides[0].comments;
-    assert_eq!(comments.len(), 2);
-    let mut replies: Vec<&str> = comments[0].replies.iter().map(|r| r.text.as_str()).collect();
-    replies.sort_unstable();
-    assert_eq!(replies, vec!["New reply by A", "New reply by B", "Old reply"]);
-    assert_eq!((comments[0].text.as_str(), comments[1].text.as_str()), ("Old one", "Old two"));
-    assert!(!comments[1].resolved);
-    assert_eq!(a.replica().objects_of_type("Comment").len(), 5, "no copy of an old comment is left");
-    view_is_replica(&a);
-    view_is_replica(&b);
-}
-
-#[test]
-fn a_commenter_never_converts_a_0_4_replica() {
-    let (snapshot, blobs, _) = legacy_snapshot();
-    let mut s = SlideSession::open_snapshot(&snapshot, blobs).unwrap_or_else(|error| panic!("{error}"));
-    s.set_comment_only(true);
-    let base = s.snapshot().unwrap_or_else(|error| panic!("{error}"));
-    let since = s.version();
-    record_with(&mut s, "bob", |p| {
-        Arc::make_mut(&mut p.slides[1])
-            .comments
-            .push(Comment { author_id: "user:bob".into(), ..thread("Bob", "A new thread", "2026-10-19T10:00:00Z") });
-    });
-    assert_eq!(s.replica().min_schema_version(), 2);
-    only_comments(&touched(&s, &since, &base));
-    assert_eq!(s.slide_file().slides[0].comments.len(), 2, "the old comments still read");
-    view_is_replica(&s);
-}
-
-#[test]
-fn a_reply_to_a_conversion_another_replica_merged_away_rejoins_the_thread() {
-    let (snapshot, blobs, _) = legacy_snapshot();
-    let mut a = SlideSession::open_snapshot(&snapshot, blobs.clone()).unwrap_or_else(|error| panic!("{error}"));
-    let mut b = SlideSession::open_snapshot(&snapshot, blobs).unwrap_or_else(|error| panic!("{error}"));
-    // Both convert offline (any edit does).
-    record_with(&mut a, "ann", |p| Arc::make_mut(&mut p.slides[1]).name = "A".into());
-    record_with(&mut b, "bob", |p| Arc::make_mut(&mut p.slides[2]).name = "B".into());
-    let own = |s: &SlideSession| {
-        let c = &s.slide_file().slides[0].comments[0];
-        s.model().ids().comments_object(&c.id).unwrap_or_else(|| panic!("converted")).clone()
-    };
-    let (thread_a, thread_b) = (own(&a), own(&b));
-    // The replica whose thread the merge keeps sees the other's first and merges it away; the
-    // other, not knowing yet, replies in its own thread.
-    let (keeper, other) = if thread_a.as_str() < thread_b.as_str() { (&mut a, &mut b) } else { (&mut b, &mut a) };
-    let since = keeper.version();
-    keeper.import_changes(&other.export_changes(&since).unwrap_or_else(|error| panic!("{error}"))).unwrap_or_else(|error| panic!("{error}"));
-    record_with(other, "cy", |p| Arc::make_mut(&mut p.slides[0]).comments[0].replies.push(reply("Cy", "Late reply", "2026-10-19T12:00:00Z")));
-    exchange(&mut a, &mut b);
-    for s in [&a, &b] {
-        let replies: Vec<&str> = s.slide_file().slides[0].comments[0].replies.iter().map(|r| r.text.as_str()).collect();
-        assert!(replies.contains(&"Late reply") && replies.contains(&"Old reply"), "{replies:?}");
-        assert_eq!(s.slide_file().slides[0].comments.len(), 2);
-        view_is_replica(s);
-    }
 }

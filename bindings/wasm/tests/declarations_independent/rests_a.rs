@@ -65,7 +65,7 @@ pub const ROWS: &[Rest] = &[
         "",
         &[("$GA", "*", "-"), ("$S2", "animations", "-"), ("$Group", "children,look.kind,xfrm", "-"), ("$GB", "xfrm", "-")],
     ),
-    // edit.cut scope slides: copies selection.slides and deletes them (slide.delete {}): the slide whole with its shapes and threads, root sections.
+    // edit.cut scope slides: copies selection.slides and deletes them (slide.delete {}): the slide whole with its shapes and threads, the sections' members.
     r(
         "edit.cut",
         r#"{"scope": "slides"}"#,
@@ -86,7 +86,8 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     ),
     // edit.cut while text is selected: copies the range, deletes it from the edited body; the text box refits its height (fit_text_box).
@@ -232,7 +233,8 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     ),
     rs(
@@ -291,7 +293,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "@order(layouts),~layoutCount,listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:124-137), never their names
@@ -312,7 +316,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "@order(layouts),~layoutCount,listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // slide.new after a title slide: the first Title and Content layout by kind.
@@ -335,7 +341,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "@order(layouts),~layoutCount,listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // slide.new with `layout`: looked up by name over the current slide's master's layouts (then kind); title/body set on its title and first body placeholders.
@@ -357,7 +365,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "@order(layouts),~layoutCount,listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:124-137), never their names
@@ -379,7 +389,8 @@ pub const ROWS: &[Rest] = &[
             ("$Layout:Blank/Footer Placeholder", "look.ph", "-"),
             ("$Layout:Blank/Slide Number Placeholder", "look.ph", "-"),
             ("$Master", "@order(layouts),~layoutCount", "-"),
-            ("root", "sections.0.slides,sections.1.slides", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // slide.duplicate: index, else selection.slides, else the current slide; the slide copied whole (shapes, animations, threads remapped), after it, into its section; the copies' placeholders checked against their layout (refit).
@@ -412,7 +423,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:201-210), never their names
@@ -444,7 +457,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:201-210), never their names
@@ -477,7 +492,9 @@ pub const ROWS: &[Rest] = &[
             ("$Master/Title 1", "body.props", "-"),
             ("$Master/Text Placeholder 2", "body.props", "-"),
             ("$Master", "listStyles,theme.fonts", "-"),
-            ("root", "defaultTextStyle,sections.0.slides,sections.1.slides", "-"),
+            ("root", "defaultTextStyle", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // slide.delete: ids, else index, else selection.slides, else the current slide; the slides go whole (shapes, threads) and leave their sections.
@@ -502,7 +519,8 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections.0.slides,sections.1.slides", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:249-251), never their names
@@ -526,7 +544,8 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections.0.slides,sections.1.slides", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:249-251), never their names
@@ -550,7 +569,8 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections.0.slides,sections.1.slides", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:249-251), never their names
@@ -575,21 +595,32 @@ pub const ROWS: &[Rest] = &[
             ("$Pic", "*", "-"),
             ("$Video", "*", "-"),
             ("$Thread", "*", "-"),
-            ("root", "sections.0.slides,sections.1.slides", "-"),
+            ("$Section:Intro", "slides", "-"),
+            ("$Section:Main", "slides", "-"),
         ],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:249-251), never their names
-    pinned(r("slide.delete", r#"{"index": 2}"#, "", &[("$S3", "*", "*"), ("$Star", "*", "-"), ("root", "sections.0.slides,sections.1.slides", "-")])),
+    pinned(r(
+        "slide.delete",
+        r#"{"index": 2}"#,
+        "",
+        &[("$S3", "*", "*"), ("$Star", "*", "-"), ("$Section:Intro", "slides", "-"), ("$Section:Main", "slides", "-")],
+    )),
     // slide.move: the slide at `from` (else the current one) moves to `to`; it leaves every section and joins the section of the slide before it (else the first), which is resorted by deck order.
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:272-282), never their names
     pinned(r(
         "slide.move",
         r#"{"from": 1, "to": 0}"#,
         "",
-        &[("$S2", "-", "*"), ("$S1", "-", "*"), ("root", "sections.0.slides,sections.1.slides", "-")],
+        &[("$S2", "-", "*"), ("$S1", "-", "*"), ("$Section:Intro", "slides", "-"), ("$Section:Main", "slides", "-")],
     )),
     // normalized after review: the handler reads the sections' member lists only (section_of, crates/engine/model/src/lib.rs:1145; crates/engine/engine/src/cmd/slide.rs:272-282), never their names
-    pinned(r("slide.move", r#"{"to": 2}"#, "part", &[("$S2", "-", "-"), ("$S3", "-", "*"), ("root", "sections.0.slides,sections.1.slides", "-")])),
+    pinned(r(
+        "slide.move",
+        r#"{"to": 2}"#,
+        "part",
+        &[("$S2", "-", "-"), ("$S3", "-", "*"), ("$Section:Intro", "slides", "-"), ("$Section:Main", "slides", "-")],
+    )),
     // slide.hide: index, else selection.slides, else the current slide; `hidden`, else the toggle of whether all are hidden.
     r("slide.hide", r#"{"index": 1}"#, "", &[("$S2", "props.hidden", "*")]),
     r("slide.hide", r#"{"index": 1, "hidden": true}"#, "", &[("$S2", "props.hidden", "*")]),
@@ -721,21 +752,21 @@ pub const ROWS: &[Rest] = &[
     r("slide.rename", r#"{"name": "N", "index": 1}"#, "", &[("$S2", "props.name", "*")]),
     r("slide.rename", r#"{"name": "N"}"#, "part", &[("$S2", "props.name", "-")]),
     // C8-slide-pin r2: slide.rs:521-542 splits only the addressed section at its slide anchor.
-    // section.add: the slide at `at` (else the current one) starts a new section split off the one holding it; with no sections, the slides before it go to a Default Section.
-    r("section.add", r#"{"name": "X", "at": 2}"#, "", &[("$S3", "-", "*"), ("root", "sections.1.slides.0", "-")]),
-    r("section.add", r#"{"name": "X"}"#, "part", &[("$S2", "-", "-"), ("root", "sections.1.slides.0", "-")]),
+    // section.add: the slide at `at` (else the current one) starts a new section split off the one holding it (its members); with no sections, the slides before it go to a Default Section.
+    r("section.add", r#"{"name": "X", "at": 2}"#, "", &[("$S3", "-", "*"), ("$Section:Main", "slides", "-")]),
+    r("section.add", r#"{"name": "X"}"#, "part", &[("$S2", "-", "-"), ("$Section:Main", "slides", "-")]),
     rs(r#"[["section.removeAll", {}]]"#, "section.add", r#"{"name": "X", "at": 1}"#, "", &[("$S2", "-", "*"), ("root", "sections", "-")]),
-    // section.rename: the section at `index`: its name replaced.
-    r("section.rename", r#"{"index": 1, "name": "X"}"#, "", &[("root", "sections.1.name", "-")]),
+    // section.rename: the section at `index` (where it is): its name replaced.
+    r("section.rename", r#"{"index": 1, "name": "X"}"#, "", &[("$Section:Main", "name", "*")]),
     // section.remove: the section at `index`; its slides join the section before (else the next), or with `slides` they are deleted whole.
-    r("section.remove", r#"{"index": 1}"#, "", &[("root", "sections.0.slides,sections.1", "-")]),
-    r("section.remove", r#"{"index": 0}"#, "", &[("root", "sections.0,sections.1.slides", "-")]),
+    r("section.remove", r#"{"index": 1}"#, "", &[("$Section:Intro", "slides", "-"), ("$Section:Main", "*", "*")]),
+    r("section.remove", r#"{"index": 0}"#, "", &[("$Section:Intro", "*", "*"), ("$Section:Main", "slides", "-")]),
     r(
         "section.remove",
         r#"{"index": 1, "slides": true}"#,
         "",
         &[
-            ("root", "sections.1", "-"),
+            ("$Section:Main", "*", "*"),
             ("$S2", "*", "-"),
             ("$S3", "*", "-"),
             ("$Star", "*", "-"),
@@ -755,11 +786,11 @@ pub const ROWS: &[Rest] = &[
             ("$Thread", "*", "-"),
         ],
     ),
-    // section.removeAll: the sections cleared.
-    r("section.removeAll", r#"{}"#, "", &[("root", "sections", "-")]),
-    // C8-slide-pin r2: slide.rs:588-600 moves the addressed section; indexed anchors locate its destination.
-    // section.move: the section at `index` moves to `to`; the slides are resorted by section order.
-    r("section.move", r#"{"index": 1, "to": 0}"#, "", &[("root", "sections.0.slides.0,sections.1", "-")]),
+    // section.removeAll: the sections cleared: the section list and every section whole.
+    r("section.removeAll", r#"{}"#, "", &[("root", "sections", "-"), ("$Section:Intro", "*", "-"), ("$Section:Main", "*", "-")]),
+    // C8-slide-pin r2: slide.rs:588-600 moves the addressed section; the sections beside its destination locate it.
+    // section.move: the section at `index` (where it is) moves to `to`; the slides are resorted by section order.
+    r("section.move", r#"{"index": 1, "to": 0}"#, "", &[("$Section:Main", "*", "*"), ("$Section:Intro", "slides", "-")]),
     // slide.fromOutline: a slide per top-level line on the first master's Title and Content layout (by kind), title and body placeholders filled; inserted after the current slide; they refit.
     r(
         "slide.fromOutline",

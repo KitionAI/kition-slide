@@ -3,12 +3,12 @@
 //!
 //! - A slide whose layout is gone gets the first layout of the master that listed it (or, if that
 //!   master is gone too, of the first master).
-//! - An animation of a deleted shape is deleted; a trigger, a connector end or a comment anchor at
-//!   a deleted shape is cleared; section and custom show entries of deleted slides, and embedded
-//!   fonts of deleted media, are dropped; a shape's `table` or `media` ref to a deleted object is
-//!   cleared (the reader shows an empty table, or a picture without its image, rather than dropping
-//!   the shape); so is a shape's `body` or a slide's `notesBody` naming a deleted text body (the
-//!   reader then shows no text, or the 0.3.x register if one is left).
+//! - An animation of a deleted shape is deleted; a trigger or a connector end at a deleted shape is
+//!   cleared; section and custom show members that are deleted slides (and a slide two sections
+//!   hold, from all but the first, `crate::members`), and embedded fonts of deleted media, are
+//!   dropped; a shape's `table` or `media` ref to a deleted object is cleared (the reader shows an
+//!   empty table, or a picture without its image, rather than dropping the shape); so is a shape's
+//!   `body` or a slide's `notesBody` naming a deleted text body (the reader then shows no text).
 //! - List entries naming deleted objects are removed, and so is every entry after the first of an
 //!   object listed twice in one list (two peers re-listed it at once): the reader reads it once, at
 //!   its first place, so the view does not change.
@@ -27,7 +27,6 @@ use std::collections::BTreeSet;
 use kition_kit::kdm::{ObjectId, Tx};
 use serde_json::Value;
 
-use crate::refs::{each_comment_shape, each_slide_list};
 use crate::{Ids, KdmResult, root_id};
 
 /// The repair after `changed` objects changed. See the module docs.
@@ -36,18 +35,20 @@ pub(crate) fn validate(tx: &mut Tx<'_>, changed: &BTreeSet<ObjectId>) -> KdmResu
         return validate_all(tx);
     }
     let mut wrote = false;
+    let mut members = false;
     for object in changed {
         let ty = tx.object_type(object)?;
         wrote |= match ty.as_str() {
             "SlideFile" => root_fields(tx, object)?,
+            "Section" | "CustomShow" if !members => {
+                members = true;
+                crate::members::repair(tx)?
+            }
             "Master" => lists(tx, object, &["layouts", "shapes"])?,
             "Layout" => lists(tx, object, &["shapes"])?,
             "Slide" => {
                 let masters = live_masters(tx)?;
-                slide_layout(tx, object, &masters)?
-                    | slide_comments(tx, object)?
-                    | slide_notes(tx, object)?
-                    | lists(tx, object, &["shapes", "animations"])?
+                slide_layout(tx, object, &masters)? | slide_notes(tx, object)? | lists(tx, object, &["shapes", "animations"])?
             }
             "Animation" => animation(tx, object)?,
             "Shape" => shape(tx, object)? | lists(tx, object, &["children"])?,
@@ -187,10 +188,6 @@ fn targeted(tx: &mut Tx<'_>, root: &ObjectId, candidates: BTreeSet<ObjectId>, id
             }
         }
     }
-    for slide in of(&by_type, "Slide") {
-        wrote |= slide_comments(tx, &slide)?;
-    }
-
     for object in of(&by_type, "Shape") {
         wrote |= shape(tx, &object)?;
     }
@@ -266,26 +263,6 @@ fn animation(tx: &mut Tx<'_>, animation: &ObjectId) -> KdmResult<bool> {
     Ok(false)
 }
 
-/// Clears a 0.4.x comment's anchor at a deleted shape.
-fn slide_comments(tx: &mut Tx<'_>, slide: &ObjectId) -> KdmResult<bool> {
-    let mut comments = tx.get(slide, "comments")?;
-    let mut cleared = false;
-    each_comment_shape(
-        &mut comments,
-        &mut |shape| {
-            if gone(tx, Some(shape)) {
-                *shape = Value::Null;
-                cleared = true;
-            }
-        },
-        0,
-    );
-    if cleared {
-        tx.set(slide, "comments", comments)?;
-    }
-    Ok(cleared)
-}
-
 /// Clears connector ends at deleted shapes, and a shape's table, media and body refs to deleted
 /// objects.
 fn shape(tx: &mut Tx<'_>, shape: &ObjectId) -> KdmResult<bool> {
@@ -327,25 +304,10 @@ fn slide_notes(tx: &mut Tx<'_>, slide: &ObjectId) -> KdmResult<bool> {
     Ok(false)
 }
 
-/// Sections, custom shows and embedded fonts naming deleted slides or media, and the root's
-/// dangling list entries.
+/// Section and custom show members (`crate::members::repair`), embedded fonts naming deleted
+/// media, and the root's dangling list entries.
 fn root_fields(tx: &mut Tx<'_>, root: &ObjectId) -> KdmResult<bool> {
-    let mut wrote = false;
-    for field in ["sections", "customShows"] {
-        let mut value = tx.get(root, field)?;
-        let mut dropped = false;
-        each_slide_list(&mut value, &mut |list| {
-            if let Some(items) = list.as_array_mut() {
-                let before = items.len();
-                items.retain(|item| !gone(tx, Some(item)));
-                dropped |= items.len() != before;
-            }
-        });
-        if dropped {
-            tx.set(root, field, value)?;
-            wrote = true;
-        }
-    }
+    let mut wrote = crate::members::repair(tx)?;
     let mut fonts = tx.get(root, "embeddedFonts")?;
     if let Some(items) = fonts.as_array_mut() {
         let before = items.len();
@@ -355,7 +317,7 @@ fn root_fields(tx: &mut Tx<'_>, root: &ObjectId) -> KdmResult<bool> {
             wrote = true;
         }
     }
-    Ok(lists(tx, root, &["masters", "slides", "media"])? | wrote)
+    Ok(lists(tx, root, &["masters", "slides", "media", "sections", "customShows"])? | wrote)
 }
 
 fn lists(tx: &mut Tx<'_>, owner: &ObjectId, fields: &[&str]) -> KdmResult<bool> {
@@ -381,13 +343,10 @@ pub(crate) fn validate_all(tx: &mut Tx<'_>) -> KdmResult<bool> {
         wrote |= slide_layout(tx, &slide, &masters)?;
     }
 
-    // Animations (listed or not: one added to a slide another peer deleted is listed nowhere),
-    // triggers and comment anchors. Their list entries go with the dangling ones below.
+    // Animations (listed or not: one added to a slide another peer deleted is listed nowhere) and
+    // triggers. Their list entries go with the dangling ones below.
     for object in tx.objects_of_type("Animation") {
         wrote |= animation(tx, &object)?;
-    }
-    for slide in tx.objects_of_type("Slide") {
-        wrote |= slide_comments(tx, &slide)?;
     }
 
     // Connector ends, and a shape's table and media refs.
@@ -399,7 +358,7 @@ pub(crate) fn validate_all(tx: &mut Tx<'_>) -> KdmResult<bool> {
         wrote |= slide_notes(tx, &slide)?;
     }
 
-    // Sections, custom shows and embedded fonts; dangling list entries.
+    // Section and custom show members, and embedded fonts; dangling list entries.
     wrote |= root_fields(tx, &root)?;
     for (ty, fields) in LISTS {
         for object in tx.objects_of_type(ty) {

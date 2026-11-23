@@ -1309,8 +1309,8 @@ impl KitDocument for SlideDocument {
                 }
             }
             "section.move" | "section.rename" | "section.remove" => {
-                // Sections have no persistent member identity; hold their JSON until the SDK
-                // can track indexed windows inside it.
+                // The section list; `rests_deck` restates the premises by section (its tool id
+                // `section:<identity>`) when the call names one.
                 found.premises.push(kition_kit::Premise::on("slide-file").fields(["sections"]));
             }
             "arrange.reorder" => {

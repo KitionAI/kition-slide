@@ -16,21 +16,23 @@
 //!   point shows at the end of the second half, and a merge keeps the second paragraph listed
 //!   behind a merge anchor, so text typed into it concurrently stays (`src/pieces.rs`); each
 //!   paragraph's field is written from what it held when last read or written, so every replica
-//!   reads the same runs after a merge. A 0.3.x replica held each text body in one register (S2: a shape's `text`, a slide's
-//!   `notes`, a cell's inline `text`): it still reads, and [`migrate`] rewrites a text body when a
-//!   write first changes it (K6), so two people migrating one document offline keep both sides'
-//!   edits (the read repair, `src/siblings.rs`, merges two migrations of one body); schema version
-//!   2 makes a 0.3.x build refuse the replicas this one writes. A shape's `xfrm` and
-//!   `name` are their own registers; everything else of the shape and its kind goes to `props`, except group children
+//!   reads the same runs after a merge. A shape's `xfrm` and `name` are their own registers;
+//!   every other member of the shape and its kind is an entry of its `look` map
+//!   (`src/look.rs`), except group children
 //!   (`children` list), a table's grid (a `Table` object: `cols`/`rows` lists, and a `cells` map
 //!   keyed `"<rowObjectId>:<colObjectId>"`, so a row or column insert adds one object and never
 //!   shifts other cells), a chart (a `Chart` object: one `parts` map entry per member,
 //!   `src/charts.rs`) and media bytes (a `Media` object's `blob`, content-addressed through
 //!   [`BlobSink`]/[`BlobSource`]);
+//! - sections and custom shows are `Section` and `CustomShow` objects listed by the slide file,
+//!   each a `name` and a `slides` map with one entry per member slide (`src/members.rs`), so
+//!   membership changes merge per slide;
+//! - comment threads are `CommentThread` objects beside the slides (`src/comments.rs`);
 //! - everything not modelled as its own field is kept in a `json` register next to it (a slide's
-//!   `props`/`background`/`transition`/`notes`/`comments`/`rawExt`, a master's `theme`/
-//!   `listStyles`/`colorMap`, the slide's `show`/`sections`/`notesMaster`…), so nothing is
-//!   lost on a round trip.
+//!   `props`/`background`/`transition`/`rawExt`, a master's `theme`/`listStyles`/`colorMap`, the
+//!   slide file's `show`/`notesMaster`…), so nothing is lost on a round trip. The slide file's
+//!   view properties (`SlideFile::view_props`: last view, zoom, guides) are private to the view
+//!   that opened the file: never replicated, kept by [`SlideModel`] across reads.
 //!
 //! **Raw batches (`batchOps`).** Every type declares the raw operations an agent's batch may
 //! run on it, guarded by the ordinary object, field, reference and insertion-window holds
@@ -42,20 +44,20 @@
 //! **Ids (S3).** Engine ids (`SlideId`, `ShapeId`, `LayoutId`, `MasterId`, `MediaId`) are never
 //! replicated: [`read_document`] mints them (keeping, through [`Known`], the ones a session's view
 //! already gave an object), and [`Ids`] maps them to object ids. Every id stored as *data* — a
-//! slide's layout, connector ends, an animation's shape and trigger, a comment's shape, sections
-//! and custom shows, embedded fonts, a hyperlink to a slide, every media reference (pictures,
+//! slide's layout, connector ends, an animation's shape and trigger, a comment's shape, a section's
+//! or custom show's member slides (map keys, `src/members.rs`), embedded fonts, a hyperlink to a slide, every media reference (pictures,
 //! media clips, picture bullets and fills, sounds, previews) — is written as the object id it names
 //! and translated back on read (`refs`). One that names nothing (a file's dangling reference) is
 //! kept as the number it was.
 //!
-//! **Read repair.** What only a read can see (a transaction cannot read text fields): two
-//! migrations of one text body, and a paragraph listed twice, are written back by
+//! **Read repair.** What only a read can see (a transaction cannot read text fields): a paragraph
+//! or a comment listed twice, is written back by
 //! [`SlideSession`] in a `system` transaction after each import, undo or redo and when it opens a
 //! replica (`src/siblings.rs`).
 //!
 //! **Repair (S4).** [`KitModel::validate`] clears what a merge left dangling: animations of deleted
-//! shapes, triggers, connector ends and comment anchors at deleted shapes, section and custom show
-//! entries of deleted slides, embedded fonts of deleted media, dangling list entries, and a slide
+//! shapes, triggers and connector ends at deleted shapes, section and custom show members that are
+//! deleted slides (and a slide two sections hold, from all but the first), embedded fonts of deleted media, dangling list entries, and a slide
 //! whose layout is gone gets its master's first layout. An object listed twice in one list (two
 //! peers re-listed it at once) is read once, at its first place, and the repair removes its later
 //! entries.
@@ -69,6 +71,7 @@ mod compare;
 mod ids;
 mod list;
 mod look;
+mod members;
 mod patch;
 mod pieces;
 mod read;
@@ -87,15 +90,13 @@ use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, Replica, Schem
 use kition_kit::session::{BlobSink, BlobSource, Damage, KitError, KitModel};
 use kition_slide_model::SlideFile;
 
-pub use charts::CHART_SCHEMA_VERSION;
-pub use comments::COMMENTS_SCHEMA_VERSION;
 pub use compare::normalize;
 pub use ids::{BodyIds, BodyOwner, Ids, Known, TableIds};
 pub use read::{read_document, read_document_known};
 pub use refs::renumber_media;
 pub use session::SlideSession;
 pub use stored::{settle_batch, settle_premise_batch, stored_objects};
-pub use write::{MIGRATED_SCHEMA_VERSION, migrate, migrate_comments, write_changes, write_comment_changes, write_document};
+pub use write::{write_changes, write_comment_changes, write_document};
 
 /// Re-exported so downstream crates (the engine command bridge) share this crate's exact pin.
 pub use kition_kit;
@@ -175,7 +176,9 @@ impl SlideModel {
     }
 
     fn reload(&mut self, replica: &Replica, blobs: &dyn BlobSource) -> Result<()> {
-        let (slide_file, ids, media, missing) = read::read_with(replica, blobs, &self.known, &self.media).map_err(kit_err)?;
+        let (mut slide_file, ids, media, missing) = read::read_with(replica, blobs, &self.known, &self.media).map_err(kit_err)?;
+        // The view properties are this view's own, never replicated.
+        slide_file.view_props = self.slide_file.view_props.take();
         self.known.remember(&slide_file, &ids);
         self.slide_file = slide_file;
         self.ids = ids;

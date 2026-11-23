@@ -62,7 +62,13 @@ fn delete(scope: &Scope<'_>, holds: &mut Holds, params: &Value) {
                 holds.all(object.as_str());
             }
         }
-        holds.read("slide-file", &["sections"]);
+        // The sections' members (the slides leave them), or the section list when there are none.
+        if deck.sections.is_empty() {
+            holds.read("slide-file", &["sections"]);
+        }
+        for section in deck.sections.iter().filter(|section| !section.identity.is_empty()) {
+            holds.read(&format!("section:{}", section.identity), &["slides"]);
+        }
         return;
     }
     scope.remove(holds, &scope.targets(params));

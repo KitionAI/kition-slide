@@ -72,7 +72,7 @@ fn two_members_of_one_shape_edited_concurrently_are_both_kept() {
     });
     sync(&mut a, &mut b);
     assert_converged(&a, &b);
-    // Each member is its own entry of the shape's `look` (schema 5): A's fill and B's outline both stay.
+    // Each member is its own entry of the shape's `look`: A's fill and B's outline both stay.
     let shape = a.model().slide_file.slides[0].shapes.iter().find(|s| s.name == "A").cloned().unwrap_or_else(|| panic!("A"));
     assert_eq!(shape.fill, Some(Fill::Solid { color: red }));
     assert_eq!(shape.line.as_ref().and_then(|l| l.width), Some(3.0));
@@ -239,9 +239,8 @@ fn chart_of<'a>(p: &'a kition_slide_model::SlideFile, name: &str) -> &'a kition_
     }
 }
 
-/// A chart is its own object (schema version 4, DR14): one person retitling a chart while another
-/// edits its data keeps both, and the chart's members are entries of that object, not the shape's
-/// `props`.
+/// A chart is its own object (DR14): one person retitling a chart while another edits its data
+/// keeps both, and the chart's members are entries of that object, not the shape's `look`.
 #[test]
 fn a_title_and_a_data_edit_of_one_chart_are_both_kept() {
     use kition_slide_model::chart::{Chart, ChartType};
@@ -286,59 +285,6 @@ fn a_title_and_a_data_edit_of_one_chart_are_both_kept() {
     // Deleting the shape deletes its chart object.
     edit(&mut a, &blobs, |p| Arc::make_mut(&mut p.slides[0]).shapes.retain(|s| s.name != "Chart"));
     assert_replica_clean(a.replica());
-}
-
-/// A schema 3 replica held a chart in its shape's `props`: it reads as it is, and the next write of
-/// the chart makes its `Chart` object and leaves the shape's `props` with the kind only.
-#[test]
-fn a_chart_in_the_shapes_props_reads_and_moves_to_its_object_on_the_next_write() {
-    use kition_slide_model::chart::{Chart, ChartType};
-    let mut p = slide_file();
-    let slide = Arc::make_mut(&mut p.slides[0]);
-    slide.shapes.push(kition_slide_model::Shape {
-        id: kition_slide_model::ShapeId(900),
-        name: "Chart".into(),
-        kind: ShapeKind::Chart(Box::new(Chart::sample(ChartType::Pie))),
-        ..Default::default()
-    });
-    let blobs = SharedBlobs::default();
-    let (mut replica, ids) = common::new_replica(&p, &blobs);
-    // Rewrite it in the schema 3 form: the members back in `props`, no chart object.
-    let slide_object = ids.slides.object(p.slides[0].id).unwrap_or_else(|| panic!("slide")).clone();
-    let shape = ids.shape(&slide_object, kition_slide_model::ShapeId(900)).unwrap_or_else(|| panic!("shape")).clone();
-    replica
-        .transact(&kition_kit::kdm::Origin::system("schema 3"), |tx| {
-            let serde_json::Value::String(chart) = tx.get(&shape, "chart")? else { panic!("a chart object") };
-            let chart = kition_kit::kdm::ObjectId::from_string(chart);
-            // Before schema 5 the shape's members were one `props` register.
-            let mut props = serde_json::Value::Object(tx.map_entries(&shape, "look")?.into_iter().collect());
-            for (k, _) in tx.map_entries(&shape, "look")? {
-                tx.map_delete(&shape, "look", &k)?;
-            }
-            for (k, v) in tx.map_entries(&chart, "parts")? {
-                props["kind"][k] = v;
-            }
-            tx.set(&shape, "props", props)?;
-            tx.set(&shape, "chart", serde_json::Value::Null)?;
-            tx.delete(&chart)
-        })
-        .unwrap_or_else(|e| panic!("{e}"));
-    let mut a: common::Session = kition_kit::session::KitSession::from_replica(replica, Box::new(blobs.clone())).unwrap_or_else(|e| panic!("{e}"));
-    assert_eq!(chart_of(&a.model().slide_file, "Chart").kind, ChartType::Pie, "the schema 3 form reads");
-    edit(&mut a, &blobs, |p| {
-        let s = Arc::make_mut(&mut p.slides[0]);
-        if let Some(ShapeKind::Chart(c)) = s.shapes.iter_mut().find(|s| s.name == "Chart").map(|s| &mut s.kind) {
-            c.title = Some("Share".into());
-        }
-    });
-    let object = shape_object(&a, 0, "Chart");
-    assert!(a.replica().get(&object, "chart").is_ok_and(|v| v.is_string()), "the chart has its object");
-    // The members moved into `look` (schema 5), the kind only; the register is gone.
-    assert_eq!(a.replica().map_get(&object, "look", "kind").unwrap_or_else(|e| panic!("{e}")), serde_json::json!({ "type": "chart" }));
-    assert!(a.replica().get(&object, "props").is_ok_and(|v| v.is_null()));
-    let c = chart_of(&a.model().slide_file, "Chart");
-    assert_eq!((c.kind, c.title.as_deref()), (ChartType::Pie, Some("Share")));
-    assert!(a.replica().min_schema_version() >= kdm_model::CHART_SCHEMA_VERSION);
 }
 
 /// A stroke `k` (distinct points per `k`), in the slide's ink layer's terms.
@@ -408,39 +354,4 @@ fn strokes_two_people_draw_and_erase_on_one_slide_at_once_all_count() {
     sync(&mut a, &mut b);
     assert_converged(&a, &b);
     assert!(strokes(&b).is_empty());
-}
-
-#[test]
-fn a_schema_5_ink_layer_reads_and_moves_its_strokes_into_their_own_entries() {
-    let mut p = slide_file();
-    let slide = Arc::make_mut(&mut p.slides[0]);
-    slide.shapes.push(kition_slide_model::Shape {
-        id: kition_slide_model::ShapeId(901),
-        name: "Ink".into(),
-        kind: ShapeKind::Ink { strokes: vec![stroke(1.0), stroke(2.0)] },
-        ..Default::default()
-    });
-    let blobs = SharedBlobs::default();
-    let (mut replica, ids) = common::new_replica(&p, &blobs);
-    // Rewrite it in the schema 5 form: the strokes inside the `kind` entry, none of their own.
-    let slide_object = ids.slides.object(p.slides[0].id).unwrap_or_else(|| panic!("slide")).clone();
-    let shape = ids.shape(&slide_object, kition_slide_model::ShapeId(901)).unwrap_or_else(|| panic!("shape")).clone();
-    replica
-        .transact(&kition_kit::kdm::Origin::system("schema 5"), |tx| {
-            for (k, _) in tx.map_entries(&shape, "look")?.into_iter().filter(|(k, _)| k.starts_with("stroke:")) {
-                tx.map_delete(&shape, "look", &k)?;
-            }
-            let strokes = serde_json::to_value(vec![stroke(1.0), stroke(2.0)]).unwrap_or_default();
-            tx.map_set(&shape, "look", "kind", serde_json::json!({ "type": "ink", "strokes": strokes }))
-        })
-        .unwrap_or_else(|e| panic!("{e}"));
-    let mut a: common::Session = kition_kit::session::KitSession::from_replica(replica, Box::new(blobs.clone())).unwrap_or_else(|e| panic!("{e}"));
-    assert_eq!(strokes(&a), vec![stroke(1.0), stroke(2.0)], "the schema 5 form reads");
-    // Its next write moves them; erasing every stroke then leaves none (nothing stale comes back).
-    ink(&mut a, &blobs, |s| s.push(stroke(3.0)));
-    let object = shape_object(&a, 0, "Ink");
-    assert_eq!(a.replica().map_get(&object, "look", "kind").unwrap_or_else(|e| panic!("{e}")), serde_json::json!({ "type": "ink" }));
-    assert_eq!(strokes(&a), vec![stroke(1.0), stroke(2.0), stroke(3.0)]);
-    ink(&mut a, &blobs, Vec::clear);
-    assert!(strokes(&a).is_empty());
 }

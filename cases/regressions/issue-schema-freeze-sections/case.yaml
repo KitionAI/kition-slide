@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-schema-freeze-sections
+feature: slide.slides.sections
+intent: >-
+  Sections and custom shows are their own objects in the replica, each a name and a map with one
+  entry per member slide, so two people editing one section at once (one renaming it, the other
+  moving or adding slides; both adding slides; both moving one slide to different sections) or one
+  custom show at once keep both changes, a slide ends in one section, and every replica reads the
+  same sections in the same order.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/kdm/kdm-model/tests/members.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kdm-model
+      test: members
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-22"
+timeout_s: 120
