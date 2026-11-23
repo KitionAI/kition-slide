@@ -113,6 +113,9 @@ try {
   assert.ok(!beforePan.equals(await pixels()), 'An enlarged slide must pan instead of page')
   await wheel(10000, 10000)
   const panEnd = await pixels()
+  await wheel(10000, 10000)
+  assert.ok(panEnd.equals(await pixels()), 'Panning must clamp to the slide edges')
+  // The scrollbars lie over the canvas, so they are used only after the pixel comparison above.
   const shown = await scrollbars.count()
   assert.ok(shown >= 1, 'An enlarged slide has a scrollbar along each axis it is longer than the view on')
   for (let index = 0; index < shown; index += 1) {
@@ -123,9 +126,6 @@ try {
     await page.keyboard.press('Home')
     await until(async () => Number(await bar.getAttribute('aria-valuenow')) === 0)
   }
-  assert.ok(!panEnd.equals(await pixels()), 'Home on the scrollbars moves the slide back to its near edge')
-  await wheel(10000, 10000)
-  assert.ok(panEnd.equals(await pixels()), 'Panning must clamp to the slide edges')
   await kit.getByRole('button', { name: 'Fit', exact: true }).click()
   await until(async () => (await scrollbars.count()) === 0)
   await wheel(100)
