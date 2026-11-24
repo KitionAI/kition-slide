@@ -20,10 +20,11 @@
     "test:ink": "node tests/ink.mjs chromium && node tests/ink.mjs webkit",
     "test:comments": "node tests/comments.mjs chromium && node tests/comments.mjs webkit",
     "test:modes": "node tests/modes.mjs chromium && node tests/modes.mjs webkit",
-    "test:focus-escape": "node tests/focus-escape.mjs chromium && node tests/focus-escape.mjs webkit"
+    "test:focus-escape": "node tests/focus-escape.mjs chromium && node tests/focus-escape.mjs webkit",
+    "test:replica": "node tests/replica.mjs chromium && node tests/replica.mjs webkit"
   },
   "dependencies": {
-    "@kition/sdk": "npm:@kitionstage/sdk@0.5.2-stage.16",
+    "@kition/sdk": "npm:@kitionstage/sdk@0.5.2-stage.19",
     "@kition/tessera": "npm:@kitionstage/tessera@0.1.1-stage.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
