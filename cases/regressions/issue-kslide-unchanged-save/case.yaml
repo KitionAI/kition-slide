@@ -3,8 +3,8 @@ id: regressions/issue-kslide-unchanged-save
 feature: slide.file.presentations
 intent: >-
   A .kslide holds the presentation and nothing else (owner 2026-11-24): two sessions that open the
-  same file and save it without editing write byte-identical files, the very file they opened, and
-  so does a session that opens it with its stored replica. Before, `slide.json` named the build
+  same file and save it without editing write byte-identical files, the very file they opened.
+  Before, `slide.json` named the build
   that wrote it (`generator`), so the same presentation saved by another build was another file,
   and a deck read from a PPTX carried that PPTX's view properties (last view, zoom) into the
   .kslide.

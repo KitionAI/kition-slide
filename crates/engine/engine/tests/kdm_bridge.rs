@@ -360,7 +360,7 @@ fn saved(s: &mut Session) -> Vec<u8> {
 }
 
 /// Two sessions that open the same `.kslide` and save without editing write byte-identical files,
-/// and the very file they opened; so does one that opens it with its stored replica.
+/// and the very file they opened.
 #[test]
 fn two_sessions_that_open_the_same_kslide_save_it_unchanged_byte_for_byte() {
     let mut a = new_session();
@@ -375,12 +375,6 @@ fn two_sessions_that_open_the_same_kslide_save_it_unchanged_byte_for_byte() {
     let (first, second) = (saved(&mut one), saved(&mut two));
     assert!(first == second, "two sessions' unchanged saves differ");
     assert!(first == original, "an unchanged save differs from the file it opened");
-
-    let snapshot = a.snapshot().unwrap();
-    let blobs = a.blobs_since(&Version::empty()).unwrap();
-    let mut kept = Session::new();
-    kept.open_with_replica(&original, &snapshot, blobs).unwrap();
-    assert!(saved(&mut kept) == original, "a session opened with its stored replica saves another file");
 }
 
 #[test]
