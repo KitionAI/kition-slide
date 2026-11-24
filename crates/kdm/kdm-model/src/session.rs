@@ -145,6 +145,29 @@ impl SlideSession {
         Ok(value(&theirs)? == value(&mine)?)
     }
 
+    /// Gives the view `file`'s own ids, when the replica holds `file`'s content in the same order
+    /// ([`SlideSession::holds`]; a file opened with the replica stored with it): its masters,
+    /// layouts, slides, shapes and media keep the numbers the file gave them, which comments,
+    /// links, animations and other programs name, and the view is `file` itself. A fresh read
+    /// numbers what the replica stores no number for (masters, layouts, their shapes, media) anew.
+    /// Answers whether it did; otherwise the view is left as it was.
+    pub fn take_ids_of(&mut self, file: &SlideFile) -> Result<bool> {
+        let Some(known) = crate::Known::as_in(&self.model.slide_file, self.model.ids(), file) else { return Ok(false) };
+        let (read, ids) = crate::read_document_known(&self.replica, &self.blobs, &known).map_err(kit_err)?;
+        // Exactly the file but for what a replica does not hold: the id counter and the view properties.
+        let comparable = |p: &SlideFile| {
+            let mut p = p.clone();
+            p.next_id = 0;
+            p.view_props = None;
+            serde_json::to_value(p).map_err(kit_err)
+        };
+        if comparable(&read)? != comparable(file)? {
+            return Ok(false);
+        }
+        self.model.adopt(file.clone(), ids);
+        Ok(true)
+    }
+
     /// Undoes the person's last undo step on this replica (never imports or repairs; an agent's
     /// steps are the agent's, KitModel M12a), repairs the result and patches the view. Answers
     /// whether there was one, and the damage.

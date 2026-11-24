@@ -71,7 +71,8 @@ resolution and overlays an invisible real-text layer with embedded font subsets.
   holds `format`, `version` and `slide` only: no writer name, no save time, no view of the
   presentation (a PPTX's view properties, its last view and zoom, are left out and not read), and
   every zip entry carries the fixed 1980 date, so an unchanged presentation saves to the same
-  bytes. Readers ignore unknown fields.
+  bytes. Version 1 is the only version read: a file of another version is refused, with no
+  upgrade. Within it, readers ignore unknown fields.
 - Formats and their gaps: [file-format-parity.md](parity/file-format-parity.md).
 
 ## Quality gates

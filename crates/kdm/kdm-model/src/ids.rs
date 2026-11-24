@@ -295,6 +295,60 @@ impl Known {
     }
 }
 
+impl Known {
+    /// What each object of `view` (read with `ids`) is called in `file`, when the two hold the
+    /// same content in the same order (a file opened with the replica stored with it): position
+    /// by position, masters, layouts, slides and the shapes of each (groups included), and media
+    /// by name, type and link. `None` when their shapes do not line up.
+    pub(crate) fn as_in(view: &SlideFile, ids: &Ids, file: &SlideFile) -> Option<Known> {
+        fn shapes(known: &mut Known, ids: &Ids, owner: &ObjectId, mine: &[Shape], theirs: &[Shape]) -> Option<()> {
+            if mine.len() != theirs.len() {
+                return None;
+            }
+            for (a, b) in mine.iter().zip(theirs) {
+                known.shapes.insert(ids.shape(owner, a.id)?.clone(), b.id);
+                match (&a.kind, &b.kind) {
+                    (ShapeKind::Group { children: x, .. }, ShapeKind::Group { children: y, .. }) => shapes(known, ids, owner, x, y)?,
+                    (ShapeKind::Group { .. }, _) | (_, ShapeKind::Group { .. }) => return None,
+                    _ => {}
+                }
+            }
+            Some(())
+        }
+        if view.masters.len() != file.masters.len() || view.slides.len() != file.slides.len() || view.media.len() != file.media.len() {
+            return None;
+        }
+        let mut known = Known { max: file.next_id, ..Known::default() };
+        for (a, b) in view.masters.iter().zip(&file.masters) {
+            let object = ids.masters.object(a.id)?.clone();
+            known.masters.insert(object.clone(), b.id);
+            shapes(&mut known, ids, &object, &a.shapes, &b.shapes)?;
+            if a.layouts.len() != b.layouts.len() {
+                return None;
+            }
+            for (x, y) in a.layouts.iter().zip(&b.layouts) {
+                let object = ids.layouts.object(x.id)?.clone();
+                known.layouts.insert(object.clone(), y.id);
+                shapes(&mut known, ids, &object, &x.shapes, &y.shapes)?;
+            }
+        }
+        for (a, b) in view.slides.iter().zip(&file.slides) {
+            let object = ids.slides.object(a.id)?.clone();
+            known.slides.insert(object.clone(), b.id);
+            shapes(&mut known, ids, &object, &a.shapes, &b.shapes)?;
+        }
+        let order = |p: &SlideFile| {
+            let mut media: Vec<_> = p.media.iter().collect();
+            media.sort_by(|a, b| (&a.name, &a.content_type, &a.link).cmp(&(&b.name, &b.content_type, &b.link)));
+            media
+        };
+        for (a, b) in order(view).into_iter().zip(order(file)) {
+            known.media.insert(ids.media.object(a.id)?.clone(), b.id);
+        }
+        Some(known)
+    }
+}
+
 /// Each place shape ids are unique in: a master's, a layout's or a slide's shape tree.
 fn shape_scopes(p: &SlideFile) -> Vec<&[Shape]> {
     let mut scopes: Vec<&[Shape]> = Vec::new();

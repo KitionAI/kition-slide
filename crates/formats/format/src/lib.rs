@@ -1,7 +1,7 @@
 //! The native `.kslide` format (version 1): a zip holding `mimetype`, `slide.json` (`format`,
 //! `version` and the model, minus media bytes) and `media/<id>` files with the embedded media.
-//! Readers ignore unknown fields, so newer files open in older builds with what those builds
-//! understand.
+//! `version` is 1 and the only version read: a file of another version is refused
+//! ([`FormatError::Unsupported`]). Within it, readers ignore unknown fields.
 //!
 //! A file holds the presentation and nothing else: no view of it (a PPTX's view properties, the
 //! last view and zoom, are left out and not read: `SlideFile::view_props` stays the PPTX's own),
@@ -27,7 +27,7 @@ mod lean;
 
 pub const MIMETYPE: &str = "application/vnd.kition.slide+zip";
 pub const EXTENSION: &str = "kslide";
-/// Format version written into the manifest.
+/// The format version written into the manifest, and the only one read.
 pub const VERSION: u32 = 1;
 /// The format id written into the manifest.
 const FORMAT: &str = "kslide";
@@ -40,16 +40,24 @@ pub enum FormatError {
     NotOurs(String),
     #[error("damaged file: {0}")]
     Damaged(String),
+    #[error("this file is .kslide version {found}; this build of Kition Slide reads version {supported} only")]
+    Unsupported { found: u64, supported: u32 },
     #[error("write failed: {0}")]
     Write(String),
 }
 
 pub type Result<T> = std::result::Result<T, FormatError>;
 
+/// `slide.json`'s envelope, read before the slide so another version is refused unread.
+#[derive(serde::Deserialize)]
+struct Envelope {
+    format: String,
+    version: u64,
+}
+
 /// `slide.json` as read.
 #[derive(serde::Deserialize)]
 struct Manifest {
-    format: String,
     slide: SlideFile,
 }
 
@@ -119,10 +127,15 @@ fn read_entry(z: &mut zip::ZipArchive<Cursor<&[u8]>>, name: &str) -> Result<Vec<
 pub fn load(bytes: &[u8]) -> Result<SlideFile> {
     let mut z = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| FormatError::NotOurs(e.to_string()))?;
     let json = read_entry(&mut z, "slide.json").map_err(|_| FormatError::NotOurs("no slide.json".into()))?;
-    let m: Manifest = serde_json::from_slice(&json).map_err(|e| FormatError::Damaged(e.to_string()))?;
-    if m.format != FORMAT {
-        return Err(FormatError::NotOurs(m.format));
+    let envelope: Envelope = serde_json::from_slice(&json).map_err(|e| FormatError::Damaged(e.to_string()))?;
+    if envelope.format != FORMAT {
+        return Err(FormatError::NotOurs(envelope.format));
     }
+    // One version, no upgrade chain: a file of any other is refused, never half-read.
+    if envelope.version != u64::from(VERSION) {
+        return Err(FormatError::Unsupported { found: envelope.version, supported: VERSION });
+    }
+    let m: Manifest = serde_json::from_slice(&json).map_err(|e| FormatError::Damaged(e.to_string()))?;
     let mut p = m.slide;
     // A view of the presentation is not part of it.
     p.view_props = None;
@@ -369,6 +382,28 @@ mod tests {
         let two = save(&load(&original).unwrap()).unwrap();
         assert!(one == two, "two unchanged saves differ");
         assert!(one == original, "an unchanged save differs from the file it read");
+    }
+
+    #[test]
+    fn another_version_is_refused_unread() {
+        let bytes = save(&SlideFile::default()).unwrap();
+        for version in [0, 2, 3] {
+            let mut written = slide_json(&bytes);
+            written["version"] = serde_json::json!(version);
+            let mut buf = Cursor::new(Vec::new());
+            {
+                let mut z = zip::ZipWriter::new(&mut buf);
+                let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+                z.start_file("mimetype", opts).unwrap();
+                z.write_all(MIMETYPE.as_bytes()).unwrap();
+                z.start_file("slide.json", opts).unwrap();
+                z.write_all(&serde_json::to_vec(&written).unwrap()).unwrap();
+                z.finish().unwrap();
+            }
+            let error = load(&buf.into_inner()).unwrap_err();
+            assert!(matches!(error, FormatError::Unsupported { found, supported: 1 } if found == version), "{error}");
+            assert!(error.to_string().contains("reads version 1 only"), "{error}");
+        }
     }
 
     #[test]

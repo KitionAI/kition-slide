@@ -666,14 +666,26 @@ impl Session {
     /// file. The file is what the person saved: when `file` is not empty and the replica does not
     /// hold its content (id-blind), the file wins, recorded onto the replica as one `import`
     /// transaction (not an undo step) under the replica's own identity, so collaborators get it as
-    /// ordinary changes. The document opens clean either way.
+    /// ordinary changes. When it holds the file's content, the document is the file with its own
+    /// ids (the replica stores no number for masters, layouts, their shapes or media, and a fresh
+    /// read would number them anew): an unchanged save writes the very file. The document opens
+    /// clean either way.
     pub fn open_with_replica(&mut self, file: &[u8], snapshot: &[u8], blobs: MemoryBlobs) -> Result<usize> {
         let loaded = if file.is_empty() { None } else { Some(kdm_model::decode("", file).map_err(kdm_error)?) };
         let index = self.open_snapshot(snapshot, blobs)?;
         let st = self.doc_mut()?;
         if let Some(mut slide_file) = loaded {
             let kdm = st.link.kdm.as_mut().ok_or_else(no_replica)?;
-            if !kdm.holds(&slide_file).map_err(kdm_error)? {
+            if kdm.holds(&slide_file).map_err(kdm_error)? {
+                // As a file opens alone (`file.openBytes`): its values as the file stores them.
+                crate::cmd::file::as_stored(&mut slide_file);
+                if kdm.take_ids_of(&slide_file).map_err(kdm_error)? {
+                    st.doc = Arc::new(slide_file);
+                    st.saved_doc = st.doc.clone();
+                    st.link.synced = st.doc.clone();
+                    st.selection = Selection::default();
+                }
+            } else {
                 kdm.record(&Origin::system("import"), &slide_file).map_err(kdm_error)?;
                 slide_file.next_id = slide_file.next_id.max(st.doc.next_id);
                 st.doc = Arc::new(slide_file);

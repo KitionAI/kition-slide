@@ -385,6 +385,16 @@ fn two_sessions_that_open_the_same_kslide_save_it_unchanged_byte_for_byte() {
     let again = saved(&mut kept);
     let (file, replica) = (serde_json::to_value(doc(&one)).unwrap(), serde_json::to_value(doc(&kept)).unwrap());
     assert!(again == original, "opened with its stored replica, an unchanged save differs from the file: {:#?}", differences(&file, &replica));
+    assert_eq!(kept.doc_id(), a.doc_id(), "the stored replica opened");
+    assert_holds(&kept, "the file's ids map onto the replica's objects");
+
+    // Its edits still reach a peer of that replica.
+    let mut peer = Session::new();
+    peer.open_snapshot(&snapshot, a.blobs_since(&Version::empty()).unwrap()).unwrap();
+    kept.execute("slide.rename", &json!({"name": "Renamed"})).unwrap();
+    kept.execute("shape.insert", &json!({"preset": "rect", "rect": [500, 300, 80, 60], "text": "C"})).unwrap();
+    send(&mut kept, &mut peer);
+    assert_same(&mut kept, &mut peer, "an edit after opening with the stored replica");
 }
 
 #[test]

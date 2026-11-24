@@ -23,7 +23,7 @@ PowerPoint opens and saves; Viewer = opens only).
 | `.ppt` / `.pot` / `.pps` 97–2003 binary | Editor | no | no | Maintainer decision; import only would be enough | none |
 | `.odp` OpenDocument | Editor | no | no | | none |
 | `.thmx` Office theme | Viewer | no | no | Browse for themes is a P2 row | none |
-| `.kslide` native (zip + JSON) | n/a | yes (also `.kslide`) | yes | Lossless for the Kition Slide model, forward compatible | `crates/formats/format` tests |
+| `.kslide` native (zip + JSON) | n/a | yes (also `.kslide`) | yes | Lossless for the Kition Slide model; version 1 only, another version is refused | `crates/formats/format` tests |
 | PDF | export | no | yes | Slides, notes pages, handouts (1–9); real-text layer with embedded subsets, links, bookmarks. Slide artwork is a raster image at print resolution, not vector | `crates/formats/pdf` tests |
 | Outline `.rtf` / `.txt` | export (RTF), import (outline) | `.txt`/`.md` outline (`slide.fromOutline`) | `.txt` outline | No RTF | engine tests |
 | PNG / JPEG slide images | export | n/a | yes (`file.export`; the editor's File › Export) | Matches the editor's renderer | render tests |
