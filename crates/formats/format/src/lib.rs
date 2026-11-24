@@ -1,6 +1,12 @@
-//! The native `.kslide` format (version 1): a zip holding `mimetype`, `slide.json` (the model,
-//! minus media bytes) and `media/<id>` files with the embedded media. Readers ignore unknown
-//! fields, so newer files open in older builds with what those builds understand.
+//! The native `.kslide` format (version 1): a zip holding `mimetype`, `slide.json` (`format`,
+//! `version` and the model, minus media bytes) and `media/<id>` files with the embedded media.
+//! Readers ignore unknown fields, so newer files open in older builds with what those builds
+//! understand.
+//!
+//! A file holds the presentation and nothing else: no view of it (a PPTX's view properties, the
+//! last view and zoom, are left out and not read: `SlideFile::view_props` stays the PPTX's own),
+//! no preview image, no save time or writer name. Saving an unchanged presentation writes the same
+//! bytes: every entry carries the zip's fixed date, in the model's order.
 //!
 //! `slide.json` leaves out every member equal to its default (`lean`): the reader fills it back
 //! (every model type reads a missing member as its default), so a file holds what its slides
@@ -52,7 +58,6 @@ struct Manifest {
 struct Written {
     format: &'static str,
     version: u32,
-    generator: String,
     slide: serde_json::Value,
 }
 
@@ -61,17 +66,14 @@ pub fn save(p: &SlideFile) -> Result<Vec<u8>> {
     let mut buf = Cursor::new(Vec::new());
     {
         let mut z = zip::ZipWriter::new(&mut buf);
-        let stored = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-        let deflate = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        // Fixed dates (1980-01-01), whatever features the zip crate is built with.
+        let fixed = zip::write::SimpleFileOptions::default().last_modified_time(zip::DateTime::default());
+        let stored = fixed.compression_method(zip::CompressionMethod::Stored);
+        let deflate = fixed.compression_method(zip::CompressionMethod::Deflated);
         let w = |e: zip::result::ZipError| FormatError::Write(e.to_string());
         z.start_file("mimetype", stored).map_err(w)?;
         z.write_all(MIMETYPE.as_bytes()).map_err(|e| FormatError::Write(e.to_string()))?;
-        let m = Written {
-            format: FORMAT,
-            version: VERSION,
-            generator: format!("Kition Slide {}", env!("CARGO_PKG_VERSION")),
-            slide: lean::slide_file(p).map_err(|e| FormatError::Write(e.to_string()))?,
-        };
+        let m = Written { format: FORMAT, version: VERSION, slide: lean::slide_file(p).map_err(|e| FormatError::Write(e.to_string()))? };
         let json = serde_json::to_vec(&m).map_err(|e| FormatError::Write(e.to_string()))?;
         z.start_file("slide.json", deflate).map_err(w)?;
         z.write_all(&json).map_err(|e| FormatError::Write(e.to_string()))?;
@@ -122,6 +124,8 @@ pub fn load(bytes: &[u8]) -> Result<SlideFile> {
         return Err(FormatError::NotOurs(m.format));
     }
     let mut p = m.slide;
+    // A view of the presentation is not part of it.
+    p.view_props = None;
     for item in &mut p.media {
         if let Ok(data) = read_entry(&mut z, &format!("media/{}", item.id.0)) {
             item.data = Arc::new(data);
@@ -312,6 +316,59 @@ mod tests {
         let written = slide_json(&bytes);
         assert_eq!(written["slide"]["slides"][1]["showMasterShapes"], false);
         assert_eq!(written["slide"]["show"]["useTimings"], false);
+    }
+
+    /// What a save writes: `mimetype`, `slide.json` with `format`, `version` and `slide` only,
+    /// and the media; no view properties, no writer name, no dates.
+    #[test]
+    fn a_file_holds_the_presentation_and_nothing_else() {
+        let mut p = SlideFile::default();
+        p.add_media("a.png", "image/png", vec![1, 2, 3, 4]);
+        p.view_props = Some(r#"<p:viewPr xmlns:p="urn:p" lastView="sldSorterView"/>"#.into());
+        let bytes = save(&p).unwrap();
+        let mut z = zip::ZipArchive::new(Cursor::new(&bytes[..])).unwrap();
+        let names: Vec<String> = z.file_names().map(str::to_owned).collect();
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(names.contains(&"mimetype".to_owned()) && names.contains(&"slide.json".to_owned()), "{names:?}");
+        assert!(names.iter().any(|n| n.starts_with("media/")), "{names:?}");
+        for i in 0..z.len() {
+            let entry = z.by_index(i).unwrap();
+            assert_eq!(entry.last_modified(), Some(zip::DateTime::default()), "{} carries a date", entry.name());
+        }
+        let written = slide_json(&bytes);
+        let mut keys: Vec<&str> = written.as_object().unwrap().keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["format", "slide", "version"]);
+        assert!(written["slide"].get("viewProps").is_none(), "the view properties are written");
+        // A file that has them anyway: they are not read.
+        let mut with_view = written.clone();
+        with_view["slide"]["viewProps"] = serde_json::json!(r#"<p:viewPr xmlns:p="urn:p"/>"#);
+        let mut buf = Cursor::new(Vec::new());
+        {
+            let mut z = zip::ZipWriter::new(&mut buf);
+            let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            z.start_file("mimetype", opts).unwrap();
+            z.write_all(MIMETYPE.as_bytes()).unwrap();
+            z.start_file("slide.json", opts).unwrap();
+            z.write_all(&serde_json::to_vec(&with_view).unwrap()).unwrap();
+            z.finish().unwrap();
+        }
+        assert_eq!(load(&buf.into_inner()).unwrap().view_props, None);
+    }
+
+    /// Two readers of the same file that save it unchanged write byte-identical files, and the
+    /// very file they read.
+    #[test]
+    fn an_unchanged_save_writes_the_same_bytes() {
+        let mut p = defaults::blank_slide_file(defaults::WIDE, Default::default(), false);
+        outline_to_slides(&mut p, "Intro\n\tPoint one\nSecond\n\tMore");
+        p.add_media("a.png", "image/png", vec![1, 2, 3, 4]);
+        p.add_media("b.wav", "audio/wav", vec![5, 6, 7]);
+        let original = save(&p).unwrap();
+        let one = save(&load(&original).unwrap()).unwrap();
+        let two = save(&load(&original).unwrap()).unwrap();
+        assert!(one == two, "two unchanged saves differ");
+        assert!(one == original, "an unchanged save differs from the file it read");
     }
 
     #[test]

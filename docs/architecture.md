@@ -67,8 +67,11 @@ resolution and overlays an invisible real-text layer with embedded font subsets.
 - **Native** (`crates/formats/format`, `.kslide` format version 1): zip with `mimetype`, `slide.json`
   and `media/<id>`. `slide.json` leaves out every member equal to its default (the reader fills it
   back); the built-in master and layouts are written out like any other, as they are made by code
-  from the slide size and theme, not kept as a fixed set under a versioned name. Readers ignore
-  unknown fields.
+  from the slide size and theme, not kept as a fixed set under a versioned name. `slide.json`
+  holds `format`, `version` and `slide` only: no writer name, no save time, no view of the
+  presentation (a PPTX's view properties, its last view and zoom, are left out and not read), and
+  every zip entry carries the fixed 1980 date, so an unchanged presentation saves to the same
+  bytes. Readers ignore unknown fields.
 - Formats and their gaps: [file-format-parity.md](parity/file-format-parity.md).
 
 ## Quality gates

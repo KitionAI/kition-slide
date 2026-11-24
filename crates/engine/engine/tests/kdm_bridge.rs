@@ -353,6 +353,36 @@ fn a_new_agent_step_keeps_the_persons_redo() {
     assert!(names.iter().any(|name| name == "Person") && names.iter().any(|name| name == "Agent"), "{names:?}");
 }
 
+/// The `.kslide` bytes `s` saves now.
+fn saved(s: &mut Session) -> Vec<u8> {
+    let file = s.execute("file.saveBytes", &json!({})).unwrap();
+    kition_slide_engine::cmd::base64_decode(file["data"].as_str().unwrap()).unwrap()
+}
+
+/// Two sessions that open the same `.kslide` and save without editing write byte-identical files,
+/// and the very file they opened; so does one that opens it with its stored replica.
+#[test]
+fn two_sessions_that_open_the_same_kslide_save_it_unchanged_byte_for_byte() {
+    let mut a = new_session();
+    a.execute("slide.rename", &json!({"name": "Named"})).unwrap();
+    let original = saved(&mut a);
+    let open = |bytes: &[u8]| {
+        let mut s = Session::new();
+        s.execute("file.openBytes", &json!({"name": "Deck.kslide", "data": kition_slide_engine::cmd::base64_encode(bytes)})).unwrap();
+        s
+    };
+    let (mut one, mut two) = (open(&original), open(&original));
+    let (first, second) = (saved(&mut one), saved(&mut two));
+    assert!(first == second, "two sessions' unchanged saves differ");
+    assert!(first == original, "an unchanged save differs from the file it opened");
+
+    let snapshot = a.snapshot().unwrap();
+    let blobs = a.blobs_since(&Version::empty()).unwrap();
+    let mut kept = Session::new();
+    kept.open_with_replica(&original, &snapshot, blobs).unwrap();
+    assert!(saved(&mut kept) == original, "a session opened with its stored replica saves another file");
+}
+
 #[test]
 fn a_file_newer_than_its_stored_replica_wins_on_open() {
     let mut a = new_session();

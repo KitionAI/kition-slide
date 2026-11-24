@@ -32,6 +32,10 @@ const MAX_DEPTH: usize = 64;
 /// `p`'s serde form without the members equal to their defaults.
 pub(crate) fn slide_file(p: &SlideFile) -> serde_json::Result<Value> {
     let mut v = serde_json::to_value(p)?;
+    // A PPTX's view properties (the last view, zoom) are a view of the presentation, not part of it.
+    if let Some(map) = v.as_object_mut() {
+        map.remove("viewProps");
+    }
     let full = v.clone();
     let mut lean = Lean::default();
     if let Some(map) = v.as_object_mut() {

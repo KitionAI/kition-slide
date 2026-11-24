@@ -152,6 +152,15 @@ features:
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
     since: "2026-11-17"
+  - id: slide.collab.replica-merges-file
+    title: "A presentation changed outside Kition keeps its history: the stored replica opens and the newer .kslide or .pptx merges into it as one import change"
+    dimension: [collab, data-safety]
+    priority: P1
+    status: has
+    paths: [web/src/slides.tsx, crates/engine/engine/src/kdm_bridge.rs, crates/engine/engine/tests/kdm_bridge.rs, web/tests/replica.mjs]
+    target: "Kit UI protocol section 7, UI-R1 (replicaMergesFile)"
+    cases: [regressions/issue-replica-merges-file]
+    since: "2026-11-24"
   - id: slide.file.presentations
     title: "New, open, save, save as, revert, close, properties and AutoRecover"
     dimension: [function, conversion, data-safety]
@@ -161,7 +170,7 @@ features:
     paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/recovery.rs, bindings/wasm/src/lib.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and open are tested at the PPTX format level (crates/formats/pptx/tests/roundtrip.rs) and for the slide count through the engine; no case reopens a whole presentation through the commands.
-    cases: [regressions/issue-recovery-discard-uid, regressions/issue-schema-freeze-kslide]
+    cases: [regressions/issue-recovery-discard-uid, regressions/issue-schema-freeze-kslide, regressions/issue-kslide-unchanged-save]
     since: "2026-11-17"
   - id: slide.platform.document-identity
     title: "A host reads the document id a slide file carries (none: a .kslide or .pptx embeds no replica) and forks it into the same bytes (document.identity, document.fork; Kit Process Protocol 5.6)"
