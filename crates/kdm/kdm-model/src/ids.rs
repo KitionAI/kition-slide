@@ -337,11 +337,11 @@ impl Known {
             known.slides.insert(object.clone(), b.id);
             shapes(&mut known, ids, &object, &a.shapes, &b.shapes)?;
         }
-        let order = |p: &SlideFile| {
+        fn order(p: &SlideFile) -> Vec<&kition_slide_model::MediaItem> {
             let mut media: Vec<_> = p.media.iter().collect();
             media.sort_by(|a, b| (&a.name, &a.content_type, &a.link).cmp(&(&b.name, &b.content_type, &b.link)));
             media
-        };
+        }
         for (a, b) in order(view).into_iter().zip(order(file)) {
             known.media.insert(ids.media.object(a.id)?.clone(), b.id);
         }
