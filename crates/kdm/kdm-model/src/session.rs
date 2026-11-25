@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, OriginKind, Replica, Tx, UndoScope, Version};
+use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, OriginKind, Replica, Tx, UndoOutcome, UndoScope, Version};
 use kition_kit::session::{BlobSource, Damage, KitModel, MemoryBlobs};
 use kition_slide_model::SlideFile;
 
@@ -172,42 +172,41 @@ impl SlideSession {
     /// steps are the agent's, KitModel M12a), repairs the result and patches the view. Answers
     /// whether there was one, and the damage.
     pub fn undo(&mut self) -> Result<(bool, Damage)> {
-        self.undo_in(UndoScope::Person)
+        self.undo_in(UndoScope::Person).map(|(outcome, damage)| (outcome.is_done(), damage))
     }
 
     pub fn redo(&mut self) -> Result<(bool, Damage)> {
-        self.redo_in(UndoScope::Person)
+        self.redo_in(UndoScope::Person).map(|(outcome, damage)| (outcome.is_done(), damage))
     }
 
     /// Undoes the last undo step of `scope` (the person's or the agent's, M12a): the other scope's
-    /// later edits are kept, as other replicas' are.
-    pub fn undo_in(&mut self, scope: UndoScope) -> Result<(bool, Damage)> {
-        if !self.can_undo_in(scope) {
-            return Ok((false, Damage::None));
-        }
-        let done = self.replica.undo_in(scope).map_err(kit_err)?;
-        let (damage, moved) = self.settle();
-        if done {
-            self.log_added(moved.added.iter().cloned());
-            self.index.undone(scope, moved);
-        }
-        self.index.collect_garbage(&mut self.blobs);
-        Ok((done, damage?))
+    /// later edits are kept, as other replicas' are. Answers which steps the replica took off its
+    /// stack ([`UndoOutcome`]: those it passed over, their objects gone since, and the one it took
+    /// back; all of them become one redo step) and the damage.
+    pub fn undo_in(&mut self, scope: UndoScope) -> Result<(UndoOutcome, Damage)> {
+        self.step_in(scope, true)
     }
 
-    /// Redoes the last undone step of `scope`.
-    pub fn redo_in(&mut self, scope: UndoScope) -> Result<(bool, Damage)> {
-        if !self.can_redo_in(scope) {
-            return Ok((false, Damage::None));
+    /// Redoes the last undone step of `scope`, answering like [`SlideSession::undo_in`].
+    pub fn redo_in(&mut self, scope: UndoScope) -> Result<(UndoOutcome, Damage)> {
+        self.step_in(scope, false)
+    }
+
+    fn step_in(&mut self, scope: UndoScope, undo: bool) -> Result<(UndoOutcome, Damage)> {
+        let can = if undo { self.can_undo_in(scope) } else { self.can_redo_in(scope) };
+        if !can {
+            return Ok((UndoOutcome::default(), Damage::None));
         }
-        let done = self.replica.redo_in(scope).map_err(kit_err)?;
+        let outcome = if undo { self.replica.undo_in(scope) } else { self.replica.redo_in(scope) }.map_err(kit_err)?;
         let (damage, moved) = self.settle();
-        if done {
+        if outcome.is_done() {
             self.log_added(moved.added.iter().cloned());
-            self.index.redone(scope, moved);
         }
+        // The steps the call took off the replica's stack leave the index's too; with one taken
+        // back they become the one step on the other stack.
+        self.index.stepped(scope, undo, outcome.steps(), outcome.is_done(), moved);
         self.index.collect_garbage(&mut self.blobs);
-        Ok((done, damage?))
+        Ok((outcome, damage?))
     }
 
     /// Whether the person has an undo step to take: one of this replica's, not trimmed by

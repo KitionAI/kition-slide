@@ -341,6 +341,39 @@ fn a_redo_whose_slide_is_gone_keeps_the_replica() {
     assert_holds(&s, "an edit after the redo");
 }
 
+/// A person's undo whose last step's slide an agent deleted since: the replica passes that step
+/// over and takes back the one below in the same call, so the history takes both steps back
+/// together, the replica's undo steps and the history's stay in line, and the redo brings the
+/// step below back. The blob index follows the replica's stacks.
+#[test]
+fn an_undo_that_passes_over_a_step_takes_the_one_below_with_it() {
+    let mut s = new_session();
+    let original = doc(&s).slides[0].name.clone();
+    s.execute("slide.rename", &json!({"name": "D", "index": 0})).unwrap();
+    s.execute("slide.rename", &json!({"name": "E"})).unwrap();
+    s.execute_as("slide.delete", &json!({"index": 1}), &Origin::agent("test")).unwrap();
+    let person = |s: &Session| s.active().unwrap().history.undo.iter().filter(|e| !e.agent).count();
+    let (entries, (undo, redo)) = (person(&s), s.kdm().unwrap().steps());
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(doc(&s).slides[0].name, original, "the step below is taken back");
+    assert_eq!(person(&s), entries - 2, "both history steps are taken back together");
+    assert_eq!(s.kdm().unwrap().steps(), (undo - 2, redo + 1), "the replica's steps, as the index counts them");
+    assert_eq!(s.kdm_resets(), 0);
+    assert_holds(&s, "after the undo");
+    // The next undo takes back the step below those, exactly.
+    let shapes = |s: &Session| doc(s).slides.iter().map(|slide| slide.shapes.len()).sum::<usize>();
+    let below = shapes(&s);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_ne!(shapes(&s), below, "the table inserted last is taken back");
+    assert_holds(&s, "after the second undo");
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(shapes(&s), below, "the redo brings the table back");
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(doc(&s).slides[0].name, "D", "the redo brings the step below back");
+    assert!(s.active().unwrap().history.redo.iter().all(|e| e.agent), "nothing of the person's is left to redo");
+    assert_holds(&s, "after the redos");
+}
+
 /// A new step clears only its own scope's redo steps, as the replica does.
 #[test]
 fn a_new_agent_step_keeps_the_persons_redo() {

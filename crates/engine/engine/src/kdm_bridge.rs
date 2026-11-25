@@ -230,21 +230,29 @@ impl DocState {
     /// takes its view (with every collaborator's edit since) instead. `floor` is the document's
     /// id counter before, which the view never lowers.
     ///
-    /// A replica step that is no longer there to take (the replica passed over a step whose
-    /// objects are gone since, say an agent deleted the slide a person's step renamed) leaves the
-    /// replica as it is: the document takes its view, and the history step, now on the other
-    /// stack, counts only the replica steps it took. Only a replica that refuses leaves it.
+    /// The step took `steps` replica steps. The replica passes over a step whose objects are gone
+    /// since (say an agent deleted the slide a person's step renamed) and goes on to the one below
+    /// in the same call (`UndoOutcome`): so one call may take fewer of this step's replica steps
+    /// back than it took off the stack, or reach below it into the scope's next history step.
+    /// What the calls took off is what the history step stands for: the history steps below whose
+    /// replica steps went with it are taken into it (they leave their stack), and the step, now on
+    /// the other stack, counts the replica steps the calls left there. A replica with nothing left
+    /// to take stays as it is and the document takes its view; only a replica that refuses is left.
     pub(crate) fn step_kdm(&mut self, steps: u32, undo: bool, floor: u32, agent: bool) {
         let scope = if agent { UndoScope::Agent } else { UndoScope::Person };
         if steps > 0
             && let Some(kdm) = self.link.kdm.as_mut()
         {
-            let mut taken = 0;
+            let want = steps as usize;
+            let (mut consumed, mut made) = (0usize, 0u32);
             let mut refused = false;
-            for _ in 0..steps {
+            while consumed < want {
                 match if undo { kdm.undo_in(scope) } else { kdm.redo_in(scope) } {
-                    Ok((true, _)) => taken += 1,
-                    Ok((false, _)) => break,
+                    Ok((outcome, _)) if outcome.steps() == 0 => break,
+                    Ok((outcome, _)) => {
+                        consumed += outcome.steps();
+                        made += u32::from(outcome.is_done());
+                    }
                     Err(_) => {
                         refused = true;
                         break;
@@ -256,10 +264,21 @@ impl DocState {
                 self.link.mark = self.history.pushed;
                 return;
             }
-            if taken < steps {
-                let moved = if undo { &mut self.history.redo } else { &mut self.history.undo };
-                if let Some(e) = moved.iter_mut().rev().find(|e| e.agent == agent) {
-                    e.steps = taken;
+            let (from, to) = if undo { (&mut self.history.undo, &mut self.history.redo) } else { (&mut self.history.redo, &mut self.history.undo) };
+            if let Some(e) = to.iter_mut().rev().find(|e| e.agent == agent) {
+                e.steps = made;
+            }
+            // Replica steps taken off beyond this step's own: the steps below in its scope.
+            let mut beyond = consumed.saturating_sub(want);
+            while beyond > 0 {
+                let Some(i) = from.iter().rposition(|e| e.agent == agent && e.steps > 0) else { break };
+                let below = from[i].steps as usize;
+                if below <= beyond {
+                    from.remove(i);
+                    beyond -= below;
+                } else {
+                    from[i].steps -= beyond as u32;
+                    beyond = 0;
                 }
             }
         }

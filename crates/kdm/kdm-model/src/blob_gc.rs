@@ -149,20 +149,33 @@ impl BlobIndex {
         self.redo.retain(|(of, _)| *of != scope);
     }
 
-    /// `scope`'s last undo step was undone: it becomes that scope's next redo step.
-    pub fn undone(&mut self, scope: UndoScope, moved: Moved) {
-        if let Some(i) = self.undo.iter().rposition(|(of, _)| *of == scope) {
-            self.undo.remove(i);
+    /// An undo (`undo`) or a redo of `scope` took `taken` steps off the replica's stack: the steps
+    /// it passed over (their objects gone since) and, when `done`, the one it took back. They leave
+    /// this stack too; with one taken back, they become that scope's one next step on the other
+    /// stack, keeping what any of them can bring back and what the call moved.
+    pub fn stepped(&mut self, scope: UndoScope, undo: bool, taken: usize, done: bool, moved: Moved) {
+        let mut kept = moved.all();
+        for _ in 0..taken {
+            let from_undo = if undo { self.undo.iter().rposition(|(of, _)| *of == scope) } else { None };
+            let from_redo = if undo { None } else { self.redo.iter().rposition(|(of, _)| *of == scope) };
+            let step = match (from_undo, from_redo) {
+                (Some(i), _) => self.undo.remove(i).map(|(_, blobs)| blobs),
+                (_, Some(i)) => Some(self.redo.remove(i).1),
+                (None, None) => None,
+            };
+            match step {
+                Some(blobs) => kept.extend(blobs),
+                None => break,
+            }
         }
-        self.redo.push((scope, moved.all()));
-    }
-
-    /// `scope`'s next redo step was redone: it is that scope's newest undo step again.
-    pub fn redone(&mut self, scope: UndoScope, moved: Moved) {
-        if let Some(i) = self.redo.iter().rposition(|(of, _)| *of == scope) {
-            self.redo.remove(i);
+        if !done {
+            return;
         }
-        self.undo.push_back((scope, moved.all()));
+        if undo {
+            self.redo.push((scope, kept));
+        } else {
+            self.undo.push_back((scope, kept));
+        }
     }
 
     pub fn undo_steps(&self) -> usize {
