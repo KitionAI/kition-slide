@@ -38,12 +38,26 @@ fn hold(found: &mut kition_kit::Under, id: impl Into<Value>, fields: impl IntoIt
 
 fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition_kit::Under) -> Result<(), String> {
     let shape_command = command.starts_with("shape.")
-        || command.starts_with("picture.")
+        || command.starts_with("image.")
         || command.starts_with("drawing.")
         || command.starts_with("arrange.")
         || command.starts_with("chart.")
-        || command.starts_with("insert.")
-        || matches!(command, "media.options" | "media.posterFrame");
+        || matches!(
+            command,
+            "textBox.insert"
+                | "table.insert"
+                | "audio.insert"
+                | "video.insert"
+                | "artText.insert"
+                | "field.insertSlideNumber"
+                | "field.insertDateTime"
+                | "symbol.insert"
+                | "link.insert"
+                | "smartGraphic.insert"
+                | "actionButton.insert"
+                | "media.options"
+                | "media.posterFrame"
+        );
     if !shape_command {
         return Ok(());
     }
@@ -92,8 +106,8 @@ fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition
         }
     }
     let existing_targets = (command.starts_with("shape.") && !matches!(command, "shape.insert" | "shape.freeform" | "shape.sites"))
-        || command.starts_with("picture.")
-        || command.starts_with("chart.")
+        || (command.starts_with("image.") && command != "image.insert")
+        || (command.starts_with("chart.") && command != "chart.insert")
         || command.starts_with("arrange.")
         || matches!(
             command,

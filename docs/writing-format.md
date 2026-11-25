@@ -29,31 +29,39 @@ Commands by namespace (the part of the id before the first dot):
 
 | Namespace | Commands | Change the document | Open to the agent | Examples |
 | --- | ---: | ---: | ---: | --- |
+| `accessibility` | 1 | 0 | 1 | `accessibility.check` |
+| `actionButton` | 1 | 1 | 1 | `actionButton.insert` |
 | `animation` | 11 | 8 | 11 | `animation.set`, `animation.add`, `animation.remove` |
 | `arrange` | 15 | 15 | 15 | `arrange.bringToFront`, `arrange.bringForward`, `arrange.sendBackward` |
-| `chart` | 3 | 3 | 3 | `chart.type`, `chart.data`, `chart.options` |
-| `commands` | 1 | 0 | 1 | `command.list` |
-| `comment` | 6 | 4 | 6 | `comment.add`, `comment.reply`, `comment.delete` |
-| `design` | 8 | 7 | 8 | `theme.set`, `theme.list`, `theme.colors` |
-| `document` | 1 | 0 | 1 | `file.inspect` |
-| `draw` | 6 | 0 | 6 | `ink.pen`, `ink.pencil`, `ink.highlighter` |
+| `artText` | 1 | 1 | 1 | `artText.insert` |
+| `audio` | 1 | 1 | 1 | `audio.insert` |
+| `chart` | 4 | 4 | 4 | `chart.insert`, `chart.type`, `chart.data` |
+| `command` | 1 | 0 | 1 | `command.list` |
+| `comment` | 8 | 4 | 8 | `comment.add`, `comment.reply`, `comment.delete` |
 | `drawing` | 14 | 13 | 14 | `drawing.describe`, `drawing.insert`, `drawing.delete` |
 | `edit` | 11 | 7 | 11 | `edit.undo`, `edit.redo`, `edit.cut` |
-| `file` | 16 | 11 | 16 | `file.new`, `file.open`, `file.openBytes` |
+| `field` | 2 | 2 | 2 | `field.insertSlideNumber`, `field.insertDateTime` |
+| `file` | 18 | 11 | 18 | `file.new`, `file.open`, `file.openBytes` |
 | `format` | 40 | 38 | 40 | `format.bold`, `format.italic`, `format.underline` |
-| `insert` | 13 | 13 | 13 | `textBox.insert`, `image.insert`, `table.insert` |
+| `image` | 5 | 5 | 5 | `image.insert`, `image.crop`, `image.adjust` |
+| `ink` | 6 | 0 | 6 | `ink.pen`, `ink.pencil`, `ink.highlighter` |
+| `link` | 1 | 1 | 1 | `link.insert` |
 | `master` | 4 | 4 | 4 | `master.insertLayout`, `master.renameLayout`, `master.deleteLayout` |
 | `media` | 9 | 2 | 9 | `media.options`, `media.play`, `media.pause` |
-| `picture` | 4 | 4 | 4 | `image.crop`, `image.adjust`, `image.reset` |
 | `presence` | 2 | 0 | 2 | `presence.selection`, `presence.locate` |
-| `review` | 2 | 0 | 2 | `accessibility.check`, `spelling.check` |
 | `section` | 5 | 5 | 5 | `section.add`, `section.rename`, `section.remove` |
 | `shape` | 24 | 21 | 24 | `shape.insert`, `shape.presets`, `shape.connect` |
 | `show` | 4 | 2 | 4 | `show.fromStart`, `show.fromCurrent`, `show.setup` |
-| `slide` | 17 | 10 | 17 | `slide.new`, `slide.duplicate`, `slide.delete` |
-| `table` | 20 | 18 | 20 | `table.state`, `table.cellFormat`, `table.border` |
-| `text` | 11 | 3 | 11 | `text.edit`, `text.exit`, `text.insert` |
+| `slide` | 21 | 14 | 21 | `slide.new`, `slide.duplicate`, `slide.delete` |
+| `smartGraphic` | 1 | 1 | 1 | `smartGraphic.insert` |
+| `spelling` | 1 | 0 | 1 | `spelling.check` |
+| `symbol` | 1 | 1 | 1 | `symbol.insert` |
+| `table` | 21 | 19 | 21 | `table.insert`, `table.state`, `table.cellFormat` |
+| `text` | 11 | 4 | 11 | `text.edit`, `text.exit`, `text.insert` |
+| `textBox` | 1 | 1 | 1 | `textBox.insert` |
+| `theme` | 4 | 3 | 4 | `theme.set`, `theme.list`, `theme.colors` |
 | `transition` | 5 | 4 | 5 | `transition.set`, `transition.options`, `transition.timing` |
+| `video` | 1 | 1 | 1 | `video.insert` |
 | `view` | 2 | 0 | 2 | `view.slideMaster`, `view.closeMaster` |
 | `window` | 1 | 0 | 1 | `window.next` |
 

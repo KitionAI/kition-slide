@@ -182,8 +182,10 @@ The repository has no desktop app, CLI or MCP server of its own, and nothing in 
 egui, eframe, winit or rfd.
 
 - **Everything is a command** (`crates/engine/engine/src/cmd/*`): id, label, ribbon/menu place,
-  shortcut, params doc, `enabled`, `run`, plus tests. Ids follow PowerPoint's ribbon and menus
-  (`slide.new`, `format.bold`, `arrange.group`, `transition.set`…). Programmatic calls never open
+  shortcut, params doc, `enabled`, `run`, plus tests. Ids follow Kition's command naming standard:
+  the namespace is the object, not the ribbon tab (`slide.new`, `image.insert`, `format.bold`,
+  `arrange.group`, `theme.set`, `transition.set`…); the tab and group a command sits in are its
+  ribbon/menu place. Programmatic calls never open
   dialogs. Pointer gestures go through `Session::pointer`, keys through `Session::key`, so the
   headless `kition-slide` executable and the web editor's WASM build do exactly the same thing.
 - **The web editor is thin**: panels read engine state (over the WASM boundary) and act through

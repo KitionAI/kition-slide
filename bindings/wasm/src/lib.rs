@@ -190,7 +190,8 @@ struct BatchMedia {
 pub const EDITOR_STATE: &[&str] = &["/slide", "/selection", "/selectedKinds", "/target", "/editingText"];
 
 /// `file` commands that only produce bytes or files from the slide, leaving it as it is.
-const FILE_OUTPUTS: &[&str] = &["file.saveBytes", "file.render", "file.export", "file.exportBytes", "file.saveTemplate", "file.recovery.list"];
+const FILE_OUTPUTS: &[&str] =
+    &["file.saveBytes", "file.render", "file.export", "file.exportBytes", "file.saveTemplate", "file.recovery.list", "file.inspect"];
 
 /// Whether running a command changes the slide (the catalog's `mutates`): its edits (the
 /// engine's undoable commands), undo and redo, and the `file` commands that replace, reload, close,

@@ -36,7 +36,7 @@ export function HomeTab() {
   const { run, enabled, format, facts, t, view } = useSlides()
   const tools = useTools()
   const picture = usePictureInsert()
-  const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.fontName, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
+  const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.font, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
   const textOn = enabled('format.bold')
   const align = format.align ?? ''
   return (
@@ -70,8 +70,8 @@ export function HomeTab() {
         <RibbonStack>
           <RibbonRow>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.fontName ?? ''} onChange={(event) => void run('format.fontName', { family: event.target.value })} data-testid="slides-font">
-                {format.fontName ? null : <option value="" />}
+              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.font ?? ''} onChange={(event) => void run('format.fontName', { family: event.target.value })} data-testid="slides-font">
+                {format.font ? null : <option value="" />}
                 {fonts.map((font) => (
                   <option key={font} value={font}>
                     {font}
@@ -80,9 +80,9 @@ export function HomeTab() {
               </select>
             </RibbonItem>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.fontSize ?? ''} onChange={(event) => void run('format.fontSize', { size: Number(event.target.value) })} data-testid="slides-font-size">
-                {format.fontSize == null || SIZES.includes(format.fontSize) ? null : <option value={format.fontSize}>{format.fontSize}</option>}
-                {format.fontSize == null ? <option value="" /> : null}
+              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.size ?? ''} onChange={(event) => void run('format.fontSize', { size: Number(event.target.value) })} data-testid="slides-font-size">
+                {format.size == null || SIZES.includes(format.size) ? null : <option value={format.size}>{format.size}</option>}
+                {format.size == null ? <option value="" /> : null}
                 {SIZES.map((size) => (
                   <option key={size} value={size}>
                     {size}

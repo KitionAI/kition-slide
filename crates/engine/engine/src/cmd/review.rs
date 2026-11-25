@@ -83,7 +83,7 @@ pub fn now() -> String {
 /// (their own steps), and whatever leaves the slide as it is (queries, views, the
 /// selection, file outputs).
 pub(crate) fn comment_only_allows(spec: &CommandSpec) -> bool {
-    const OUTPUTS: &[&str] = &["file.saveBytes", "file.render", "file.export", "file.exportBytes", "file.recovery.list"];
+    const OUTPUTS: &[&str] = &["file.saveBytes", "file.render", "file.export", "file.exportBytes", "file.recovery.list", "file.inspect"];
     if spec.id.starts_with("comment.") || matches!(spec.id, "edit.undo" | "edit.redo") {
         return true;
     }

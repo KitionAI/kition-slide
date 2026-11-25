@@ -234,7 +234,7 @@ fn commands_flagged_as_not_mutating_never_commit_to_the_replica() {
     let bytes = fixture();
     let commands = SlideDocument::open("Slide.kslide", &bytes).unwrap().commands();
     // Commands that write files are left out: the test must not write any.
-    for command in commands.iter().filter(|command| !command.mutates && !command.id.starts_with("file.")) {
+    for command in commands.iter().filter(|command| !command.mutates && (!command.id.starts_with("file.") || command.id == "file.inspect")) {
         let mut doc = SlideDocument::open("Slide.kslide", &bytes).unwrap();
         doc.execute("edit.selectAll", json!({})).unwrap();
         let before = doc.version().unwrap();
