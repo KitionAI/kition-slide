@@ -451,7 +451,8 @@ mod tests {
         extra_edit(&mut doc);
         let receipt = doc.changes_since(&since);
         assert!(receipt["changes"].is_object(), "{receipt}");
-        assert_ne!(receipt["changes"], doc.changes_since(&doc.version().unwrap())["changes"], "the edit is in the receipt: {receipt}");
+        let now = doc.version().unwrap();
+        assert_ne!(receipt["changes"], doc.changes_since(&now)["changes"], "the edit is in the receipt: {receipt}");
         let other = SlideDocument::open("Slide.kslide", &fixture()).unwrap().version().unwrap();
         let refused = doc.changes_since(&other);
         assert!(refused["changes"].is_null() && refused["unavailable"].is_string(), "{refused}");
