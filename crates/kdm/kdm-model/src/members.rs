@@ -1,17 +1,17 @@
 //! Sections and custom shows: each a `Section` or `CustomShow` object, listed in the slide file's
-//! `sections` or `customShows`, whose `slides` map holds one entry per member slide, so two people
-//! adding, removing or moving different slides of one section (or show) at once both keep theirs,
-//! and a rename never touches the members.
+//! `sections` or `customShows`, whose `slides` map holds one entry per member slide, so a draft
+//! adding, removing or moving slides of a section (or show) the document changed meanwhile merges
+//! per slide (data model 6.6, rule D4), and a rename never touches the members.
 //!
 //! An entry's key is the member slide's object id; a custom show that lists one slide again keys
 //! its `n`-th listing `<object id>#<n>`. Its value is the member's place in the list (a number):
-//! members read in order of place, then key, so two slides added at one place at once both stay,
-//! in the same order everywhere.
+//! members read in order of place, then key, so two slides added at one place (by a draft and by
+//! the document) both stay, in the same order everywhere.
 //!
 //! The repair after a merge ([`repair`]) drops each entry naming a slide that is gone, and, as a
 //! slide belongs to one section at most, an entry of a section naming a slide an earlier section
-//! (in the slide file's order) holds: two people moving one slide to two sections at once leave it
-//! in the first. The reader reads the same.
+//! (in the slide file's order) holds: a draft and the document moving one slide to two sections
+//! leave it in the first (`tests/members.rs`). The reader reads the same.
 
 use std::collections::{HashMap, HashSet};
 

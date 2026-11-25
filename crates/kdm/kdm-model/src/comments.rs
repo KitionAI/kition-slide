@@ -1,7 +1,7 @@
 //! Comment threads (Kition Kit Standard 2.0 rule M23): each slide comment is a `CommentThread`
 //! object beside the slides, its comments `Comment` objects listed in the thread, so a change that
 //! only comments touches only these two types (all a principal with the sync protocol's
-//! `commenter` role may push) and two people replying to one thread at once both keep their reply.
+//! `commenter` role may write), and a reply is an object of its own in its thread's list.
 //!
 //! - A thread's `anchor` is `{object, slide, x, y}`: the shape's object when the comment is on a
 //!   shape (else the slide's), the slide's object, and the point on the slide in points. Nothing
@@ -14,12 +14,12 @@
 //!   its own comment's), minted by the engine ([`kition_slide_model::SlideFile::fill_comment_ids`]).
 //!   A view comment without a usable id (empty, or held by another comment) is written under an id
 //!   derived from its content, the same in every write of that view.
-//! - A comment listed twice in its thread (two replicas listed it at once), or listed but gone,
-//!   reads once, or not at all; the session's read repair ([`repair`]) lists the thread's comments
-//!   so in the replica.
+//! - A comment listed twice in its thread, or listed but gone (a replica stored that way), reads
+//!   once, or not at all; the session's read repair ([`repair`]) lists the thread's comments so in
+//!   the replica.
 //! - A thread that goes (deleted, its slide deleted, merged into a sibling) keeps its object,
-//!   listing no comment, so a reply someone adds to it at the same time is not lost: the thread
-//!   reads again with it.
+//!   listing no comment, so a reply a draft adds to it (merged after the thread went, data model
+//!   6.6) is not lost: the thread reads again with it.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 

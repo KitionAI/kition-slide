@@ -1185,9 +1185,8 @@ impl Writer<'_, '_> {
     }
 
     /// A slide's notes, as [`Writer::write_shape_text`] does a shape's text. Every slide gets a
-    /// body, even with empty notes: two people typing a slide's first notes at once then edit one
-    /// body and both keep their text, where each creating a body of their own would keep only one
-    /// (the `notesBody` register keeps the last write).
+    /// body, even with empty notes: typing a slide's first notes then edits that body, as every
+    /// later edit does, rather than creating one (the `notesBody` register names one body).
     fn write_notes(&mut self, slide: &ObjectId, before: Option<&TextBody>, after: &TextBody) -> KdmResult<bool> {
         let owner = BodyOwner::Notes(slide.clone());
         let old_body = self.ids.bodies.get(&owner).map(|b| b.body.clone());
@@ -1358,8 +1357,8 @@ impl Writer<'_, '_> {
                 }
             }
             // Enter inside this paragraph, its object kept for the first half: a split anchor at
-            // the split point, and at the start of every other field's text after it, so text
-            // typed concurrently after it follows the second half (`pieces`).
+            // the split point, and at the start of every other field's text after it, so what
+            // stands after it follows the second half (`pieces`).
             if let (Some(next), Some(target)) = (next_runs, objects.get(j + 1)) {
                 let (first, second) = (text_of(&new_runs), text_of(&next));
                 let at = first.chars().count();

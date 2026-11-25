@@ -121,8 +121,9 @@ fn open_bytes(s: &mut Session, p: &Value) -> Result<Value> {
 pub fn save_bytes(doc: &SlideFile, format: &str) -> Result<Vec<u8>> {
     match format {
         "pptx" | "potx" | "ppsx" => {
-            // A commenter can receive concurrent text without permission to persist its fit.
-            // Materialize derived scales only in this export projection, never in the replica.
+            // A commenter may hold text whose fit is stale (a replica stored before an editor's
+            // reflow) and may not write its fit: the derived scales are materialized in this
+            // export projection only, never in the replica (tests/autofit_merge.rs).
             let mut exported = doc.clone();
             crate::autofit::repair(&mut exported);
             exported.keep_own_slide_ids();

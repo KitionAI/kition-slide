@@ -355,11 +355,28 @@ impl Session {
     }
 
     fn begin(&mut self, label: &str) {
+        let origin = self.origin();
         if let Some(st) = self.active_mut()
             && st.interaction.is_none()
         {
-            st.interaction = Some(crate::Interaction { label: label.into(), doc: st.doc.clone(), selection: st.selection.clone() });
+            st.interaction = Some(crate::Interaction { label: label.into(), doc: st.doc.clone(), selection: st.selection.clone(), origin });
         }
+    }
+
+    /// Ends a gesture where it is (a merged draft or a restored version takes the document): what
+    /// it changed so far is its one undo step, and its later pointer events do nothing.
+    pub(crate) fn end_gesture(&mut self) {
+        if self.active().is_none_or(|st| st.interaction.is_none()) {
+            return;
+        }
+        self.tool.drag = None;
+        self.tool.preview = None;
+        self.tool.marquee = None;
+        self.tool.guides.clear();
+        self.tool.sites.clear();
+        self.tool.glue = None;
+        self.tool.ink_preview.clear();
+        self.commit();
     }
 
     /// Escape mid-gesture: drop the drag and put back what its live preview changed (no undo

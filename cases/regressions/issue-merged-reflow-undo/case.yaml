@@ -1,0 +1,32 @@
+format: 1
+id: regressions/issue-merged-reflow-undo
+feature: slide.collab.drafts
+intent: >-
+  A draft turns shrink-on-overflow on for a text box the person made lower meanwhile: the merged
+  fit is stale, and the engine reflows it. The reflow was written as a separate `system` change
+  after the merge, which the merge's Undo could not take back exactly (the replica keeps a value
+  written since). Now the reflow is part of the merge's undo step: the text fits its box after the
+  merge, the deck reopens without a repair, the PPTX stores the fit, one Undo gives back the exact
+  state before and the Redo the reflowed one. A commenter shows and exports text whose fit is stale
+  without writing to the replica; an editor opening the same replica reflows it.
+layer: gate
+source:
+  kind: issue
+  from: independent review of the plain-model round (2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: autofit_merge
+      filter: a_merged_draft_turning_shrink_on_for_text_resized_meanwhile_is_reflowed_in_its_step
+  - cargo-test:
+      package: kition-slide-engine
+      test: autofit_merge
+      filter: a_commenter_shows_and_exports_text_whose_fit_is_stale_without_writing
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-25"
+timeout_s: 180

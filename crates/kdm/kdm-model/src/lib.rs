@@ -3,20 +3,19 @@
 //! [`SlideModel`] implements [`KitModel`]: the engine's materialised view of a replica, the same
 //! [`SlideFile`] the rest of the engine already knows. Masters, layouts, slides, shapes (with
 //! nested group children), tables (with their rows and columns), animations and media become KDM
-//! objects with their own identity, so concurrent edits to different ones merge finely;
+//! objects with their own identity, so an edit, an undo and a merged draft (data model 6.6) touch
+//! only the objects they change;
 //! [`write_document`] and [`write_changes`] are the engine command bridge's entry points: writing
 //! a whole slide in one creating transaction, or only what a command changed.
 //!
 //! What lives where (`model/schema.json`):
 //! - a shape's text body is a `TextBody` object (its `body` ref) listing `Paragraph` objects, each
-//!   a `props` register and a `text` field whose marks are the run properties (K4, `src/text.rs`), so
-//!   concurrent typing in one text box keeps both sides; table cells' and slide notes' text bodies
-//!   are the same (a cell's map value names its body, a slide's `notesBody`). A paragraph split
-//!   leaves a split anchor in the first half's field, so text typed concurrently after the split
-//!   point shows at the end of the second half, and a merge keeps the second paragraph listed
-//!   behind a merge anchor, so text typed into it concurrently stays (`src/pieces.rs`); each
-//!   paragraph's field is written from what it held when last read or written, so every replica
-//!   reads the same runs after a merge. A shape's `xfrm` and `name` are their own registers;
+//!   a `props` register and a `text` field whose marks are the run properties (K4, `src/text.rs`);
+//!   table cells' and slide notes' text bodies are the same (a cell's map value names its body, a
+//!   slide's `notesBody`). A paragraph split leaves a split anchor in the first half's field, and a
+//!   merge keeps the second paragraph listed behind a merge anchor, so both keep their paragraph
+//!   objects (`src/pieces.rs`); each paragraph's field is written from what it held when last read
+//!   or written, so every replica reads the same runs. A shape's `xfrm` and `name` are their own registers;
 //!   every other member of the shape and its kind is an entry of its `look` map
 //!   (`src/look.rs`), except group children
 //!   (`children` list), a table's grid (a `Table` object: `cols`/`rows` lists, and a `cells` map
@@ -25,8 +24,8 @@
 //!   `src/charts.rs`) and media bytes (a `Media` object's `blob`, content-addressed through
 //!   [`BlobSink`]/[`BlobSource`]);
 //! - sections and custom shows are `Section` and `CustomShow` objects listed by the slide file,
-//!   each a `name` and a `slides` map with one entry per member slide (`src/members.rs`), so
-//!   membership changes merge per slide;
+//!   each a `name` and a `slides` map with one entry per member slide (`src/members.rs`), so a
+//!   draft's membership change merges per slide;
 //! - comment threads are `CommentThread` objects beside the slides (`src/comments.rs`);
 //! - everything not modelled as its own field is kept in a `json` register next to it (a slide's
 //!   `props`/`background`/`transition`/`rawExt`, a master's `theme`/`listStyles`/`colorMap`, the
@@ -55,11 +54,13 @@
 //! [`SlideSession`] in a `system` transaction after each import, undo or redo and when it opens a
 //! replica (`src/siblings.rs`).
 //!
-//! **Repair (S4).** [`KitModel::validate`] clears what a merge left dangling: animations of deleted
+//! **Repair (S4).** [`KitModel::validate`] clears what a merged draft, an undo or a redo left
+//! dangling (a draft is checked against the document's changes since it was made, not against
+//! what they deleted): animations of deleted
 //! shapes, triggers and connector ends at deleted shapes, section and custom show members that are
 //! deleted slides (and a slide two sections hold, from all but the first), embedded fonts of deleted media, dangling list entries, and a slide
-//! whose layout is gone gets its master's first layout. An object listed twice in one list (two
-//! peers re-listed it at once) is read once, at its first place, and the repair removes its later
+//! whose layout is gone gets its master's first layout. An object listed twice in one list (a
+//! replica stored that way) is read once, at its first place, and the repair removes its later
 //! entries.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -94,7 +95,7 @@ pub use compare::normalize;
 pub use ids::{BodyIds, BodyOwner, Ids, Known, TableIds};
 pub use read::{read_document, read_document_known};
 pub use refs::renumber_media;
-pub use session::SlideSession;
+pub use session::{SlideSession, merge_scope};
 pub use stored::{settle_batch, settle_premise_batch, stored_objects};
 pub use write::{write_changes, write_comment_changes, write_document};
 

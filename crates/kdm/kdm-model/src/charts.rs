@@ -1,9 +1,10 @@
 //! A chart as its own `Chart` object (`KitDrawing` DR14): a shape of kind `chart` names it in its
 //! `chart` ref, and each of the chart's members (its type, title, legend, categories and series,
-//! style, kept part…) is an entry of its `parts` map, so two people changing different members of
-//! one chart at once both keep their change. The kept chart part (`raw`) is never changed by an
-//! edit, only by a new file, so it never fights an edit. The object is made under an id derived
-//! from the shape's, so two replicas making it at once make the same object.
+//! style, kept part…) is an entry of its `parts` map, so a draft and the document changing
+//! different members of one chart both keep their change (data model 6.6, rule D4). The kept chart
+//! part (`raw`) is never changed by an edit, only by a new file, so it never fights an edit. The
+//! object is made under an id derived from the shape's, so every write of one view makes the same
+//! object.
 
 use kition_kit::kdm::{ObjectId, Tx};
 use serde_json::{Map, Value};

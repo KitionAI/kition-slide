@@ -1,0 +1,28 @@
+format: 1
+id: regressions/issue-concurrent-slide-ids
+feature: slide.slides.manage
+intent: >-
+  A draft and the document each add a slide (an agent's draft made while the person adds one):
+  both new slides took the same next number in their own replica, so after the merge both carried
+  the same file id. The merge keeps both slides, the repair after it gives the draft's slide the
+  next id above every slide's (the document's slides keep theirs), the merged deck settles at once
+  (a read or a reopen writes nothing), and one undo gives back the exact state before the merge,
+  one redo the merged state. Restored on one line of changes: before, two editors of one room
+  adding a slide at once made every replica write a repair the other undid, without end.
+layer: gate
+source:
+  kind: issue
+  from: co-editing acceptance run of a host with managed rooms (two editors' converge case under parallel load)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      test: concurrent_slides
+      filter: a_draft_and_the_document_adding_a_slide_at_once_keep_a_file_id_each
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-20"
+timeout_s: 120

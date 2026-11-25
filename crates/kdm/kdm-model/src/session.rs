@@ -251,6 +251,11 @@ impl SlideSession {
         (self.index.undo_steps(), self.index.redo_steps())
     }
 
+    /// [`SlideSession::steps`] of one undo scope: the person's or the agent's.
+    pub fn steps_in(&self, scope: UndoScope) -> (usize, usize) {
+        (self.index.undo_steps_in(scope), self.index.redo_steps_in(scope))
+    }
+
     /// Imports remote or stored changes (their blobs added first, [`SlideSession::add_blobs`]),
     /// repairs the merged state and patches the view. An import whose repair or view load fails
     /// has still imported its changes: [`SlideSession::view_loaded`] tells whether the view
@@ -265,14 +270,15 @@ impl SlideSession {
     }
 
     /// Takes a draft's changes (made on a fork of this replica) in as one transaction of `origin`
-    /// (`Replica::merge_changes`): one undo step of its scope unless `origin` is a `system` or
-    /// `import` one. Repairs the result and patches the view as an import does; add the draft's
-    /// blobs first ([`SlideSession::add_blobs`]). Answers the undo steps it made (1 or 0) and the
-    /// damage. A refused merge changes nothing.
+    /// (`Replica::merge_changes`): one undo step of the **person** who accepts it (data model
+    /// rule M12a), even when `origin` is an agent's (the host records the draft's author as the
+    /// origin), unless `origin` is a `system` or `import` one. Repairs the result and patches the
+    /// view as an import does; add the draft's blobs first ([`SlideSession::add_blobs`]). Answers
+    /// the undo steps it made (1 or 0) and the damage. A refused merge changes nothing.
     pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
         let before = self.replica.version();
         self.replica.merge_changes(bytes, origin).map_err(kit_err)?;
-        self.took_in(before, origin)
+        self.took_in(before, merge_scope(origin))
     }
 
     /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
@@ -296,20 +302,21 @@ impl SlideSession {
             self.replica.take_changed();
             return Err(kit_err(error));
         }
-        self.took_in(before, origin)
+        self.took_in(before, UndoScope::of(origin.kind))
     }
 
-    /// After a merge or a restore wrote one transaction of `origin` since `before`: repairs and
-    /// patches the view as an import does, and counts the transaction as an undo step of its scope.
+    /// After a merge or a restore wrote one transaction since `before`: repairs and patches the
+    /// view as an import does, and counts the transaction as an undo step of `scope` (`None`: a
+    /// `system` or `import` one, no undo step).
     /// A failed repair or view load is the error, as an import's is: the transaction stays
     /// ([`SlideSession::view_loaded`] tells whether the view followed).
-    fn took_in(&mut self, before: Version, origin: &Origin) -> Result<(u32, Damage)> {
+    fn took_in(&mut self, before: Version, scope: Option<UndoScope>) -> Result<(u32, Damage)> {
         let wrote = self.replica.version() != before;
         let (damage, moved) = self.settle();
         self.log_added(moved.added.iter().cloned());
-        let undoable = wrote && !matches!(origin.kind, OriginKind::System | OriginKind::Import);
-        if undoable {
-            self.index.push_step(UndoScope::of(origin.kind).unwrap_or(UndoScope::Person), moved);
+        let undoable = wrote && scope.is_some();
+        if let Some(scope) = scope.filter(|_| undoable) {
+            self.index.push_step(scope, moved);
         }
         self.index.imported();
         self.index.collect_garbage(&mut self.blobs);
@@ -420,6 +427,9 @@ impl SlideSession {
     /// answers which blobs moved (the index is updated either way).
     fn settle(&mut self) -> (Result<Damage>, Moved) {
         let mut changed = self.replica.take_changed();
+        // The full check's result on a copy, for the property test of the targeted repair.
+        #[cfg(test)]
+        let full = crate::validate::tests::full_repair(&self.replica, &changed);
         let repaired = if changed.is_empty() {
             Ok(())
         } else {
@@ -443,6 +453,8 @@ impl SlideSession {
                 (result, None) => result.map_err(kit_err),
             }
         };
+        #[cfg(test)]
+        crate::validate::tests::compare(full.filter(|_| repaired.is_ok()), &self.replica);
         changed.extend(self.replica.take_changed());
         let moved = self.index.update(&self.replica, &changed);
         let damage = self.refresh(&changed).and_then(|damage| repaired.map(|()| damage));
@@ -479,4 +491,10 @@ impl SlideSession {
         let blobs: &dyn BlobSource = &self.blobs;
         self.model.apply(&self.replica, changed, blobs)
     }
+}
+
+/// The undo scope a merged draft takes (data model rule M12a, `Replica::merge_changes`): the
+/// person's who accepts it, whoever made the draft; none for a `system` or `import` origin.
+pub fn merge_scope(origin: &Origin) -> Option<UndoScope> {
+    UndoScope::of(origin.kind).map(|_| UndoScope::Person)
 }

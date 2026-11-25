@@ -135,7 +135,9 @@ impl DocState {
             }
             for i in pushed {
                 let after = self.history.undo.get(i + 1).map(|e| e.doc.clone()).unwrap_or_else(|| self.doc.clone());
-                let mut steps = if i == last { std::mem::take(&mut self.link.pending) } else { 0 };
+                // A gesture still under way keeps what it wrote so far for its own step (an edit of
+                // another scope came in meanwhile, `Session::run_spec`).
+                let mut steps = if i == last && self.interaction.is_none() { std::mem::take(&mut self.link.pending) } else { 0 };
                 if !Arc::ptr_eq(&self.link.synced, &after) {
                     match self.record_kdm(origin, &after) {
                         Some(n) => steps = steps.saturating_add(n),
@@ -209,8 +211,12 @@ impl DocState {
     /// Lets the replica forget the steps the history can no longer take, and their blobs.
     fn trim_kdm(&mut self) {
         let sum = |v: &[crate::HistoryEntry], agent: bool| v.iter().filter(|e| e.agent == agent).map(|e| e.steps as usize).sum::<usize>();
-        // Changes not written yet belong to the step on top, and so to its scope.
-        let pending_agent = self.history.undo.last().is_some_and(|e| e.agent);
+        // Changes written for a gesture under way are its own (the scope of who began it); else
+        // they belong to the step on top, and so to its scope.
+        let pending_agent = match &self.interaction {
+            Some(interaction) => interaction.origin.kind == OriginKind::Agent,
+            None => self.history.undo.last().is_some_and(|e| e.agent),
+        };
         for (agent, scope) in [(false, UndoScope::Person), (true, UndoScope::Agent)] {
             let pending = if agent == pending_agent { self.link.pending as usize } else { 0 };
             let undo = sum(&self.history.undo, agent).saturating_add(pending);
@@ -293,34 +299,52 @@ impl DocState {
     /// Persist merged text reflow as a non-undoable replica transaction. Read-only replicas
     /// retain their state; the layout layer validates receipts for their derived rendering.
     fn repair_autofit(&mut self, before: Option<&SlideFile>) {
+        self.repair_autofit_as(before, &Origin::system("autofit"));
+    }
+
+    /// [`DocState::repair_autofit`] written as `origin`'s: a step of its undo scope when it is a
+    /// person's or an agent's (the repair after a merged draft or a restored version, which the
+    /// step that took it in undoes with it, so its undo gives back the exact state before).
+    /// Answers the undo steps the repair took.
+    fn repair_autofit_as(&mut self, before: Option<&SlideFile>, origin: &Origin) -> u32 {
         if self.link.comment_only {
-            return;
+            return 0;
         }
         let mut repaired = (*self.doc).clone();
         // Values others wrote (an agent's object-model batch) as the file stores them (C8-slide-5),
-        // for what changed since `before`, and the slides' file ids as every replica settles them.
+        // for what changed since `before`, and the slides' file ids, a repeat renumbered (a merged
+        // draft that added a slide while the document did: each took the same next number).
         let settled = before.is_some_and(|before| crate::stored::settle_merged(&mut repaired, before));
         if (crate::autofit::repair(&mut repaired) | settled)
-            && self.record_kdm(&Origin::system("autofit"), &Arc::new(repaired)).is_some()
+            && let Some(steps) = self.record_kdm(origin, &Arc::new(repaired))
             && let Some(kdm) = self.link.kdm.as_ref()
         {
             self.doc = view_of(kdm, self.doc.next_id);
             self.link.synced = self.doc.clone();
+            return steps;
         }
+        0
     }
 
     /// After an import: the document follows the replica, and the selection follows it.
     fn follow_kdm(&mut self) {
-        let Some(kdm) = self.link.kdm.as_ref() else { return };
+        self.follow_kdm_as(&Origin::system("autofit"));
+    }
+
+    /// [`DocState::follow_kdm`] with the repair written as `origin`'s
+    /// ([`DocState::repair_autofit_as`]); answers the undo steps the repair took.
+    fn follow_kdm_as(&mut self, origin: &Origin) -> u32 {
+        let Some(kdm) = self.link.kdm.as_ref() else { return 0 };
         let before = self.doc.clone();
         self.doc = view_of(kdm, before.next_id);
         self.link.synced = self.doc.clone();
-        self.repair_autofit(Some(&*before));
+        let steps = self.repair_autofit_as(Some(&*before), origin);
         let mut selection = std::mem::take(&mut self.selection);
         follow_selection(&before, &mut selection, &self.doc);
         self.selection = selection;
         crate::clamp_selection(self);
         self.revision += 1;
+        steps
     }
 }
 
@@ -619,14 +643,27 @@ impl Session {
         Ok(MemoryBlobs(self.active_kdm(false)?.blobs_since(since).into_iter().collect()))
     }
 
-    /// Imports a collaborator's (or stored) changes into the active document's replica (their
-    /// blobs added first, [`Session::add_blobs`]). Local edits not written yet, a live drag
-    /// included, are written first. The document and its selection follow the replica; one whose
-    /// view could not be loaded from it leaves it (a reset) rather than diff against it later.
+    /// Imports changes made on this document's line (an agent's object-model batch, stored
+    /// changes; their blobs added first, [`Session::add_blobs`]). Local edits not written yet, a
+    /// live drag included, are written first. Changes made before a live drag was written that way
+    /// (an agent's batch read the document while the person dragged) no longer follow the
+    /// replica's version: they are taken in as a draft's are (data model 6.6, rules D1 to D9),
+    /// outside both undo histories, and the drag goes on. The document and its selection follow
+    /// the replica; one whose view could not be loaded from it leaves it (a reset) rather than
+    /// diff against it later.
     pub fn import_changes(&mut self, bytes: &[u8]) -> Result<Damage> {
+        let base = self.active_kdm(false)?.version();
         let kdm = self.active_kdm(true)?;
+        let gesture = kdm.version() != base;
         let before = kdm.version();
-        let result = kdm.import_changes(bytes);
+        let mut result = kdm.import_changes(bytes);
+        if gesture
+            && result.is_err()
+            && kdm.version() == before
+            && let Ok((_, damage)) = kdm.merge_changes(bytes, &Origin::new(OriginKind::Import, "import"))
+        {
+            result = Ok(damage);
+        }
         let changed = kdm.version() != before;
         let follow = result.is_ok() || (changed && kdm.view_loaded());
         let st = self.doc_mut()?;
@@ -641,27 +678,32 @@ impl Session {
     }
 
     /// Takes a draft's changes (made on a replica forked from this one, `mergeChanges`) into the
-    /// active document as one undo step of `origin`'s scope, as a command's edit is: local edits
-    /// not written yet are written first, the document and its selection follow the replica, and
-    /// the step undoes the whole draft. Add the draft's blobs first ([`Session::add_blobs`]). A
-    /// refused merge changes nothing.
+    /// active document as one undo step of the **person** who accepts it, as a command's edit is,
+    /// even when `origin` is the agent that made the draft (data model rule M12a: the host passes
+    /// the draft's author as the origin, and the replica records the merge in the person's undo):
+    /// local edits not written yet are written first, the document and its selection follow the
+    /// replica, and the step undoes the whole draft. Add the draft's blobs first
+    /// ([`Session::add_blobs`]). A refused merge changes nothing.
     pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Damage> {
-        self.take_in(origin, "Merge Draft", |kdm| kdm.merge_changes(bytes, origin))
+        let agent = kdm_model::merge_scope(origin) == Some(UndoScope::Agent);
+        self.take_in(agent, "Merge Draft", |kdm| kdm.merge_changes(bytes, origin))
     }
 
     /// Writes the state a snapshot holds (a checkpoint of this document, `replica/restore`) over
     /// the active document by object id, as one undo step of `origin`'s scope, taken in as a merged
     /// draft is ([`Session::merge_changes`]). Nothing changes when the states are equal.
     pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage> {
-        self.take_in(origin, "Restore Version", |kdm| kdm.restore_state(snapshot, origin))
+        let agent = UndoScope::of(origin.kind) == Some(UndoScope::Agent);
+        self.take_in(agent, "Restore Version", |kdm| kdm.restore_state(snapshot, origin))
     }
 
     /// One transaction `write` makes on the active document's replica, taken into the document as
     /// a command's step: the view follows the replica, and the history gets the step (its undo
-    /// steps the replica's) when the transaction is one.
+    /// steps the replica's, in the agent's scope when `agent`, else the person's) when the
+    /// transaction is one.
     fn take_in(
         &mut self,
-        origin: &Origin,
+        agent: bool,
         label: &str,
         write: impl FnOnce(&mut SlideSession) -> kdm_model::kition_kit::session::Result<(u32, Damage)>,
     ) -> Result<Damage> {
@@ -669,9 +711,9 @@ impl Session {
             return Err(EngineError::Other("a commenter can only comment: a draft or an earlier version is not theirs to take in".into()));
         }
         let origin_now = self.origin();
+        // A gesture under way ends where it is, as its own undo step below the one taken in.
+        self.end_gesture();
         let st = self.doc_mut()?;
-        // A gesture cut short belongs to the step on top, as for undo.
-        st.interaction = None;
         st.sync_kdm(&origin_now, false);
         let kdm = self.active_kdm(true)?;
         let before_version = kdm.version();
@@ -680,15 +722,18 @@ impl Session {
         let follow = changed && (result.is_ok() || kdm.view_loaded());
         let st = self.doc_mut()?;
         let (before, selection) = (st.doc.clone(), st.selection.clone());
+        let mut steps = result.as_ref().map_or(0, |(steps, _)| *steps);
         if follow {
-            st.follow_kdm();
+            // The repair after it (text reflowed, a repeated slide file id renumbered) is part of
+            // the step: its undo takes both back, to the exact state before.
+            let repair =
+                if steps > 0 { Origin::new(if agent { OriginKind::Agent } else { OriginKind::Person }, "repair") } else { Origin::system("autofit") };
+            steps = steps.saturating_add(st.follow_kdm_as(&repair));
             clamp_text_and_cells(st);
         } else if changed {
             st.detach_kdm();
         }
-        let steps = result.as_ref().map_or(0, |(steps, _)| *steps);
         if follow && steps > 0 {
-            let agent = origin.kind == OriginKind::Agent;
             let scope = std::mem::replace(&mut st.history.agent, agent);
             st.history.push(crate::HistoryEntry { label: label.to_owned(), doc: before, selection, steps, agent });
             st.history.agent = scope;

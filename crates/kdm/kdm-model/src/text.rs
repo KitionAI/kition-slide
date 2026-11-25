@@ -1,7 +1,7 @@
 //! Text bodies in the paragraph form: a `TextBody` object
 //! (`props`: the body properties and list style) lists `Paragraph` objects, each a `props`
 //! register (level, paragraph properties, end-of-paragraph run properties) and a `text` field
-//! whose marks are the run properties, so concurrent typing in one text box merges by character.
+//! whose marks are the run properties, so an edit writes only the characters it changed.
 //!
 //! Runs as characters and marks:
 //! - a text run is its characters; each run property is its own mark, under its serde name

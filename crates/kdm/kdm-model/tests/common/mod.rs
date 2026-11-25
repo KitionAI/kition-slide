@@ -122,6 +122,21 @@ pub fn edit(session: &mut Session, blobs: &SharedBlobs, f: impl FnOnce(&mut Slid
     session.model_mut().adopt(after, ids);
 }
 
+/// An agent's draft of `of` made at its current version: what `f` edits on it, as the changes a
+/// host hands to `merge_changes` (data model 6.6). Edit `of` afterwards for the edits made
+/// meanwhile.
+pub fn draft(of: &Session, blobs: &SharedBlobs, f: impl FnOnce(&mut SlideFile)) -> Vec<u8> {
+    let at = of.version();
+    let mut draft = peer(of, 90, blobs);
+    edit(&mut draft, blobs, f);
+    draft.export_changes(&at).unwrap_or_else(|error| panic!("export: {error}"))
+}
+
+/// Merges a draft's changes into `into` (an agent's draft, accepted by the person).
+pub fn merge(into: &mut Session, changes: &[u8]) {
+    into.merge_changes(changes, &Origin::agent("agent:drafter")).unwrap_or_else(|error| panic!("merge: {error}"));
+}
+
 /// Sends `from`'s changes that `to` lacks.
 pub fn send(from: &Session, to: &mut Session) {
     let bytes = from.export_changes(&to.version()).unwrap_or_else(|error| panic!("export: {error}"));

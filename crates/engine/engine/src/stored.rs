@@ -112,12 +112,12 @@ pub(crate) fn settle_merged(doc: &mut SlideFile, old: &SlideFile) -> bool {
     merged_file_ids(doc) | settle(doc, Some(old))
 }
 
-/// The file ids of a merged deck, the same on every replica. Two replicas that each added a slide
-/// at once gave both slides the same id (each its next number), and each replica numbers the two
-/// slides its own way: giving the repeat this replica's number for it, as [`file_ids`] does for a
-/// local copy, made every replica write a different repair, which the others undid, without end.
-/// So a repeat takes what the writer gives it: the first slide in slide order keeps the id, each
-/// other one the next id above every slide's. (A slide with none is [`file_ids`]'s.)
+/// The file ids of a merged deck, a function of the deck. A draft and the document that each added
+/// a slide gave both slides the same id (each its next number), and this replica's numbers for the
+/// two slides are its own: giving the repeat this replica's number for it, as [`file_ids`] does for
+/// a local copy, would depend on the replica. So a repeat takes what the writer gives it: the first
+/// slide in slide order keeps the id, each other one the next id above every slide's. (A slide with
+/// none is [`file_ids`]'s.) Tested by `kition-slide-kit`'s `tests/concurrent_slides.rs`.
 fn merged_file_ids(doc: &mut SlideFile) -> bool {
     const MAX: u32 = 2_147_483_647;
     let mut next = doc.slides.iter().filter_map(|slide| slide.file_id).max().map_or(256, |max| max.saturating_add(1)).max(256);

@@ -1,8 +1,8 @@
 //! A shape's members other than its frame, name, text and children as entries of its `look` map,
-//! one per member written only where it changed, so two people changing two different ones of one
-//! shape at once (its fill and its outline, a connector's end and its line) both keep theirs
-//! (`KitDrawing 1.0` DR14). An ink layer's strokes are entries of their own, so strokes two people
-//! draw on one slide at once both stay.
+//! one per member written only where it changed, so a draft and the document changing two different
+//! ones of one shape (its fill and its outline, a connector's end and its line) both keep theirs
+//! (`KitDrawing 1.0` DR14; data model 6.6, rule D4). An ink layer's strokes are entries of their
+//! own, so strokes a draft and the document draw on one slide both stay.
 
 use kition_kit::kdm::{ObjectId, Replica, Tx};
 use serde_json::{Map, Value};
@@ -67,8 +67,8 @@ fn without_strokes(v: &Value) -> (Value, Option<Vec<Value>>) {
 }
 
 /// Makes `object`'s stroke entries hold `strokes` (none for a shape that is not an ink layer):
-/// each stroke one entry keyed by its content, so two people drawing on one slide at once both
-/// keep their strokes, and an erased stroke's entry is deleted. An entry's `n` orders the strokes;
+/// each stroke one entry keyed by its content, so a draft and the document drawing on one slide
+/// both keep their strokes, and an erased stroke's entry is deleted. An entry's `n` orders the strokes;
 /// it is given once, past every entry there, and never rewritten (renumbering would bring an
 /// erased stroke back when one person erased it while another renumbered it).
 fn write_strokes(tx: &mut Tx<'_>, object: &ObjectId, strokes: &[Value]) -> KdmResult<bool> {

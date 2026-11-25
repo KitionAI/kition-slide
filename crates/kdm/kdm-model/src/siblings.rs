@@ -2,10 +2,10 @@
 //! `system` transaction (not an undo step) after an import, undo or redo and when it opens a
 //! replica. A transaction cannot read text fields, so these repairs cannot be part of
 //! [`kition_kit::session::KitModel::validate`]; each is deterministic (the same state plans the
-//! same writes) and idempotent (two replicas writing it at once converge to the same view).
+//! same writes) and idempotent (writing it again changes nothing).
 //!
-//! - **Paragraphs listed twice** in one body (two replicas listed the same paragraph at once) are
-//!   listed once, at their first place.
+//! - **Paragraphs listed twice** in one body (a replica stored that way) are listed once, at their
+//!   first place.
 //! - Comments listed twice in their thread: `crate::comments::repair`.
 
 use std::collections::HashSet;

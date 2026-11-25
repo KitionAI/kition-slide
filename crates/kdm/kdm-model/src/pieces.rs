@@ -1,15 +1,15 @@
-//! What a paragraph's `text` field holds beyond its own characters: split anchors, so text typed
-//! at the end of a paragraph while someone else splits it lands at the end of the second half, and
-//! merge anchors, so text typed into a paragraph while someone else merges it into the one before
-//! stays in it.
+//! What a paragraph's `text` field holds beyond its own characters: split anchors, which record
+//! where the second half of a split paragraph went, and merge anchors, which keep a paragraph
+//! merged into the one before as an object of its own. Both keep every paragraph object a split or
+//! a merge touches, so an undo, a redo and a merged draft address the same objects as before.
+//! (Replicas follow one line of changes, and a draft that changed a text the document also changed
+//! is refused, data model rule D5: no text is edited concurrently.)
 //!
 //! **Split anchors.** A paragraph split keeps the first half's object (when that half is the larger
 //! one, see [`crate::text::align_paragraphs`]): the moved text is deleted from its field and copied
-//! into a new paragraph. Characters another person types concurrently after the split point were
-//! placed next to the deleted ones, so on their own they would surface at the end of the first
-//! half. The split therefore first inserts a **split anchor** at the split point, a `U+FFFC` whose
-//! `inline` mark is `{"splitTo": <new paragraph's object>}`, and only then deletes the moved text:
-//! every character typed concurrently anywhere after the split point sits after the anchor, while
+//! into a new paragraph. The split first inserts a **split anchor** at the split point, a `U+FFFC`
+//! whose `inline` mark is `{"splitTo": <new paragraph's object>}`, and only then deletes the moved
+//! text: whatever stands after the anchor in the field belongs at the end of the second half, while
 //! text typed later at the end of the first half goes before it.
 //!
 //! **Merge anchors.** A paragraph merge (Backspace at a paragraph's start, Delete at its end) is
@@ -17,9 +17,9 @@
 //! its field untouched, and the first gets a **merge anchor** where its text ends, a `U+FFFC`
 //! whose `inline` mark is `{"mergeFrom": <second paragraph's object>}`. A listed paragraph a merge
 //! anchor names is **absorbed**: it is not a paragraph of its own but shows, with everything it
-//! shows, at the anchor. Text typed concurrently anywhere into the second paragraph (its start, its
-//! middle, its end) is in the second paragraph's field, so it shows in the merged paragraph where
-//! it was typed. Undoing the merge removes the anchor and the second paragraph is its own again.
+//! shows, at the anchor; text later typed into that part of the merged paragraph goes into the
+//! second paragraph's field. Undoing the merge removes the anchor and the second paragraph is its
+//! own again.
 //!
 //! So a field is **segments** between anchors. The segments before the first split anchor are the
 //! paragraph's own text (region 0); each split anchor's region (its **tail**) runs to the next

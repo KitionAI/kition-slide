@@ -192,6 +192,128 @@ fn a_drag_is_one_undo_step() {
     assert_eq!(s.active().unwrap().shapes()[0].xfrm.unwrap().x, 150.0);
 }
 
+/// The replica steps the history holds per scope agree with the replica's own (person, agent).
+fn assert_histories_agree(s: &Session, what: &str) {
+    use kdm_model::kition_kit::kdm::UndoScope;
+    let history = &s.active().unwrap().history;
+    let sum =
+        |steps: &[kition_slide_engine::HistoryEntry], agent: bool| steps.iter().filter(|e| e.agent == agent).map(|e| e.steps as usize).sum::<usize>();
+    let kdm = s.kdm().unwrap();
+    for (agent, scope) in [(false, UndoScope::Person), (true, UndoScope::Agent)] {
+        assert_eq!((sum(&history.undo, agent), sum(&history.redo, agent)), kdm.steps_in(scope), "{what}: {scope:?}");
+    }
+}
+
+fn first_x(s: &Session) -> f64 {
+    s.active().unwrap().shapes()[0].xfrm.unwrap().x
+}
+
+/// Changes made on this line while the person drags (an agent's object-model batch, read before
+/// the drag was written): they come in as an import, both are kept, and the whole drag is still
+/// one undo step that leaves them.
+#[test]
+fn a_remote_edit_in_the_middle_of_a_drag_keeps_both() {
+    let mut a = new_session();
+    let mut b = peer(&mut a);
+    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
+    send(&mut b, &mut a);
+    assert_eq!(doc(&a).slides[1].name, "Remote");
+    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    assert_holds(&a, "after the drag");
+    assert_eq!(first_x(&a), 140.0);
+    assert_eq!(doc(&a).slides[1].name, "Remote");
+    assert_histories_agree(&a, "after the drag");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(first_x(&a), 100.0, "the whole drag undoes");
+    assert_eq!(doc(&a).slides[1].name, "Remote", "the remote edit stays");
+    assert_holds(&a, "after the undo");
+    assert_histories_agree(&a, "after the undo");
+    a.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(first_x(&a), 140.0);
+    assert_holds(&a, "after the redo");
+}
+
+/// An agent's command while the person drags (one person, an agent running beside them): it is
+/// the agent's own undo step, the whole drag stays the person's one step, and each undo takes back
+/// only its own.
+#[test]
+fn an_agents_edit_in_the_middle_of_a_drag_is_its_own_step() {
+    let mut a = new_session();
+    let agent = Origin::agent("test");
+    let name = doc(&a).slides[1].name.clone();
+    let entries = a.active().unwrap().history.undo.len();
+    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    a.execute_as("slide.rename", &json!({"name": "Agent", "index": 1}), &agent).unwrap();
+    assert_eq!(doc(&a).slides[1].name, "Agent");
+    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    assert_holds(&a, "after the drag");
+    assert_eq!(first_x(&a), 140.0);
+    let history = &a.active().unwrap().history;
+    assert_eq!(history.undo.len(), entries + 2, "the agent's step and the drag's");
+    assert_eq!(history.undo.iter().rev().take(2).map(|e| e.agent).collect::<Vec<_>>(), [false, true], "the drag on top, the agent's below");
+    assert_histories_agree(&a, "after the drag");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(first_x(&a), 100.0, "the person's undo takes the whole drag back");
+    assert_eq!(doc(&a).slides[1].name, "Agent", "and leaves the agent's edit");
+    assert_holds(&a, "after the person's undo");
+    assert_histories_agree(&a, "after the person's undo");
+    a.execute_as("edit.undo", &json!({}), &agent).unwrap();
+    assert_eq!(doc(&a).slides[1].name, name, "the agent's undo takes its edit back");
+    assert_eq!(first_x(&a), 100.0);
+    assert_holds(&a, "after the agent's undo");
+    a.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(first_x(&a), 140.0);
+    assert_eq!(doc(&a).slides[1].name, name, "the person's redo leaves the agent's undone edit");
+    a.execute_as("edit.redo", &json!({}), &agent).unwrap();
+    assert_eq!(doc(&a).slides[1].name, "Agent");
+    assert_holds(&a, "after both redos");
+    assert_histories_agree(&a, "after both redos");
+}
+
+/// A draft merged while the person drags: the drag ends where it is, as its own step below the
+/// merge's, and its later pointer events move nothing.
+#[test]
+fn a_draft_merged_in_the_middle_of_a_drag_ends_the_drag_as_its_own_step() {
+    let mut a = new_session();
+    let name = doc(&a).slides[1].name.clone();
+    let base = a.version().unwrap();
+    let mut draft = peer(&mut a);
+    draft.execute("slide.rename", &json!({"name": "Draft", "index": 1})).unwrap();
+    let changes = draft.export_changes(&base).unwrap();
+    let entries = a.active().unwrap().history.undo.len();
+    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    let moved = first_x(&a);
+    assert_ne!(moved, 100.0, "the drag moved the shape");
+    a.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
+    assert_eq!(doc(&a).slides[1].name, "Draft");
+    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    assert_eq!(first_x(&a), moved, "the drag ended at the merge");
+    assert_holds(&a, "after the merge");
+    let history = &a.active().unwrap().history;
+    assert_eq!(history.undo.len(), entries + 2, "the drag's step and the merge's");
+    assert_eq!(history.undo.last().map(|e| (e.label.as_str(), e.agent)), Some(("Merge Draft", false)));
+    assert_histories_agree(&a, "after the merge");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(doc(&a).slides[1].name, name, "the first undo takes the merge back");
+    assert_eq!(first_x(&a), moved);
+    assert_holds(&a, "after the first undo");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(first_x(&a), 100.0, "the second the drag");
+    assert_holds(&a, "after the second undo");
+    assert_histories_agree(&a, "after both undos");
+    a.execute("edit.redo", &json!({})).unwrap();
+    a.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!((first_x(&a), doc(&a).slides[1].name.as_str()), (moved, "Draft"));
+    assert_holds(&a, "after both redos");
+}
+
 #[test]
 fn undo_back_to_the_saved_slide_file_is_clean() {
     let mut s = new_session();

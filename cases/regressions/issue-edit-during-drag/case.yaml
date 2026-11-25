@@ -1,0 +1,37 @@
+format: 1
+id: regressions/issue-edit-during-drag
+feature: slide.edit.clipboard
+intent: >-
+  Another's edit while the person drags a shape (one person, an agent running beside them). An
+  agent's command was taken into the person's drag step (the person's Undo took the agent's edit
+  back, the agent's Undo found nothing); an agent's object-model batch, read before the drag was
+  written, was refused as changes that no longer follow the replica; a draft merged mid-drag split
+  the drag between the step below and the merge. Now the agent's command is its own step of the
+  agent's undo, the batch is taken in as a draft's changes are (data model 6.6) and the drag goes
+  on, and a merge ends the drag where it is as its own step below the merge's; each Undo takes
+  back only its own, and the engine's history and the replica's undo agree.
+layer: gate
+source:
+  kind: issue
+  from: independent review of the plain-model round (2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: kdm_bridge
+      filter: a_remote_edit_in_the_middle_of_a_drag_keeps_both
+  - cargo-test:
+      package: kition-slide-engine
+      test: kdm_bridge
+      filter: an_agents_edit_in_the_middle_of_a_drag_is_its_own_step
+  - cargo-test:
+      package: kition-slide-engine
+      test: kdm_bridge
+      filter: a_draft_merged_in_the_middle_of_a_drag_ends_the_drag_as_its_own_step
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-25"
+timeout_s: 180

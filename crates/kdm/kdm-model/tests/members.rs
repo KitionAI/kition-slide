@@ -1,9 +1,12 @@
 //! Sections and custom shows are objects with one entry per member slide (`src/members.rs`): a
-//! custom show may list a slide twice, and every replica reads the same members in the same order.
+//! custom show may list a slide twice, every replica reads the same members in the same order,
+//! and the repair after a merged draft (data model 6.6) drops a member naming a slide the document
+//! deleted meanwhile, and keeps a slide the draft and the document moved to different sections in
+//! the first of them.
 
 mod common;
 
-use common::{SharedBlobs, assert_no_dangling, assert_replica_clean, canonical, edit, first, peer, slide_file, sync};
+use common::{SharedBlobs, assert_no_dangling, assert_replica_clean, canonical, draft, edit, first, merge, peer, slide_file, sync};
 use kition_slide_model::{CustomShow, Section, SlideFile, SlideId};
 
 fn ids(p: &SlideFile) -> Vec<SlideId> {
@@ -80,4 +83,84 @@ fn members_added_to_one_custom_show_in_turn_are_all_kept_and_a_slide_may_repeat(
     assert_eq!(show[0], all[0]);
     assert_eq!(show.iter().filter(|s| **s == all[0]).count(), 2, "a slide listed twice stays twice");
     assert!(show.contains(&all[1]) && show.contains(&all[2]));
+}
+
+fn section<'a>(p: &'a SlideFile, name: &str) -> &'a Section {
+    p.sections.iter().find(|s| s.name == name).unwrap_or_else(|| panic!("no section {name}: {:?}", p.sections))
+}
+
+/// The document's view is what its replica reads, and nothing names a deleted slide.
+fn assert_clean(s: &common::Session, blobs: &SharedBlobs) {
+    let (fresh, _) = kdm_model::read_document(s.replica(), blobs).unwrap_or_else(|error| panic!("read: {error}"));
+    assert_eq!(canonical(&fresh), canonical(&s.model().slide_file), "the view is the replica's");
+    assert_no_dangling(&s.model().slide_file);
+    assert_replica_clean(s.replica());
+}
+
+#[test]
+fn a_slide_deleted_meanwhile_leaves_the_custom_show_a_draft_added_it_to() {
+    let blobs = SharedBlobs::default();
+    let mut doc = first(&sectioned(), &blobs);
+    let all = ids(&doc.model().slide_file);
+    // The draft renames the first section and adds the second slide to the custom show; the
+    // document deletes that slide meanwhile.
+    let changes = draft(&doc, &blobs, |p| {
+        p.sections[0].name = "First".into();
+        p.custom_shows[0].slides.push(all[1]);
+    });
+    edit(&mut doc, &blobs, |p| {
+        p.slides.retain(|s| s.id != all[1]);
+        for section in &mut p.sections {
+            section.slides.retain(|s| *s != all[1]);
+        }
+    });
+    merge(&mut doc, &changes);
+    assert_clean(&doc, &blobs);
+    let p = &doc.model().slide_file;
+    assert_eq!(section(p, "First").slides, vec![all[0]]);
+    assert_eq!(p.custom_shows[0].slides, vec![all[0]], "the deleted slide's member is dropped");
+}
+
+#[test]
+fn a_slide_the_draft_and_the_document_move_to_different_sections_ends_in_the_first() {
+    let blobs = SharedBlobs::default();
+    let mut doc = first(&sectioned(), &blobs);
+    let all = ids(&doc.model().slide_file);
+    let changes = draft(&doc, &blobs, |p| {
+        p.sections[1].slides.retain(|s| *s != all[2]);
+        p.sections.push(Section { identity: kition_slide_model::identity::fresh(), name: "Three".into(), slides: vec![all[2]] });
+    });
+    edit(&mut doc, &blobs, |p| {
+        p.sections[1].slides.retain(|s| *s != all[2]);
+        p.sections[0].slides.push(all[2]);
+    });
+    merge(&mut doc, &changes);
+    assert_clean(&doc, &blobs);
+    let p = &doc.model().slide_file;
+    assert_eq!(p.sections.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["One", "Two", "Three"]);
+    let holding: Vec<&str> = p.sections.iter().filter(|s| s.slides.contains(&all[2])).map(|s| s.name.as_str()).collect();
+    assert_eq!(holding, ["One"], "the first section holding it keeps it");
+    assert_eq!(section(p, "One").slides, vec![all[0], all[1], all[2]]);
+}
+
+#[test]
+fn a_draft_moving_a_slide_deleted_meanwhile_into_a_section_leaves_no_member() {
+    let blobs = SharedBlobs::default();
+    let mut doc = first(&sectioned(), &blobs);
+    let all = ids(&doc.model().slide_file);
+    let changes = draft(&doc, &blobs, |p| {
+        p.sections[1].slides.retain(|s| *s != all[2]);
+        p.sections[0].slides.push(all[2]);
+    });
+    edit(&mut doc, &blobs, |p| {
+        p.slides.retain(|s| s.id != all[2]);
+        for section in &mut p.sections {
+            section.slides.retain(|s| *s != all[2]);
+        }
+    });
+    merge(&mut doc, &changes);
+    assert_clean(&doc, &blobs);
+    let p = &doc.model().slide_file;
+    assert_eq!(section(p, "One").slides, vec![all[0], all[1]]);
+    assert!(section(p, "Two").slides.is_empty());
 }

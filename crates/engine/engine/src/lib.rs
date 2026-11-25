@@ -29,6 +29,7 @@ use serde_json::Value;
 
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
 pub use context::{CallSlide, EditorState, ToolId};
+use kdm_model::kition_kit::kdm::OriginKind;
 pub use kdm_model::kition_kit::kdm::{Origin, Version};
 pub use kdm_model::kition_kit::session::{Damage, MemoryBlobs};
 pub use kition_slide_geom as geom;
@@ -170,6 +171,9 @@ pub struct Interaction {
     pub label: String,
     pub doc: Arc<SlideFile>,
     pub selection: Selection,
+    /// Who began it (the person at the pointer): what it changed so far is written as theirs
+    /// when another's edit comes in before it ends ([`kdm_bridge`]).
+    pub origin: Origin,
 }
 
 #[derive(Debug)]
@@ -519,8 +523,20 @@ impl Session {
                 return Err(EngineError::Disabled(id.into(), with_remedy(e)));
             }
         }
-        let before = self.active().map(|d| (d.uid, d.doc.clone(), d.selection.clone()));
         let outer = self.depth == 0;
+        // An edit of the other undo scope while a gesture is under way (an agent's command while
+        // the person drags): the gesture so far is written as its own first, and stays its own;
+        // the edit is a step of its own scope. (One of the gesture's own scope joins its step.)
+        let beside = outer
+            && spec.undoable
+            && self.active().and_then(|d| d.interaction.as_ref()).is_some_and(|i| (i.origin.kind == OriginKind::Agent) != self.acts_as_agent());
+        if beside
+            && let Some(st) = self.active_mut()
+            && let Some(origin) = st.interaction.as_ref().map(|i| i.origin.clone())
+        {
+            st.sync_kdm(&origin, true);
+        }
+        let before = self.active().map(|d| (d.uid, d.doc.clone(), d.selection.clone()));
         self.depth += 1;
         let r = (spec.run)(self, params);
         self.depth -= 1;
@@ -531,7 +547,7 @@ impl Session {
         if let (Some((uid, old, sel)), Some(st)) = (before, self.active_mut())
             && st.uid == uid
             && !Arc::ptr_eq(&old, &st.doc)
-            && st.interaction.is_none()
+            && (st.interaction.is_none() || beside)
             && spec.undoable
             && outer
         {

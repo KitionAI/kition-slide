@@ -157,9 +157,10 @@ features:
     dimension: [collab, data-safety]
     priority: P1
     status: partial
-    paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/kdm/kdm-model/src/session.rs]
-    target: "Kit UI protocol section 7 (replica/restore); engine contract members mergeChanges, compareChanges, restoreState, modelReply"
-    gap: Engine tests merge a draft, compare it first, restore a version and name reply ids; no case drives a draft or a restore in the editor yet.
+    paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/kdm/kdm-model/src/session.rs, web/tests/drafts.mjs]
+    target: "Kit UI protocol sections 7d and 7m (draft/merge, replica/restore); engine contract members mergeChanges, compareChanges, restoreState, modelReply"
+    gap: A draft is merged, undone and restored in the editor only through the dev host; Kition's own draft and version panels are not driven by a case.
+    cases: [regressions/issue-merged-draft-person-undo, regressions/issue-merged-reflow-undo, slide.collab.drafts/editor]
     since: "2026-11-25"
   - id: slide.collab.replica-merges-file
     title: "A presentation changed outside Kition keeps its history: the stored replica opens and the newer .kslide or .pptx is recorded onto it as one import change"
@@ -209,7 +210,7 @@ features:
     paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/kdm_bridge.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
-    cases: [regressions/issue-redo-passed-over-keeps-replica, regressions/issue-undo-passed-over-history]
+    cases: [regressions/issue-redo-passed-over-keeps-replica, regressions/issue-undo-passed-over-history, regressions/issue-edit-during-drag]
     since: "2026-11-17"
   - id: slide.slides.manage
     title: "New, duplicate, delete, move, hide, rename and navigate slides; layouts, notes and outline import"
@@ -220,7 +221,7 @@ features:
     paths: [crates/engine/engine/src/cmd/slide.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/sample.rs, bindings/wasm/src/collab.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and reopen as .kslide and .pptx is proven by command for adding slides with a layout, duplicating, moving and changing a slide's layout; the feature's other commands are covered by engine tests only.
-    cases: [slide.slides.manage/save-reopen]
+    cases: [regressions/issue-concurrent-slide-ids, slide.slides.manage/save-reopen]
     since: "2026-11-17"
   - id: slide.slides.sections
     title: "Sections"

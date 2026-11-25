@@ -223,13 +223,15 @@ impl SlideDocument {
     }
 
     /// An agent's reply (JSON text) with every object id it holds as a value or a key named as
-    /// the tool interface names it (its tool id, KitObjectModel OM9); unchanged without a replica
-    /// or when the schema declares no tool ids. The slide keeps its own ids.
+    /// the tool interface names it (its tool id, KitObjectModel OM9); unchanged without a replica,
+    /// when it names no object, or when the schema declares no tool ids. The slide keeps its own
+    /// ids. The editor sends every `ai/inspect`, `document/check` and `ai/run` reply through this,
+    /// so the tool ids are read at the objects the reply names alone (`ToolIds::show_reply`), not
+    /// at every object of the deck.
     pub fn model_reply(&self, value: &str) -> Result<String, String> {
         let value: Value = serde_json::from_str(value).map_err(|error| format!("the reply is not JSON: {error}"))?;
         let Some(kdm) = self.session.kdm() else { return Ok(value.to_string()) };
-        let ids = kition_kit::kdm::tool_ids::ToolIds::of_replica(kdm.replica());
-        Ok(if ids.is_active() { ids.show_json(&value) } else { value }.to_string())
+        Ok(kition_kit::kdm::tool_ids::ToolIds::show_reply(kdm.replica(), &value).to_string())
     }
 
     /// What changed since the version `since` (empty bytes: since the replica began), a receipt as
@@ -524,6 +526,7 @@ mod tests {
         let changes = draft.export_changes(&base).unwrap();
         doc.execute("slide.rename", json!({ "name": "Meanwhile", "index": 0 })).unwrap();
         let before = shape_count(&mut doc);
+        let exactly_before = exact(&mut doc);
         let version = doc.version().unwrap();
         let preview = doc.compare_changes(&changes).unwrap();
         assert_eq!(doc.version().unwrap(), version, "comparing changes nothing");
@@ -534,8 +537,13 @@ mod tests {
         assert_eq!(shape_count(&mut doc), before + 1, "the engine's slide follows the merge");
         assert!(doc.dirty());
         assert!(doc.replicated_state().unwrap().to_string().contains("Meanwhile"), "the edit made here stays");
+        let merged = exact(&mut doc);
         assert!(doc.undo().unwrap().0);
         assert_eq!(shape_count(&mut doc), before, "one undo takes the whole draft back");
+        assert_eq!(exact(&mut doc), exactly_before, "exactly");
+        assert!(doc.redo().unwrap().0);
+        assert_eq!(exact(&mut doc), merged, "the redo gives back the merged state exactly");
+        assert!(doc.undo().unwrap().0);
         let at = doc.version().unwrap();
         assert!(doc.merge_changes(b"not changes", &origin).is_err());
         assert_eq!(doc.version().unwrap(), at, "a refused merge changes nothing");
@@ -552,6 +560,7 @@ mod tests {
         let before = shape_count(&mut doc);
         extra_edit(&mut doc);
         assert_eq!(shape_count(&mut doc), before + 1);
+        let exactly_before = exact(&mut doc);
         let origin = Origin::person("person:local");
         let damage = doc.restore_state(&checkpoint, &origin).unwrap();
         assert_ne!(damage, Damage::None);
@@ -563,8 +572,139 @@ mod tests {
         assert_eq!(doc.version().unwrap(), at);
         assert!(doc.undo().unwrap().0);
         assert_eq!(shape_count(&mut doc), before + 1, "one undo takes the restore back");
+        assert_eq!(exact(&mut doc), exactly_before, "exactly");
         let other = SlideDocument::open("Slide.kslide", &fixture()).unwrap().snapshot().unwrap();
         assert!(doc.restore_state(&other, &origin).is_err(), "another document's state is refused");
+    }
+
+    /// The replicated state and the engine's own view of the deck (id-blind), for exact
+    /// comparisons.
+    fn exact(doc: &mut SlideDocument) -> (Value, Value) {
+        let state = doc.replicated_state().unwrap();
+        let view = serde_json::to_value(kdm_model::normalize(&doc.session.doc().unwrap().doc)).unwrap();
+        (state, view)
+    }
+
+    /// The replica steps the engine's history holds for one scope: (undo, redo).
+    fn engine_steps(doc: &SlideDocument, agent: bool) -> (usize, usize) {
+        let history = &doc.session.doc().unwrap().history;
+        let sum = |steps: &[kition_slide_engine::HistoryEntry]| steps.iter().filter(|e| e.agent == agent).map(|e| e.steps as usize).sum::<usize>();
+        (sum(&history.undo), sum(&history.redo))
+    }
+
+    /// The engine's history and the replica's undo agree, scope by scope.
+    fn assert_histories_agree(doc: &SlideDocument, what: &str) {
+        use kition_kit::kdm::UndoScope;
+        let kdm = doc.session.kdm().unwrap();
+        assert_eq!(engine_steps(doc, false), kdm.steps_in(UndoScope::Person), "{what}: the person's steps");
+        assert_eq!(engine_steps(doc, true), kdm.steps_in(UndoScope::Agent), "{what}: the agent's steps");
+    }
+
+    /// The left edges of the first slide's last `n` shapes, in slide order.
+    fn last_lefts(doc: &SlideDocument, n: usize) -> Vec<f64> {
+        let shapes = &doc.session.doc().unwrap().doc.slides[0].shapes;
+        shapes[shapes.len().saturating_sub(n)..].iter().map(|shape| shape.xfrm.map_or(f64::NAN, |x| x.x)).collect()
+    }
+
+    /// Rule M12a: a draft an agent made merges in as one undo step of the person who accepts it
+    /// (the host passes the agent's origin). The agent's undo leaves it; the person's undo gives
+    /// back the exact state before (replica and engine view), and the redo the merged one. The
+    /// person's edit made meanwhile (another shape on the same slide) stays, before the draft's.
+    #[test]
+    fn a_merged_agent_draft_is_one_step_of_the_persons_undo_and_undoes_exactly() {
+        use kition_kit::kdm::UndoScope;
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        let base = doc.version().unwrap();
+        let mut draft = SlideDocument::open_with_replica("Slide.kslide", &[], &doc.snapshot().unwrap(), &doc.blobs().unwrap()).unwrap();
+        draft.execute("shape.insert", json!({ "preset": "star5", "rect": [300, 300, 50, 50] })).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        doc.execute("shape.insert", json!({ "preset": "ellipse", "rect": [20, 20, 40, 40] })).unwrap();
+        assert_eq!(last_lefts(&doc, 2), vec![100.0, 20.0]);
+        let before = exact(&mut doc);
+        let agent = Origin::agent("agent:drafter");
+        doc.merge_changes(&changes, &agent).unwrap();
+        assert_eq!(last_lefts(&doc, 3), vec![100.0, 20.0, 300.0], "both inserts are kept, the document's first");
+        let merged = exact(&mut doc);
+        let top = doc.session.doc().unwrap().history.undo.last().unwrap();
+        assert!(!top.agent, "the merge is the person's step");
+        assert_eq!(top.label, "Merge Draft");
+        assert_eq!(doc.session.kdm().unwrap().steps_in(UndoScope::Agent), (0, 0), "the replica holds no agent step");
+        assert_histories_agree(&doc, "after the merge");
+        assert!(doc.execute_as("edit.undo", json!({}), &agent).is_err(), "the agent has nothing to undo: the merge is the person's");
+        assert_eq!(exact(&mut doc), merged, "the agent's undo leaves the merged draft");
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(exact(&mut doc), before, "the person's undo gives back the exact state before the merge");
+        assert_histories_agree(&doc, "after the undo");
+        assert!(doc.redo().unwrap().0);
+        assert_eq!(exact(&mut doc), merged, "the redo gives back the merged state");
+        assert_histories_agree(&doc, "after the redo");
+        assert!(doc.undo().unwrap().0);
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(last_lefts(&doc, 1), vec![100.0], "the person's own insert is the next step down");
+    }
+
+    /// A restored version undoes and redoes exactly; restored by an agent it is the agent's step.
+    #[test]
+    fn a_restored_version_undoes_and_redoes_exactly_in_its_origins_scope() {
+        for agent in [false, true] {
+            let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+            doc.version().unwrap();
+            let checkpoint = doc.snapshot().unwrap();
+            extra_edit(&mut doc);
+            let before = exact(&mut doc);
+            let origin = if agent { Origin::agent("agent:restorer") } else { Origin::person("person:local") };
+            doc.restore_state(&checkpoint, &origin).unwrap();
+            let restored = exact(&mut doc);
+            assert_ne!(restored, before);
+            assert_eq!(doc.session.doc().unwrap().history.undo.last().unwrap().agent, agent, "the step is in the origin's scope");
+            assert_histories_agree(&doc, "after the restore");
+            if !agent {
+                assert!(doc.execute_as("edit.undo", json!({}), &Origin::agent("agent:other")).is_err(), "no agent step to undo");
+                assert_eq!(exact(&mut doc), restored, "the agent's undo leaves the person's restore");
+            }
+            doc.execute_as("edit.undo", json!({}), &origin).unwrap();
+            assert_eq!(exact(&mut doc), before, "one undo gives back the exact state before the restore");
+            assert_histories_agree(&doc, "after the undo");
+            doc.execute_as("edit.redo", json!({}), &origin).unwrap();
+            assert_eq!(exact(&mut doc), restored, "the redo gives back the restored state");
+            assert_histories_agree(&doc, "after the redo");
+        }
+    }
+
+    /// The editor sends every agent reply through `modelReply`: on a deck of many objects a reply
+    /// naming one object (or several) gets the ids the whole deck's tool ids give them, read at
+    /// those objects alone, and a reply naming none comes back as it is.
+    #[test]
+    fn a_reply_names_the_objects_it_holds_as_the_whole_decks_tool_ids_do() {
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        for i in 0..30 {
+            doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
+            doc.execute("shape.insert", json!({ "preset": "rect", "rect": [10 + i, 10, 50, 50] })).unwrap();
+        }
+        let state = doc.replicated_state().unwrap();
+        let objects: Vec<String> = state["objects"].as_object().unwrap().keys().cloned().collect();
+        assert!(objects.len() > 60, "{} objects", objects.len());
+        let full = kition_kit::kdm::tool_ids::ToolIds::of_replica(doc.session.kdm().unwrap().replica());
+        assert!(full.is_active());
+        let typed = |ty: &str| objects.iter().find(|id| state["objects"][id.as_str()]["$type"] == ty).cloned();
+        assert!(typed("Slide").is_some() && typed("Shape").is_some(), "{state}");
+        let named: Vec<String> = ["Slide", "Shape", "Layout", "Master", "TextBody", "Paragraph"]
+            .into_iter()
+            .filter_map(typed)
+            .chain([objects[objects.len() / 2].clone()])
+            .collect();
+        for id in named {
+            let mut keyed = serde_json::Map::new();
+            keyed.insert(id.clone(), json!(1));
+            let reply = json!({ "target": id, "list": [id, "text"], "keyed": keyed, "note": format!("about {id}") });
+            let shown: Value = serde_json::from_str(&doc.model_reply(&reply.to_string()).unwrap()).unwrap();
+            assert_eq!(shown, full.show_json(&reply), "{id}");
+        }
+        let every = json!({ "objects": objects });
+        let shown: Value = serde_json::from_str(&doc.model_reply(&every.to_string()).unwrap()).unwrap();
+        assert_eq!(shown, full.show_json(&every), "every object named at once");
+        let none = json!({ "text": "nothing here", "n": 3, "list": ["a", "slide:1"], "keyed": { "b": [null, true] } });
+        assert_eq!(doc.model_reply(&none.to_string()).unwrap(), none.to_string(), "a reply naming no object comes back as it is");
     }
 
     /// An agent's reply names objects by their tool ids; text that merely holds an id stays.

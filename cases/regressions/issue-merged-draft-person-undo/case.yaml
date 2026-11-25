@@ -1,0 +1,31 @@
+format: 1
+id: regressions/issue-merged-draft-person-undo
+feature: slide.collab.drafts
+intent: >-
+  A draft an agent made merges in as one undo step of the person who accepts it (data model rule
+  M12a), although the host passes the agent's origin to mergeChanges. Before, the engine's history
+  and the replica's step index put the merge in the agent's scope while the replica recorded it in
+  the person's, so the person's Undo skipped it and the agent's Undo took another step. Now the
+  agent's Undo leaves it, the person's Undo gives back the exact state before (replicated state and
+  the engine's view; the person's insert made meanwhile stays, before the draft's), the Redo the
+  merged state, and the engine's history and the replica's undo agree scope by scope. A restored
+  version is a step of its origin's scope and undoes exactly too.
+layer: gate
+source:
+  kind: issue
+  from: independent review of the plain-model round (2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      filter: collab::tests::a_merged_agent_draft_is_one_step_of_the_persons_undo_and_undoes_exactly
+  - cargo-test:
+      package: kition-slide-kit
+      filter: collab::tests::a_restored_version_undoes_and_redoes_exactly_in_its_origins_scope
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-25"
+timeout_s: 180

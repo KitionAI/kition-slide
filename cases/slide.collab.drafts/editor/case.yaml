@@ -1,0 +1,25 @@
+format: 1
+id: slide.collab.drafts/editor
+feature: slide.collab.drafts
+intent: >-
+  In the editor, through the dev host (`?checkpoints=1`): an agent drafts a shape (`ai/run` on the
+  draft) while the person types notes; the person accepts the draft (`draft/merge`, the agent's
+  origin), both are kept, and one click of Undo takes the whole draft back and leaves the notes. A
+  checkpoint recorded at a save, notes typed after it, the checkpoint restored
+  (`replica/restore`): the notes are the checkpoint's again, and one Undo takes the restore back.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/drafts.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/drafts.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"
