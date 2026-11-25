@@ -9,8 +9,7 @@
 //! custom shows or comment threads changed; a slide was deleted (other slides' links name it) or a
 //! shape a comment is anchored at; the view awaits a read repair; or the change lists an object
 //! somewhere else in the view, or touches an object no slide read holds. The patched view is the one a full
-//! read gives, up to the local ids it mints (`tests/convergence.rs` compares them after every
-//! import and undo).
+//! read gives, up to the local ids it mints (`tests/patch.rs` compares them after every import).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;

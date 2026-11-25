@@ -1,5 +1,5 @@
 //! Comment threads (Kition Kit Standard 2.0 rule M23): threads and comments are their own
-//! objects beside the slides; concurrent comments all survive; a commenter's change touches only
+//! objects beside the slides; a commenter's change touches only
 //! comment objects.
 
 mod common;
@@ -44,26 +44,10 @@ fn session_of(p: &SlideFile) -> (SlideSession, SharedBlobs) {
     (SlideSession::open_snapshot(&snapshot, memory(&blobs)).unwrap_or_else(|error| panic!("open: {error}")), blobs)
 }
 
-fn peer_of(s: &SlideSession) -> SlideSession {
-    SlideSession::open_snapshot(&s.snapshot().unwrap_or_else(|error| panic!("{error}")), s.blobs().clone()).unwrap_or_else(|error| panic!("{error}"))
-}
-
 fn record_with(s: &mut SlideSession, who: &str, f: impl FnOnce(&mut SlideFile)) {
     let mut after = s.slide_file().clone();
     f(&mut after);
     s.record(&person(who), &after).unwrap_or_else(|error| panic!("record: {error}"));
-}
-
-fn exchange(a: &mut SlideSession, b: &mut SlideSession) {
-    for _ in 0..4 {
-        let since = b.version();
-        b.import_changes(&a.export_changes(&since).unwrap_or_else(|error| panic!("{error}"))).unwrap_or_else(|error| panic!("{error}"));
-        let since = a.version();
-        a.import_changes(&b.export_changes(&since).unwrap_or_else(|error| panic!("{error}"))).unwrap_or_else(|error| panic!("{error}"));
-    }
-    assert_eq!(a.version(), b.version(), "the replicas converged");
-    assert_eq!(a.state_hash().ok(), b.state_hash().ok());
-    assert_eq!(canonical(a.slide_file()), canonical(b.slide_file()));
 }
 
 fn view_is_replica(s: &SlideSession) {
@@ -95,8 +79,7 @@ fn touched(from: &SlideSession, since: &kition_kit::kdm::Version, base: &[u8]) -
         .collect()
 }
 
-/// No comment is left, and every thread object left lists none (a deleted thread keeps its
-/// object, so a concurrent reply to it is not lost).
+/// No comment is left, and every thread object left lists none.
 fn assert_no_threads(replica: &Replica) {
     assert!(replica.objects_of_type("Comment").is_empty());
     assert_eq!(listing(replica), 0);
@@ -235,52 +218,6 @@ fn a_commenter_shaped_change_touches_only_comment_objects() {
     let bob: Vec<&str> = threads.iter().flat_map(|t| &t.comments).filter(|c| c.body != "Open question").map(|c| c.author.as_str()).collect();
     assert_eq!(bob, vec!["user:bob", "user:bob"]);
     assert!(s.comment_only());
-}
-
-#[test]
-fn concurrent_replies_to_one_thread_and_new_threads_are_all_kept() {
-    let mut p = slide_file();
-    let opened = thread("Ann", "One", "2026-10-19T10:00:00Z");
-    Arc::make_mut(&mut p.slides[0]).comments.push(opened);
-    let (mut a, _) = session_of(&p);
-    let mut b = peer_of(&a);
-    record_with(&mut a, "ann", |p| Arc::make_mut(&mut p.slides[0]).comments[0].replies.push(reply("Ann", "Two", "2026-10-19T10:02:00Z")));
-    record_with(&mut b, "bob", |p| {
-        let slide = Arc::make_mut(&mut p.slides[0]);
-        slide.comments[0].replies.push(reply("Bob", "Three", "2026-10-19T10:02:00Z"));
-        slide.comments[0].resolved = true;
-        slide.comments.push(thread("Bob", "Elsewhere", "2026-10-19T10:03:00Z"));
-    });
-    record_with(&mut a, "ann", |p| Arc::make_mut(&mut p.slides[0]).comments.push(thread("Ann", "Mine too", "2026-10-19T10:04:00Z")));
-    exchange(&mut a, &mut b);
-    for s in [&a, &b] {
-        view_is_replica(s);
-        let comments = &s.slide_file().slides[0].comments;
-        assert_eq!(comments.iter().map(|c| c.text.as_str()).collect::<Vec<_>>(), vec!["One", "Elsewhere", "Mine too"]);
-        let mut replies: Vec<&str> = comments[0].replies.iter().map(|r| r.text.as_str()).collect();
-        replies.sort_unstable();
-        assert_eq!(replies, vec!["Three", "Two"], "both replies are kept");
-        assert!(comments[0].resolved);
-    }
-}
-
-#[test]
-fn a_reply_made_while_its_thread_is_deleted_is_kept() {
-    let mut p = slide_file();
-    Arc::make_mut(&mut p.slides[0]).comments.push(thread("Ann", "Delete me?", "2026-10-19T10:00:00Z"));
-    let (mut a, _) = session_of(&p);
-    let mut b = peer_of(&a);
-    record_with(&mut a, "ann", |p| Arc::make_mut(&mut p.slides[0]).comments.clear());
-    record_with(&mut b, "bob", |p| {
-        Arc::make_mut(&mut p.slides[0]).comments[0].replies.push(reply("Bob", "Wait, I answered", "2026-10-19T10:01:00Z"))
-    });
-    exchange(&mut a, &mut b);
-    for s in [&a, &b] {
-        let comments = &s.slide_file().slides[0].comments;
-        assert_eq!(comments.len(), 1, "the thread reads again with the reply");
-        assert_eq!(comments[0].text, "Wait, I answered");
-        view_is_replica(s);
-    }
 }
 
 #[test]

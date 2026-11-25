@@ -1,7 +1,7 @@
 // A file changed outside Kition keeps its stored replica (Kit UI protocol UI-R1): the engine
-// merges the newer file into it as one `import` change, so the document keeps its identity and
+// records the newer file onto it as one `import` change, so the document keeps its identity and
 // its objects their ids. Runs for the kit's own .kslide and for a PPTX, through the development
-// host with `?replica=1&replica-merges-file=1`: node tests/replica.mjs [chromium|webkit]
+// host with `?replica=1`: node tests/replica.mjs [chromium|webkit]
 import assert from 'node:assert/strict'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'
@@ -69,11 +69,11 @@ async function changedOutside(path, format) {
   await save(path)
   assert.equal(await docId(), id, `${path}: the next save continues the same replica`)
   assert.notEqual(await page.evaluate((path) => window.devHost.history.replica(path)?.fileStamp, path), stored, `${path}: the replica is stored with the new file`)
-  console.log(`PASS ${path}: a file changed outside merges into its stored replica`)
+  console.log(`PASS ${path}: a file changed outside is recorded onto its stored replica`)
 }
 
 try {
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/dev.html?modes=classic&locale=en-US&replica=1&replica-merges-file=1`)
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/dev.html?modes=classic&locale=en-US&replica=1`)
   await opened()
   await page.waitForTimeout(1000)
   await changedOutside('Sample.kslide', 'kslide')

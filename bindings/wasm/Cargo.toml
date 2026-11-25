@@ -28,7 +28,7 @@ serde_json = { workspace = true }
 # A face `add_font` can never find already bundled (crates/support/fonts embeds only kition-fonts'
 # families plus Ubuntu Light; see takes_a_font_for_text_its_own_faces_do_not_cover in tests.rs).
 epaint_default_fonts = "0.36"
-# The Kition platform convergence suite (L6), on the same kition-sdk revision.
+# The kit suite's performance mode (`tests/perf.rs`), on the same kition-sdk revision.
 kition-convergence = { workspace = true }
 # The showcase sample builder (examples/showcase.rs) saves its thumbnails.
 image = { workspace = true }

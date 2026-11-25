@@ -141,8 +141,6 @@ export type SlideThread = {
  */
 export type HostMark = KitShownThread & { slide: number | null; rect: { x: number; y: number; width: number; height: number } | null; point: { x: number; y: number } | null }
 
-const SESSION_OPTIONS = { replicaMergesFile: true } as const
-
 type Placed = { found?: boolean; slide?: number | null; rect?: HostMark['rect']; point?: HostMark['point'] }
 
 /** The protocol's plain-text rule (UI-V6) for a label: one line, no control or bidirectional formatting characters. */
@@ -153,9 +151,9 @@ function useSlidesState(host: HostConnection, t: Strings) {
   const access = useMemo(() => commentAccess(host), [host])
   const commenter = isCommenter(host, access)
   const manifest = useMemo(() => slidesManifest(commenter ? (access.me ?? '') : null), [commenter, access])
-  // The engine merges a file changed outside Kition into its stored replica as one `import`
-  // change (`open_with_replica`), so the replica opens whatever the file's stamp (UI-R1).
-  const session = useKitSession(host, manifest, describe, SESSION_OPTIONS)
+  // The host hands over the stored replica whatever the file's stamp (UI-R1); the engine records a
+  // file changed outside Kition onto it as one `import` change (`open_with_replica`).
+  const session = useKitSession(host, manifest, describe)
   const editor = useKitEditorState(session, host, t, 'slides')
   const view = useSlideView()
   const [threads, setThreads] = useState<SlideThread[]>([])

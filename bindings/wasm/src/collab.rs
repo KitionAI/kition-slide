@@ -183,6 +183,20 @@ impl SlideDocument {
         Ok(encode_blobs(&blobs))
     }
 
+    /// What changed since the version `since` (empty bytes: since the replica began), a receipt as
+    /// `kition-sdk`'s `changesSince` answers it: `{"changes": StateDiff}`, or `{"changes": null,
+    /// "unavailable": "<why>"}` when the replica's log does not hold `since` (or there is no
+    /// replica yet), never an empty change set in its place.
+    pub fn changes_since(&self, since: &[u8]) -> Value {
+        let Some(kdm) = self.session.kdm() else { return json!({ "changes": null, "unavailable": "the slide has no replica yet" }) };
+        let replica = kdm.replica();
+        let since = if since.is_empty() { Ok(Version::empty()) } else { Version::decode(since) };
+        match since.and_then(|since| replica.changes_since(&since)) {
+            Ok(changes) => json!({ "changes": changes.to_recorded_json(replica.schema()) }),
+            Err(error) => json!({ "changes": null, "unavailable": error.to_string() }),
+        }
+    }
+
     /// How many times the slide left its replica because it refused a write or an undo (a
     /// slide it cannot hold, or a bug). The slide keeps working, undoing from its
     /// own history; the next shared edit makes a fresh replica, which collaborators must resync
@@ -427,6 +441,22 @@ mod tests {
         assert!(SlideDocument::open_with_replica("Shared.kslide", &[], b"not a replica", &[]).is_err());
     }
 
+    /// A receipt names what changed since a version the replica's log holds, and says so when it
+    /// cannot (no replica yet, a version of another line).
+    #[test]
+    fn changes_since_answers_a_receipt_or_why_not() {
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        assert!(doc.changes_since(&[])["changes"].is_null(), "no replica yet");
+        let since = doc.version().unwrap();
+        extra_edit(&mut doc);
+        let receipt = doc.changes_since(&since);
+        assert!(receipt["changes"].is_object(), "{receipt}");
+        assert_ne!(receipt["changes"], doc.changes_since(&doc.version().unwrap())["changes"], "the edit is in the receipt: {receipt}");
+        let other = SlideDocument::open("Slide.kslide", &fixture()).unwrap().version().unwrap();
+        let refused = doc.changes_since(&other);
+        assert!(refused["changes"].is_null() && refused["unavailable"].is_string(), "{refused}");
+    }
+
     #[test]
     fn blobs_round_trip_through_encode_and_decode() {
         let mut a = MemoryBlobs::default();
@@ -487,10 +517,10 @@ mod tests {
 
     /// `a` saves with its replica; `b` opens with it, so both start from the same replica
     /// identity. `a` edits further;
-    /// `b.importChanges(a.exportChanges(b.version()))` converges `b` to the same replicated
+    /// `b.importChanges(a.exportChanges(b.version()))` brings `b` to the same replicated
     /// state as `a`, through the public SDK surface alone.
     #[test]
-    fn two_documents_converge_through_export_and_import_changes() {
+    fn a_second_document_catches_up_through_export_and_import_changes() {
         let mut a = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
         extra_edit(&mut a);
         let bytes = a.save(None).unwrap();
@@ -511,7 +541,7 @@ mod tests {
         assert_eq!(
             a.render(0.0, 0.0, 1.0, a.width(), a.height()).unwrap(),
             b.render(0.0, 0.0, 1.0, b.width(), b.height()).unwrap(),
-            "converged replicas render the same slide"
+            "replicas at one version render the same slide"
         );
     }
 

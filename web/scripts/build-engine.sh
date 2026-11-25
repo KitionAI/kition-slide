@@ -8,7 +8,7 @@ if toolchain="$(rustc --print sysroot 2>/dev/null)" && [ -d "$toolchain/lib" ]; 
   export DYLD_FALLBACK_LIBRARY_PATH="$toolchain/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}"
 fi
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo/target}"
-# Some dependencies compile C for the target (psm, through loro); Apple's clang cannot target
+# A dependency that compiles C for the target needs a WebAssembly toolchain: Apple's clang cannot target
 # WebAssembly, so use Homebrew's LLVM when it is there and no compiler is set.
 if [ -z "${CC_wasm32_unknown_unknown:-}" ] && command -v brew >/dev/null 2>&1; then
   for formula in llvm@21 llvm; do

@@ -1,4 +1,4 @@
-//! The convergence suite's performance mode for Kition Slide (Kition `docs/kits.md` section 7):
+//! The kit suite's performance mode for Kition Slide (Kition `docs/kits.md` section 7):
 //! `cargo test --release -p kition-slide-kit --test perf -- --ignored --nocapture`. Each test
 //! fails when the kit is over its budget.
 

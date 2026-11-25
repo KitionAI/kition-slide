@@ -3,9 +3,9 @@ id: regressions/issue-replica-merges-file
 feature: slide.collab.replica-merges-file
 intent: >-
   A .kslide or .pptx changed outside Kition does not start its history over (Kit UI protocol UI-R1,
-  owner 2026-11-24): the editor declares `replicaMergesFile`, so on reopen it opens with the stored
-  replica and the engine merges the newer file into it as one `import` change. Through the dev host
-  (`?replica=1&replica-merges-file=1`): edit, save, another program changes the file,
+  owner 2026-11-24): the host hands over the stored replica whatever the file's stamp, so on reopen
+  the editor opens with it and the engine records the newer file onto it as one `import` change.
+  Through the dev host (`?replica=1`): edit, save, another program changes the file,
   `devHost.reopenChanged`; the outside change shows, the document keeps its replica id, a shape
   from before keeps its id, and the next save continues the same replica. Before, the editor
   opened such a file without its replica, as another document.

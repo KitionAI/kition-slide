@@ -14,17 +14,15 @@ Third-party material
   Grotesque, Carlito, Caladea, Tinos, Cousine, Arimo, Noto Color Emoji, Ma Shan Zheng, BIZ
   UDPGothic, BIZ UDMincho, Noto Sans Arabic, Shippori Mincho, NanumGothic: SIL Open Font License
   1.1 (below, with each font's copyright).
-- Loro (https://github.com/loro-dev/loro): Copyright (c) 2023 Zixuan Chen, MIT License (below).
-- MPL-2.0 crates used unmodified (source on crates.io): bitmaps, im, sized-chunks, symphonia,
-  symphonia-bundle-flac, symphonia-bundle-mp3, symphonia-codec-aac, symphonia-codec-adpcm,
-  symphonia-codec-alac, symphonia-codec-pcm, symphonia-codec-vorbis, symphonia-core,
-  symphonia-format-caf, symphonia-format-isomp4, symphonia-format-mkv, symphonia-format-ogg,
-  symphonia-format-riff, symphonia-metadata, symphonia-utils-xiph.
+- MPL-2.0 crates used unmodified (source on crates.io): symphonia, symphonia-bundle-flac,
+  symphonia-bundle-mp3, symphonia-codec-aac, symphonia-codec-adpcm, symphonia-codec-alac,
+  symphonia-codec-pcm, symphonia-codec-vorbis, symphonia-core, symphonia-format-caf,
+  symphonia-format-isomp4, symphonia-format-mkv, symphonia-format-ogg, symphonia-format-riff,
+  symphonia-metadata, symphonia-utils-xiph.
 
-MIT License (DeckCraft, Loro)
+MIT License (DeckCraft)
 
 Copyright (c) 2026 ArtCraft Team and the DeckCraft contributors
-Copyright (c) 2023 Zixuan Chen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

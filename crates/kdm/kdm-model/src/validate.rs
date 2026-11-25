@@ -120,8 +120,6 @@ impl LocalRepair {
 /// that slide except by the root and by animations, as Kition writes them (a shape, connector,
 /// comment anchor or list of one slide never names another slide's objects), and that the state
 /// was repaired before the local writes `local` noted.
-/// `tests::targeted_repair_after_deletions_matches_the_full_check` holds the two to the same
-/// result on concurrent merges.
 pub(crate) fn validate_with_view(tx: &mut Tx<'_>, changed: &BTreeSet<ObjectId>, ids: &Ids, local: &LocalRepair) -> KdmResult<(bool, bool)> {
     let deleted: Vec<&ObjectId> = changed.iter().filter(|object| !tx.exists(object)).collect();
     if changed.is_empty() || deleted.is_empty() {
@@ -155,8 +153,6 @@ pub(crate) fn validate_with_view(tx: &mut Tx<'_>, changed: &BTreeSet<ObjectId>, 
             candidates.insert(slide.clone());
         }
     }
-    #[cfg(test)]
-    tests::TARGETED.with(|count| count.set(count.get() + 1));
     Ok((targeted(tx, &root, candidates, ids)?, true))
 }
 
@@ -390,41 +386,17 @@ fn clean_dangling(tx: &mut Tx<'_>, owner: &ObjectId, field: &str) -> KdmResult<b
 
 #[cfg(test)]
 mod tests {
-    //! The targeted repair after deletions against the full check, on concurrent merges of random
-    //! edits: both must leave the same state.
+    //! How long a peer's slide deletion takes to apply, with the targeted repair and with the
+    //! full check.
 
-    use std::cell::Cell;
     use std::sync::Arc;
 
-    use kition_kit::kdm::{ActorId, Origin, Replica};
+    use kition_kit::kdm::Origin;
     use kition_kit::session::MemoryBlobs;
-    use kition_slide_model::text::{Action, Hyperlink, TextBody};
+    use kition_slide_model::text::TextBody;
     use kition_slide_model::{Animation, Comment, CustomShow, Section, Shape, ShapeId, ShapeKind, SlideFile, Table, Xfrm, defaults};
 
-    use super::*;
     use crate::SlideSession;
-
-    thread_local! {
-        /// How many repairs took the targeted path.
-        pub(super) static TARGETED: Cell<usize> = const { Cell::new(0) };
-    }
-
-    struct Rng(u64);
-
-    impl Rng {
-        fn next(&mut self) -> u64 {
-            self.0 ^= self.0 << 13;
-            self.0 ^= self.0 >> 7;
-            self.0 ^= self.0 << 17;
-            self.0
-        }
-        fn below(&mut self, n: usize) -> usize {
-            (self.next() % n.max(1) as u64) as usize
-        }
-        fn chance(&mut self, percent: u64) -> bool {
-            self.next() % 100 < percent
-        }
-    }
 
     fn shape(p: &mut SlideFile, name: &str, x: f64) -> Shape {
         Shape {
@@ -476,164 +448,6 @@ mod tests {
         ];
         p.custom_shows = vec![CustomShow { name: "Short".into(), slides: ids.iter().step_by(3).copied().collect() }];
         p
-    }
-
-    fn slide_mut(p: &mut SlideFile, index: usize) -> &mut kition_slide_model::Slide {
-        Arc::make_mut(&mut p.slides[index])
-    }
-
-    /// The deleting side: a few slides, and sometimes a shape or a paragraph elsewhere.
-    fn deletions(p: &mut SlideFile, rng: &mut Rng) {
-        for _ in 0..1 + rng.below(3) {
-            if p.slides.len() > 2 {
-                let index = rng.below(p.slides.len());
-                p.slides.remove(index);
-            }
-        }
-        if rng.chance(40) {
-            let index = rng.below(p.slides.len());
-            let slide = slide_mut(p, index);
-            if !slide.shapes.is_empty() {
-                let at = rng.below(slide.shapes.len());
-                slide.shapes.remove(at);
-            }
-        }
-        if rng.chance(40) {
-            let index = rng.below(p.slides.len());
-            if let Some(body) = slide_mut(p, index).shapes.first_mut().and_then(|s| s.text.as_mut())
-                && body.paragraphs.len() > 1
-            {
-                body.paragraphs.pop();
-            }
-        }
-    }
-
-    /// The concurrent side: edits that touch, link to and comment on any slide.
-    fn edits(p: &mut SlideFile, rng: &mut Rng) {
-        for _ in 0..1 + rng.below(4) {
-            let index = rng.below(p.slides.len());
-            match rng.below(9) {
-                0 => {
-                    if let Some(body) = slide_mut(p, index).shapes.first_mut().and_then(|s| s.text.as_mut()) {
-                        *body = TextBody::from_text("Edited\nagain");
-                    }
-                }
-                1 => {
-                    let s = shape(p, "New", 500.0);
-                    slide_mut(p, index).shapes.push(s);
-                }
-                2 => {
-                    let slide = slide_mut(p, index);
-                    let ids: Vec<_> = slide.shapes.iter().map(|s| s.id).collect();
-                    if ids.len() >= 2 {
-                        slide.animations.push(Animation { shape: ids[1], trigger: Some(ids[0]), ..Default::default() });
-                    }
-                }
-                3 => {
-                    let mut connector = shape(p, "Link", 0.0);
-                    connector.text = None;
-                    let slide = slide_mut(p, index);
-                    let ids: Vec<_> = slide.shapes.iter().map(|s| s.id).collect();
-                    if ids.len() >= 2 {
-                        connector.kind = ShapeKind::Connector { start: Some((ids[0], 0)), end: Some((ids[ids.len() - 1], 2)) };
-                        slide.shapes.push(connector);
-                    }
-                }
-                4 => {
-                    let target = p.slides[rng.below(p.slides.len())].id;
-                    if let Some(first) = slide_mut(p, index).shapes.first_mut() {
-                        first.click = Some(Hyperlink { action: Action::Slide { slide: target }, tooltip: String::new(), highlight_click: false });
-                    }
-                }
-                5 => {
-                    let slide = slide_mut(p, index);
-                    let anchor = slide.shapes.first().map(|s| s.id);
-                    slide.comments.push(Comment { author: "Bob".into(), text: "Look".into(), shape: anchor, ..Default::default() });
-                }
-                6 => {
-                    let id = p.slides[index].id;
-                    p.sections.push(Section { identity: String::new(), name: "Mine".into(), slides: vec![id] });
-                    if let Some(show) = p.custom_shows.first_mut() {
-                        show.slides.push(id);
-                    }
-                }
-                7 => {
-                    if p.slides.len() > 1 {
-                        let slide = p.slides.remove(index);
-                        let to = rng.below(p.slides.len() + 1);
-                        p.slides.insert(to, slide);
-                    }
-                }
-                _ => {
-                    let slide = slide_mut(p, index);
-                    if slide.shapes.len() > 1 {
-                        let at = rng.below(slide.shapes.len());
-                        slide.shapes.remove(at);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Imports `bytes` into two forks of `receiver`'s replica, repairs one with the view-guided
-    /// repair and the other with the full check, and answers both states; `None` when the
-    /// change deletes nothing (those repairs check only what changed, as before).
-    fn both_repairs(receiver: &SlideSession, bytes: &[u8], seed: u64) -> Option<(String, String)> {
-        let mut deletes = false;
-        let mut repaired = |targeted: bool| {
-            let mut replica: Replica = receiver.replica().fork(ActorId::from_u64(seed * 2 + u64::from(targeted) + 100).unwrap()).unwrap();
-            replica.import_changes(bytes).unwrap();
-            let changed = replica.take_changed();
-            deletes |= changed.iter().any(|object| !replica.exists(object));
-            replica
-                .transact(&Origin::system("repair"), |tx| {
-                    if targeted {
-                        validate_with_view(tx, &changed, receiver.model().ids(), receiver.local_repair()).map(|(wrote, _)| wrote)
-                    } else {
-                        validate_all(tx)
-                    }
-                })
-                .unwrap();
-            replica.state_hash().unwrap()
-        };
-        let both = (repaired(true), repaired(false));
-        deletes.then_some(both)
-    }
-
-    /// Merges per run.
-    const SEEDS: u64 = 60;
-
-    #[test]
-    fn targeted_repair_after_deletions_matches_the_full_check() {
-        let base = slide_file(12);
-        let origin = SlideSession::create(&base).unwrap();
-        let snapshot = origin.snapshot().unwrap();
-        let before = TARGETED.with(Cell::get);
-        let mut compared = 0;
-        for seed in 1..=SEEDS {
-            let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
-            let mut deleter = SlideSession::open_snapshot(&snapshot, MemoryBlobs::default()).unwrap();
-            let mut editor = SlideSession::open_snapshot(&snapshot, MemoryBlobs::default()).unwrap();
-            deleter.repair_all();
-            editor.repair_all();
-            let mut gone = deleter.slide_file().clone();
-            deletions(&mut gone, &mut rng);
-            deleter.record(&Origin::person("user:alice"), &gone).unwrap();
-            let mut edited = editor.slide_file().clone();
-            edits(&mut edited, &mut rng);
-            editor.record(&Origin::person("user:bob"), &edited).unwrap();
-            for (receiver, sender) in [(&editor, &deleter), (&deleter, &editor)] {
-                let bytes = sender.export_changes(&receiver.version()).unwrap();
-                if let Some((targeted, full)) = both_repairs(receiver, &bytes, seed) {
-                    compared += 1;
-                    assert_eq!(targeted, full, "seed {seed}: the targeted repair differs from the full check");
-                }
-            }
-        }
-        let used = TARGETED.with(Cell::get) - before;
-        println!("{compared} merges that delete, {used} repaired by the targeted path");
-        // Both paths ran: the targeted one, and the full check (a slide with comments, say).
-        assert!(compared >= 60 && used >= compared / 2 && used < compared, "the targeted path ran {used} times in {compared} merges that delete");
     }
 
     /// `cargo test --release -p kdm-model --lib deletion_apply_times -- --ignored --nocapture`:

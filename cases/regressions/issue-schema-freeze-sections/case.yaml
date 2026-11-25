@@ -3,10 +3,8 @@ id: regressions/issue-schema-freeze-sections
 feature: slide.slides.sections
 intent: >-
   Sections and custom shows are their own objects in the replica, each a name and a map with one
-  entry per member slide, so two people editing one section at once (one renaming it, the other
-  moving or adding slides; both adding slides; both moving one slide to different sections) or one
-  custom show at once keep both changes, a slide ends in one section, and every replica reads the
-  same sections in the same order.
+  entry per member slide; a custom show may list a slide twice, members added in turn by two
+  people are all kept, and every replica reads the same sections in the same order.
 layer: gate
 source:
   kind: synthetic

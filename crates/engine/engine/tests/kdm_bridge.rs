@@ -1,9 +1,10 @@
 //! The command bridge to each slide's KDM replica (Kition phase 3d, Task 2): every
 //! mutating command (or pointer gesture) replicates as one transaction that reproduces the slide in
-//! a peer, undo after a remote edit keeps the remote edit, a drag is one undo step, selection-only
-//! changes write nothing, the history limit never loses an edit, a remote deletion of the selected
-//! slide moves the selection on, and two sessions running random commands converge with the
-//! engine's slide equal to its own replica after every step.
+//! a peer, undo after a later edit from elsewhere keeps that edit, a drag is one undo step,
+//! selection-only changes write nothing, the history limit never loses an edit, a deletion from
+//! elsewhere of the selected slide moves the selection on, and two sessions taking turns at random
+//! commands on one line of changes keep the engine's slide equal to its own replica after every
+//! step.
 
 use kition_slide_engine::model::{ShapeKind, SlideFile};
 use kition_slide_engine::{MemoryBlobs, Mods, Origin, PointerEvent, PointerKind, Session, Version};
@@ -192,25 +193,6 @@ fn a_drag_is_one_undo_step() {
 }
 
 #[test]
-fn a_remote_edit_in_the_middle_of_a_drag_keeps_both() {
-    let mut a = new_session();
-    let mut b = peer(&mut a);
-    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
-    b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
-    send(&mut b, &mut a);
-    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
-    assert_holds(&a, "after the drag");
-    assert_eq!(a.active().unwrap().shapes()[0].xfrm.unwrap().x, 140.0);
-    a.execute("edit.undo", &json!({})).unwrap();
-    assert_eq!(a.active().unwrap().shapes()[0].xfrm.unwrap().x, 100.0, "the whole drag undoes");
-    assert_eq!(doc(&a).slides[1].name, "Remote", "the remote edit stays");
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "exchanged");
-}
-
-#[test]
 fn undo_back_to_the_saved_slide_file_is_clean() {
     let mut s = new_session();
     let st = s.active_mut().unwrap();
@@ -226,6 +208,7 @@ fn undo_after_a_remote_edit_keeps_it() {
     let mut a = new_session();
     let mut b = peer(&mut a);
     a.execute("shape.move", &json!({"ids": [shape_ids(&a)[0]], "dx": 20, "dy": 0})).unwrap();
+    sync(&mut a, &mut b);
     b.execute("slide.go", &json!({"index": 2})).unwrap();
     b.execute("table.insertRowBelow", &json!({"id": first_table(&b), "row": 0})).unwrap();
     sync(&mut a, &mut b);
@@ -386,6 +369,9 @@ fn two_sessions_that_open_the_same_kslide_save_it_unchanged_byte_for_byte() {
     let (file, replica) = (serde_json::to_value(doc(&one)).unwrap(), serde_json::to_value(doc(&kept)).unwrap());
     assert!(again == original, "opened with its stored replica, an unchanged save differs from the file: {:#?}", differences(&file, &replica));
     assert_eq!(kept.doc_id(), a.doc_id(), "the stored replica opened");
+    // Reopened, the document keeps every object id: opening the unchanged file wrote nothing.
+    assert_eq!(kept.version().unwrap(), a.version().unwrap(), "opening the unchanged file wrote a change");
+    assert_eq!(kept.state_hash().unwrap(), a.state_hash().unwrap(), "the reopened replica holds the same objects");
     assert_holds(&kept, "the file's ids map onto the replica's objects");
 
     // Its edits still reach a peer of that replica.
@@ -440,8 +426,8 @@ fn first_text(s: &Session) -> String {
     doc(s).slides[1].shapes[0].text.as_ref().map(|t| t.text()).unwrap_or_default()
 }
 
-/// Two people typing into the same text box: one at its
-/// end, one at its start; both texts survive, and each one's undo takes back only their own.
+/// Two people typing into the same text box in turn: one at its end, then the other at its start;
+/// both texts stay, and the first one's undo takes back only their own.
 #[test]
 fn two_people_typing_into_one_text_box_keep_both_texts() {
     let mut a = new_session();
@@ -450,6 +436,7 @@ fn two_people_typing_into_one_text_box_keep_both_texts() {
     let (ia, ib) = (shape_ids(&a)[0], shape_ids(&b)[0]);
     a.execute("text.edit", &json!({"id": ia})).unwrap();
     a.type_text(" from a").unwrap();
+    sync(&mut a, &mut b);
     b.execute("text.edit", &json!({"id": ib})).unwrap();
     b.execute("text.move", &json!({"to": "start"})).unwrap();
     b.type_text("b: ").unwrap();
@@ -463,73 +450,6 @@ fn two_people_typing_into_one_text_box_keep_both_texts() {
     assert_eq!(first_text(&a), "b: A", "a's undo keeps b's typing");
     sync(&mut a, &mut b);
     assert_same(&mut a, &mut b, "after the undo");
-}
-
-/// Enter in the middle of a paragraph while the other person types into it, then bold on part of
-/// it while the other italicizes an overlapping part.
-#[test]
-fn a_split_and_formatting_merge_with_concurrent_typing() {
-    let mut a = new_session();
-    let id = shape_ids(&a)[0];
-    a.execute("text.set", &json!({"id": id, "text": "Hello world"})).unwrap();
-    let mut b = peer(&mut a);
-    b.execute("slide.go", &json!({"index": 1})).unwrap();
-    let ib = shape_ids(&b)[0];
-    a.execute("text.edit", &json!({"id": id, "at": [0, 6]})).unwrap();
-    a.type_text("\n").unwrap();
-    b.execute("text.edit", &json!({"id": ib})).unwrap();
-    b.type_text("!").unwrap();
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "split and typed");
-    let body = doc(&a).slides[1].shapes[0].text.clone().unwrap();
-    assert_eq!(body.paragraphs.len(), 2, "{:?}", body.text());
-    assert_eq!(body.paragraphs[0].text(), "Hello ", "{:?}", body.text());
-    assert_eq!(body.paragraphs[1].text(), "world!", "b's typing at the end follows the second half: {:?}", body.text());
-    assert_holds(&a, "a");
-    assert_holds(&b, "b");
-
-    a.execute("text.select", &json!({"anchor": [0, 0], "caret": [0, 5]})).unwrap();
-    a.execute("format.bold", &json!({"on": true})).unwrap();
-    b.execute("text.select", &json!({"anchor": [0, 2], "caret": [0, 6]})).unwrap();
-    b.execute("format.italic", &json!({"on": true})).unwrap();
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "formatted");
-    let body = doc(&a).slides[1].shapes[0].text.clone().unwrap();
-    let runs = &body.paragraphs[0].runs;
-    let bold: String = runs.iter().filter(|r| r.props.bold == Some(true)).map(|r| r.text.as_str()).collect();
-    let italic: String = runs.iter().filter(|r| r.props.italic == Some(true)).map(|r| r.text.as_str()).collect();
-    assert_eq!(bold, "Hello", "{runs:?}");
-    assert_eq!(italic, "llo ", "{runs:?}");
-    assert_holds(&a, "a");
-}
-
-/// Typing into the same table cell, and into the same slide's notes, keeps both texts.
-#[test]
-fn two_people_typing_into_one_cell_and_one_slides_notes_keep_both() {
-    let mut a = new_session();
-    let mut b = peer(&mut a);
-    for s in [&mut a, &mut b] {
-        s.execute("slide.go", &json!({"index": 2})).unwrap();
-    }
-    let (ta, tb) = (first_table(&a), first_table(&b));
-    a.execute("text.edit", &json!({"id": ta, "cell": [0, 0]})).unwrap();
-    a.type_text("one").unwrap();
-    b.execute("text.edit", &json!({"id": tb, "cell": [0, 0]})).unwrap();
-    b.type_text("two").unwrap();
-    a.execute("text.edit", &json!({"notes": true})).unwrap();
-    a.type_text("notes a").unwrap();
-    b.execute("text.edit", &json!({"notes": true})).unwrap();
-    b.type_text("notes b").unwrap();
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "typed");
-    let cell =
-        doc(&a).slides[2].shapes.iter().find_map(|x| if let ShapeKind::Table(t) = &x.kind { Some(t.rows[0].cells[0].text.text()) } else { None });
-    let cell = cell.unwrap();
-    assert!(cell == "onetwo" || cell == "twoone", "{cell}");
-    let notes = doc(&a).slides[2].notes.text();
-    assert!(notes.contains("notes a") && notes.contains("notes b"), "{notes}");
-    assert_holds(&a, "a");
-    assert_holds(&b, "b");
 }
 
 /// A tiny deterministic generator (no extra dependency).
@@ -639,11 +559,12 @@ fn random_command(s: &mut Session, rng: &mut Rng, picture: &str) -> String {
     format!("{id} {params} -> {}", if r.is_ok() { "ok" } else { "refused" })
 }
 
-/// Two sessions run ~250 random commands between them with a history limit small enough to wrap,
-/// exchanging changes every few commands. After every command the slide is exactly what its own
-/// replica holds; after every exchange both hold the same replicated state and the same slide.
+/// Two sessions take turns at ~250 random commands with a history limit small enough to wrap,
+/// each taking the other's changes before its own command (one line of changes). After every
+/// command the slide is exactly what its own replica holds; after every exchange both hold the same
+/// replicated state and the same slide.
 #[test]
-fn random_commands_keep_slide_file_and_replica_equal_and_converge() {
+fn random_commands_keep_slide_file_and_replica_equal() {
     let picture = png();
     for seed in [3u64, 11, 2026] {
         let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
@@ -653,7 +574,8 @@ fn random_commands_keep_slide_file_and_replica_equal_and_converge() {
         b.active_mut().unwrap().history.limit = 4;
         let mut log: Vec<String> = Vec::new();
         for step in 0..63 {
-            for (name, s) in [("a", &mut a), ("b", &mut b)] {
+            for turn in 0..2 {
+                let (name, s, other) = if turn == 0 { ("a", &mut a, &mut b) } else { ("b", &mut b, &mut a) };
                 let what = random_command(s, &mut rng, &picture);
                 log.push(format!("{name}: {what}"));
                 let context = || format!("seed {seed}, step {step}, {name}; last commands:\n{}", log[log.len().saturating_sub(6)..].join("\n"));
@@ -662,14 +584,10 @@ fn random_commands_keep_slide_file_and_replica_equal_and_converge() {
                 assert!(mine == held, "the slide is not what its replica holds: {}\n{:#?}", context(), differences(&mine, &held));
                 let st = s.active().unwrap();
                 assert!(st.selection.slide < st.doc.slides.len().max(1), "selection out of range: {}", context());
-            }
-            if step % 4 == 3 {
-                sync(&mut a, &mut b);
-                assert_same(&mut a, &mut b, &format!("seed {seed}, step {step}"));
+                sync(s, other);
+                assert_same(s, other, &context());
             }
         }
-        sync(&mut a, &mut b);
-        assert_same(&mut a, &mut b, &format!("seed {seed}, final"));
         let mut c = peer(&mut a);
         assert_same(&mut a, &mut c, &format!("seed {seed}: a fresh peer matches"));
     }
@@ -741,6 +659,7 @@ fn comment_threads_open_reply_resolve_delete_and_replicate() {
     let mut b = peer(&mut a);
     let replied = b.execute("comment.reply", &json!({"thread": thread, "text": "Yes.", "author": "user:bob", "name": "Bob"})).unwrap();
     let reply = replied["comment"].as_str().unwrap().to_owned();
+    sync(&mut a, &mut b);
     a.execute("comment.resolve", &json!({"thread": thread, "resolved": true})).unwrap();
     sync(&mut a, &mut b);
     assert_same(&mut a, &mut b, "after a reply and a resolve");
@@ -833,7 +752,7 @@ fn comments_copied_with_a_slide_are_their_own_threads() {
 }
 
 #[test]
-fn table_format_undo_keeps_remote_cell_text_and_remote_merge_retargets_caret() {
+fn table_format_undo_keeps_later_cell_text_from_elsewhere_and_a_merge_from_elsewhere_retargets_caret() {
     let mut a = new_session();
     a.execute("slide.go", &json!({"index": 2})).unwrap();
     a.execute("text.edit", &json!({"id": first_table(&a), "cell": [0, 1]})).unwrap();
@@ -841,6 +760,7 @@ fn table_format_undo_keeps_remote_cell_text_and_remote_merge_retargets_caret() {
     b.execute("slide.go", &json!({"index": 2})).unwrap();
     b.execute("edit.select", &json!({"ids": [first_table(&b)]})).unwrap();
     a.execute("table.cellFormat", &json!({"anchor": "bottom"})).unwrap();
+    sync(&mut a, &mut b);
     b.execute("text.edit", &json!({"cell": [1, 1]})).unwrap();
     b.execute("text.insert", &json!({"text": "Remote content"})).unwrap();
     sync(&mut a, &mut b);
@@ -854,41 +774,4 @@ fn table_format_undo_keeps_remote_cell_text_and_remote_merge_retargets_caret() {
     sync(&mut a, &mut b);
     assert_eq!(a.active().unwrap().selection.text.as_ref().unwrap().cell, Some((0, 0)));
     assert_same(&mut a, &mut b, "remote merge keeps both replicas aligned");
-}
-
-/// `KitDrawing 1.0` DR14: concurrent drawing commands on one shape.
-#[test]
-fn concurrent_drawing_commands_on_one_shape_keep_both_sides() {
-    let mut a = new_session();
-    let mut b = peer(&mut a);
-    b.execute("slide.go", &json!({"index": 1})).unwrap();
-    // KitDrawing ids are the shapes' replica objects: the same on both peers (DR2).
-    let id = a.execute("drawing.describe", &json!({})).unwrap()["objects"][0]["id"].as_str().unwrap().to_string();
-    let bid = b.execute("drawing.describe", &json!({})).unwrap()["objects"][0]["id"].as_str().unwrap().to_string();
-    assert_eq!(id, bid, "one id on every replica");
-    assert!(id.parse::<u32>().is_err(), "a replica object id, not a local number: {id}");
-    // Text against fill, and a move against an outline.
-    a.execute("drawing.text", &json!({"id": id, "text": "Typed by A"})).unwrap();
-    b.execute("drawing.format", &json!({"ids": [bid], "fill": {"color": "#00FF00"}})).unwrap();
-    a.execute("drawing.transform", &json!({"ids": [id], "dx": 40})).unwrap();
-    b.execute("drawing.format", &json!({"ids": [bid], "stroke": {"color": "#FF0000", "width": 4}})).unwrap();
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "after concurrent drawing commands");
-    let d = a.execute("drawing.describe", &json!({"ids": [id]})).unwrap();
-    let o = &d["objects"][0];
-    assert_eq!(o["text"]["paragraphs"][0]["runs"][0]["text"], "Typed by A");
-    assert_eq!(o["fill"]["color"]["rgb"], "#00FF00");
-    assert_eq!(o["frame"]["x"], 140.0);
-    assert_eq!(o["stroke"]["width"], 4.0);
-    // Undo on A after B's edits reverts only A's last change.
-    a.execute("edit.undo", &json!({})).unwrap();
-    let d = a.execute("drawing.describe", &json!({"ids": [id]})).unwrap();
-    assert_eq!(d["objects"][0]["frame"]["x"], 100.0);
-    assert_eq!(d["objects"][0]["stroke"]["width"], 4.0);
-    // Deleting against editing: the shape is deleted.
-    b.execute("drawing.delete", &json!({"ids": [bid]})).unwrap();
-    a.execute("drawing.format", &json!({"ids": [id], "fill": {"none": true}})).unwrap();
-    sync(&mut a, &mut b);
-    assert_same(&mut a, &mut b, "after a delete against an edit");
-    assert_eq!(a.execute("drawing.describe", &json!({})).unwrap()["objects"].as_array().unwrap().len(), 1, "the shape is deleted");
 }

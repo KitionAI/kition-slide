@@ -1,4 +1,4 @@
-//! Kition Slide's adapter for the Kit Standard 2.0 convergence suite (`kition-convergence`): the
+//! Kition Slide's adapter for the kit suite's performance mode (`kition-convergence`'s `perf`): the
 //! slide driven as a host drives it, through `SlideDocument`'s commands and its contract 2
 //! members (`open_with_replica`, `export_changes`, `import_changes`, `snapshot`, blobs).
 
@@ -182,6 +182,17 @@ pub fn base64(bytes: &[u8]) -> String {
 }
 
 /// `(64-char hex sha256, u64 LE length, bytes) * N`, as `blobs` and `add_blobs` move them.
+fn encode_blobs(blobs: &Blobs) -> Vec<u8> {
+    let mut out = Vec::new();
+    for (hash, data) in blobs {
+        out.extend_from_slice(hash.as_bytes());
+        out.extend_from_slice(&(data.len() as u64).to_le_bytes());
+        out.extend_from_slice(data);
+    }
+    out
+}
+
+/// Reverses [`encode_blobs`].
 fn decode_blobs(bytes: &[u8]) -> Result<Blobs, String> {
     let mut out = Blobs::new();
     let mut at = 0;
@@ -219,7 +230,7 @@ impl KitAdapter for SlideKit {
     }
 
     fn join(&self, snapshot: &[u8], blobs: &Blobs) -> Result<Host, String> {
-        let encoded = kition_convergence::wasm::encode_blobs(blobs);
+        let encoded = encode_blobs(blobs);
         let mut doc = SlideDocument::open_with_replica(NAME, &[], snapshot, &encoded)?;
         // `open_with_replica` falls back to a plain open; make sure the replica is the one given.
         if !doc.has_replica() {
@@ -240,7 +251,7 @@ impl KitAdapter for SlideKit {
     fn import_changes(&self, doc: &mut Host, bytes: &[u8]) -> Result<(), String> {
         let own = decode_blobs(&doc.doc.blobs()?)?;
         doc.store.extend(own);
-        let store = kition_convergence::wasm::encode_blobs(&doc.store);
+        let store = encode_blobs(&doc.store);
         doc.doc.add_blobs(&store)?;
         doc.doc.import_changes(bytes).map(|_| ())
     }
@@ -387,7 +398,7 @@ impl KitAdapter for SlideKit {
 
     fn add_blobs(&self, doc: &mut Host, blobs: &Blobs) -> Result<(), String> {
         doc.store.extend(blobs.clone());
-        doc.doc.add_blobs(&kition_convergence::wasm::encode_blobs(blobs))
+        doc.doc.add_blobs(&encode_blobs(blobs))
     }
 
     fn export_file(&self, doc: &mut Host) -> Result<Option<Vec<u8>>, String> {

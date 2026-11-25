@@ -322,12 +322,6 @@ impl SlideSession {
         self.replica.doc_id()
     }
 
-    /// What local writes left for the next repair after a deletion.
-    #[cfg(test)]
-    pub(crate) fn local_repair(&self) -> &LocalRepair {
-        &self.local
-    }
-
     /// Forgets what local writes left, so the next repair after a deletion checks everything.
     #[cfg(test)]
     pub(crate) fn forget_local_repair(&mut self) {

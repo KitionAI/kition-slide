@@ -1847,6 +1847,37 @@ pub mod web {
             self.0.kdm_resets()
         }
 
+        /// `model/describe` (the object model, `KitObjectModel 1.0`) as JSON text, through the
+        /// change exchange `kition-slide` serves it with headless ([`crate::collab`]). A failure's
+        /// message is the error's JSON (`{"code", "index", "message"}`).
+        #[wasm_bindgen(js_name = modelDescribe)]
+        pub fn model_describe(&mut self) -> Result<String, JsError> {
+            kition_kit::session::model::Exchange::new()
+                .describe(&mut self.0)
+                .map(|answer| answer.to_string())
+                .map_err(|failure| error(failure.to_json().to_string()))
+        }
+
+        /// `model/batch`: the request and the answer as JSON text, one undo step; a failure's
+        /// message is the error's JSON (`{"code", "index", "message"}`).
+        #[wasm_bindgen(js_name = modelBatch)]
+        pub fn model_batch(&mut self, request: &str) -> Result<String, JsError> {
+            let request: serde_json::Value = serde_json::from_str(request).map_err(|failure| {
+                error(json!({ "code": "invalid-op", "index": null, "message": format!("the batch is not JSON: {failure}") }).to_string())
+            })?;
+            kition_kit::session::model::Exchange::new()
+                .batch(&mut self.0, &request, false)
+                .map(|answer| answer.to_string())
+                .map_err(|failure| error(failure.to_json().to_string()))
+        }
+
+        /// What changed since the version `since` (a receipt): `{"changes": StateDiff}`, or
+        /// `{"changes": null, "unavailable"}` when the replica's log does not hold it.
+        #[wasm_bindgen(js_name = changesSince)]
+        pub fn changes_since(&self, since: &[u8]) -> String {
+            self.0.changes_since(since).to_string()
+        }
+
         /// Opens a file with the replica a host stored for it (the Kit UI protocol's `replica`
         /// capability); a replica that does not open is ignored and the file opens plainly.
         #[wasm_bindgen(js_name = openWithReplica)]

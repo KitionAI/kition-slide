@@ -3,6 +3,11 @@
 Changes to Kition Slide, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## Unreleased
+
+- The engine runs on kition-sdk's plain document model (no CRDT): Kition Desktop is for one person, so decks are no longer merged from concurrent edits; a deck's changes form one line, and a replica takes another's changes only in order. A file changed outside Kition is still recorded onto the stored replica as one import change, and the editor no longer declares `replicaMergesFile` (the host hands over the stored replica whatever the file's stamp). Loro is no longer bundled or linked.
+- The engine answers the object model (`modelDescribe`, `modelBatch`) and receipts (`changesSince`) itself, as kition-sdk's kit editor now asks its engine for them.
+
 ## 0.1.3
 
 - A host asks a slide file for its document id (`document.identity`) and forks it (`document.fork`), Kit Process Protocol section 5.6 (kition-sdk 6672663): a `.kslide` or `.pptx` embeds no replica (the kit makes a new one each time it opens a file), so it carries no id and its fork is the same bytes.

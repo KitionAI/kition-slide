@@ -1,7 +1,6 @@
 //! Comment threads between two replicas of one slide, driven as a host drives the
-//! editor's engine (`SlideDocument`'s commands and contract 2 members): concurrent comments on one
-//! thread are all kept, and a commenter's changes touch only comment objects (what a sync server
-//! takes from the `commenter` role, kition-sync 1.6).
+//! editor's engine (`SlideDocument`'s commands and contract 2 members): a commenter's changes touch
+//! only comment objects (what a sync server takes from the `commenter` role, kition-sync 1.6).
 
 use kition_kit::KitDocument;
 use kition_kit::kdm::{ActorId, Replica};
@@ -52,45 +51,6 @@ fn state_hash(doc: &mut SlideDocument) -> String {
 
 fn threads(doc: &mut SlideDocument) -> Vec<Value> {
     run(doc, "comment.threads", json!({})).as_array().cloned().unwrap_or_default()
-}
-
-#[test]
-fn concurrent_comments_on_one_thread_are_all_kept() {
-    let (mut a, mut b) = two_replicas();
-    let opened = run(&mut a, "comment.add", json!({ "text": "One", "author": "user:ann", "name": "Ann", "created": "2026-10-19T10:00:00Z" }));
-    let thread = opened["thread"].as_str().unwrap_or_default().to_owned();
-    sync(&mut a, &mut b);
-    // Offline, both reply to the thread, one resolves it, and each opens a thread of their own.
-    run(&mut a, "comment.reply", json!({ "thread": thread, "text": "Two", "author": "user:ann", "name": "Ann", "created": "2026-10-19T10:01:00Z" }));
-    run(
-        &mut b,
-        "comment.reply",
-        json!({ "thread": thread, "text": "Three", "author": "user:bob", "name": "Bob", "created": "2026-10-19T10:01:00Z" }),
-    );
-    run(&mut b, "comment.resolve", json!({ "thread": thread }));
-    run(&mut a, "comment.add", json!({ "text": "A's own", "author": "user:ann", "name": "Ann", "created": "2026-10-19T10:02:00Z" }));
-    run(&mut b, "comment.add", json!({ "text": "B's own", "author": "user:bob", "name": "Bob", "created": "2026-10-19T10:03:00Z" }));
-    sync(&mut a, &mut b);
-    let (ta, tb) = (threads(&mut a), threads(&mut b));
-    // Local ids (a shape's, a slide's) are each engine's own; the rest is the same.
-    let shared_part = |list: &[Value]| {
-        list.iter()
-            .map(|t| (t["id"].clone(), t["resolved"].clone(), t["comments"].clone(), t["anchor"]["box"].clone(), t["anchor"]["x"].clone()))
-            .collect::<Vec<_>>()
-    };
-    assert_eq!(shared_part(&ta), shared_part(&tb), "both replicas show the same threads");
-    let bodies = |t: &Value| {
-        t["comments"].as_array().map(|c| c.iter().map(|c| c["body"].as_str().unwrap_or_default().to_owned()).collect::<Vec<_>>()).unwrap_or_default()
-    };
-    let shared = ta.iter().find(|t| t["id"] == json!(thread)).unwrap_or_else(|| panic!("the thread"));
-    let mut replies = bodies(shared);
-    replies.sort();
-    assert_eq!(replies, vec!["One", "Three", "Two"], "both replies are kept");
-    assert_eq!(shared["resolved"], json!(true));
-    let mut opened: Vec<String> = ta.iter().map(|t| bodies(t)[0].clone()).collect();
-    opened.sort();
-    assert_eq!(opened, vec!["A's own", "B's own", "One"]);
-    assert_eq!(state_hash(&mut a), state_hash(&mut b));
 }
 
 #[test]
