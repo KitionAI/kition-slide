@@ -1729,6 +1729,11 @@ pub mod web {
         JsError::new(&message)
     }
 
+    /// An origin in the KDM's commit form, the JSON array `[kind, principal, label]`.
+    fn origin_of(origin: &str) -> Result<kition_slide_engine::Origin, JsError> {
+        kition_slide_engine::Origin::decode(origin).ok_or_else(|| error(format!("origin is not [kind, principal, label]: {origin}")))
+    }
+
     #[wasm_bindgen(js_class = "SlideDocument", wasm_bindgen = kition_kit::wasm_bindgen)]
     impl WebDocument {
         #[wasm_bindgen(js_name = renderTheme)]
@@ -1869,6 +1874,34 @@ pub mod web {
                 .batch(&mut self.0, &request, false)
                 .map(|answer| answer.to_string())
                 .map_err(|failure| error(failure.to_json().to_string()))
+        }
+
+        /// A draft's changes taken in as one undo step, recorded with `origin` (`[kind, principal,
+        /// label]`): `{"damage", "summary"}`. A refusal fails with the KDM's message.
+        #[wasm_bindgen(js_name = mergeChanges)]
+        pub fn merge_changes(&mut self, changes: &[u8], origin: &str) -> Result<String, JsError> {
+            let origin = origin_of(origin)?;
+            self.0.merge_changes(changes, &origin).map(|answer| answer.to_string()).map_err(error)
+        }
+
+        /// What merging a draft's changes would change now, as `StateDiff` JSON; changes nothing.
+        #[wasm_bindgen(js_name = compareChanges)]
+        pub fn compare_changes(&self, changes: &[u8]) -> Result<String, JsError> {
+            self.0.compare_changes(changes).map(|answer| answer.to_string()).map_err(error)
+        }
+
+        /// Writes the state a snapshot holds over the slide as one change of `origin`; answers
+        /// the damage JSON.
+        #[wasm_bindgen(js_name = restoreState)]
+        pub fn restore_state(&mut self, snapshot: &[u8], origin: &str) -> Result<String, JsError> {
+            let origin = origin_of(origin)?;
+            self.0.restore_state(snapshot, &origin).map(|damage| serde_json::to_string(&damage).unwrap_or_else(|_| "null".to_owned())).map_err(error)
+        }
+
+        /// An agent's reply (JSON text) with its object ids named as the tool interface names them.
+        #[wasm_bindgen(js_name = modelReply)]
+        pub fn model_reply(&self, value: &str) -> Result<String, JsError> {
+            self.0.model_reply(value).map_err(error)
         }
 
         /// What changed since the version `since` (a receipt): `{"changes": StateDiff}`, or

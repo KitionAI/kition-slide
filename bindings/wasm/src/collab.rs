@@ -183,6 +183,55 @@ impl SlideDocument {
         Ok(encode_blobs(&blobs))
     }
 
+    /// The replicated state, the replica made first if there is none yet.
+    fn replicated_state(&mut self) -> Result<Value, String> {
+        self.session.version().map_err(engine_error)?;
+        let kdm = self.session.kdm().ok_or("the slide has no replica")?;
+        kdm.replica().state_json().map_err(engine_error)
+    }
+
+    /// Takes a draft's changes (from a replica forked from this one) in as one undo step of
+    /// `origin`'s scope (`mergeChanges`, as `kition-sdk`'s `export_kit_session!` answers it): the
+    /// engine's slide follows, and Undo takes the whole draft back. Add the draft's blobs first.
+    /// Answers `{"damage", "summary"}`, `summary` the `StateDiff` of the replicated state before
+    /// and after. A refused merge changes nothing and fails with the KDM's message.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Value, String> {
+        let before = self.replicated_state()?;
+        let damage = self.session.merge_changes(bytes, origin).map_err(engine_error)?;
+        let after = self.replicated_state()?;
+        self.take_requests();
+        Ok(json!({ "damage": damage, "summary": kition_kit::kdm::diff::diff_states(&before, &after).to_json() }))
+    }
+
+    /// What merging a draft's changes would change in the slide now, as `StateDiff` JSON; nothing
+    /// changes. Refuses what [`SlideDocument::merge_changes`] refuses.
+    pub fn compare_changes(&self, bytes: &[u8]) -> Result<Value, String> {
+        let kdm = self.session.kdm().ok_or("the slide has no replica, so no draft of it")?;
+        let before = kdm.replica().state_json().map_err(engine_error)?;
+        let after = kdm.replica().merged_state(bytes).map_err(engine_error)?;
+        Ok(kition_kit::kdm::diff::diff_states(&before, &after).to_json())
+    }
+
+    /// Writes the state a snapshot holds (a checkpoint of this slide, the Kit UI protocol's
+    /// `replica/restore`) over the slide by object id, as one undo step of `origin`'s scope: the
+    /// engine's slide follows. Add the blobs it references first. Nothing changes when the states
+    /// are equal; another document's snapshot is refused.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage, String> {
+        let damage = self.session.restore_state(snapshot, origin).map_err(engine_error)?;
+        self.take_requests();
+        Ok(damage)
+    }
+
+    /// An agent's reply (JSON text) with every object id it holds as a value or a key named as
+    /// the tool interface names it (its tool id, KitObjectModel OM9); unchanged without a replica
+    /// or when the schema declares no tool ids. The slide keeps its own ids.
+    pub fn model_reply(&self, value: &str) -> Result<String, String> {
+        let value: Value = serde_json::from_str(value).map_err(|error| format!("the reply is not JSON: {error}"))?;
+        let Some(kdm) = self.session.kdm() else { return Ok(value.to_string()) };
+        let ids = kition_kit::kdm::tool_ids::ToolIds::of_replica(kdm.replica());
+        Ok(if ids.is_active() { ids.show_json(&value) } else { value }.to_string())
+    }
+
     /// What changed since the version `since` (empty bytes: since the replica began), a receipt as
     /// `kition-sdk`'s `changesSince` answers it: `{"changes": StateDiff}`, or `{"changes": null,
     /// "unavailable": "<why>"}` when the replica's log does not hold `since` (or there is no
@@ -456,6 +505,85 @@ mod tests {
         let other = SlideDocument::open("Slide.kslide", &fixture()).unwrap().version().unwrap();
         let refused = doc.changes_since(&other);
         assert!(refused["changes"].is_null() && refused["unavailable"].is_string(), "{refused}");
+    }
+
+    /// The shapes of the first slide, read without moving the person.
+    fn shape_count(doc: &mut SlideDocument) -> usize {
+        doc.execute("slide.inspect", json!({ "index": 0, "select": false })).unwrap()["shapes"].as_array().unwrap().len()
+    }
+
+    /// A draft (a replica forked from the slide's) merges in as one step of the person's Undo: the
+    /// comparison beforehand names what the merge does and changes nothing, the engine's slide
+    /// follows the merge, an edit made here meanwhile stays, and a refused merge changes nothing.
+    #[test]
+    fn a_draft_merges_in_as_one_undo_step_and_the_slide_follows() {
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        let base = doc.version().unwrap();
+        let mut draft = SlideDocument::open_with_replica("Slide.kslide", &[], &doc.snapshot().unwrap(), &doc.blobs().unwrap()).unwrap();
+        draft.execute("shape.insert", json!({ "preset": "star5", "rect": [300, 300, 50, 50] })).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        doc.execute("slide.rename", json!({ "name": "Meanwhile", "index": 0 })).unwrap();
+        let before = shape_count(&mut doc);
+        let version = doc.version().unwrap();
+        let preview = doc.compare_changes(&changes).unwrap();
+        assert_eq!(doc.version().unwrap(), version, "comparing changes nothing");
+        let origin = Origin::person("person:local");
+        let answer = doc.merge_changes(&changes, &origin).unwrap();
+        assert_eq!(answer["summary"], preview, "the comparison named what the merge did: {answer}");
+        assert_ne!(answer["damage"], json!("none"), "{answer}");
+        assert_eq!(shape_count(&mut doc), before + 1, "the engine's slide follows the merge");
+        assert!(doc.dirty());
+        assert!(doc.replicated_state().unwrap().to_string().contains("Meanwhile"), "the edit made here stays");
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(shape_count(&mut doc), before, "one undo takes the whole draft back");
+        let at = doc.version().unwrap();
+        assert!(doc.merge_changes(b"not changes", &origin).is_err());
+        assert_eq!(doc.version().unwrap(), at, "a refused merge changes nothing");
+    }
+
+    /// An earlier state (a checkpoint's snapshot) is written over the slide by object id as one
+    /// undo step: the replica holds that state again, with the same ids, and Undo takes it back.
+    #[test]
+    fn a_restored_state_keeps_the_ids_and_undoes_as_one_step() {
+        use kition_kit::kdm::{ActorId, Replica};
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        doc.version().unwrap();
+        let checkpoint = doc.snapshot().unwrap();
+        let before = shape_count(&mut doc);
+        extra_edit(&mut doc);
+        assert_eq!(shape_count(&mut doc), before + 1);
+        let origin = Origin::person("person:local");
+        let damage = doc.restore_state(&checkpoint, &origin).unwrap();
+        assert_ne!(damage, Damage::None);
+        assert_eq!(shape_count(&mut doc), before, "the engine's slide follows the restore");
+        let then = Replica::load(<SlideModel as KitModel>::schema(), &checkpoint, ActorId::random()).unwrap().state_json().unwrap();
+        assert_eq!(doc.replicated_state().unwrap()["objects"], then["objects"], "the checkpoint's objects, under their ids");
+        let at = doc.version().unwrap();
+        assert_eq!(doc.restore_state(&checkpoint, &origin).unwrap(), Damage::None, "the same state again changes nothing");
+        assert_eq!(doc.version().unwrap(), at);
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(shape_count(&mut doc), before + 1, "one undo takes the restore back");
+        let other = SlideDocument::open("Slide.kslide", &fixture()).unwrap().snapshot().unwrap();
+        assert!(doc.restore_state(&other, &origin).is_err(), "another document's state is refused");
+    }
+
+    /// An agent's reply names objects by their tool ids; text that merely holds an id stays.
+    #[test]
+    fn a_reply_names_objects_by_their_tool_ids() {
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        let state = doc.replicated_state().unwrap();
+        let slide = state["objects"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(_, object)| object["$type"] == "Slide")
+            .map(|(id, _)| id.clone())
+            .unwrap_or_else(|| panic!("a slide object: {state}"));
+        let shown: Value =
+            serde_json::from_str(&doc.model_reply(&json!({ "target": slide, "note": format!("about {slide}") }).to_string()).unwrap()).unwrap();
+        assert!(shown["target"].as_str().is_some_and(|id| id.starts_with("slide:")), "{shown}");
+        assert_eq!(shown["note"], json!(format!("about {slide}")), "text that holds an id stays");
+        assert!(doc.model_reply("not json").is_err());
     }
 
     #[test]

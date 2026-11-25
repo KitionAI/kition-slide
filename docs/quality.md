@@ -18,7 +18,7 @@ Every feature and every case belongs to one or more of these dimensions.
 | `function` | Every command (menu item, shortcut, tool) works, takes the right parameters, and can be undone; interactions (click, drag, type, select) | The command's design and the expected state after the interaction |
 | `conversion` | Open and save without loss (round trip); conversion between formats | Round trip: the document model (KDM) before and after; across formats: the reference tool's output |
 | `ai` | The six agent abilities: observe, operate, execute, validate, recover, share | The expected result of each tool call; the task's completion criteria |
-| `collab` | People and agents editing at once converge; draft merges; reconnects; offline sync | Every replica ends equal; merges follow the rules |
+| `collab` | People and agents editing one document: their changes apply in order, on one line; draft merges and restored versions; a file changed outside taken in | Every replica at one version holds the same state; a change out of order is refused and changes nothing; merges follow the rules |
 | `fidelity` | Rendering, layout, formula results, charts, fonts, compared with the target application | The reference tool's output: cached formula values saved by Excel, PDFs and PNGs exported by Word, PowerPoint, WPS or Photoshop |
 
 `features.yaml` also uses `compat`, `performance`, `robustness`, `data-safety`, `platform` and

@@ -229,15 +229,39 @@ impl DocState {
     /// After undo or redo set the document to the step's own snapshot: steps the replica too and
     /// takes its view (with every collaborator's edit since) instead. `floor` is the document's
     /// id counter before, which the view never lowers.
+    ///
+    /// A replica step that is no longer there to take (the replica passed over a step whose
+    /// objects are gone since, say an agent deleted the slide a person's step renamed) leaves the
+    /// replica as it is: the document takes its view, and the history step, now on the other
+    /// stack, counts only the replica steps it took. Only a replica that refuses leaves it.
     pub(crate) fn step_kdm(&mut self, steps: u32, undo: bool, floor: u32, agent: bool) {
         let scope = if agent { UndoScope::Agent } else { UndoScope::Person };
         if steps > 0
             && let Some(kdm) = self.link.kdm.as_mut()
-            && !(0..steps).all(|_| matches!(if undo { kdm.undo_in(scope) } else { kdm.redo_in(scope) }, Ok((true, _))))
         {
-            self.detach_kdm();
-            self.link.mark = self.history.pushed;
-            return;
+            let mut taken = 0;
+            let mut refused = false;
+            for _ in 0..steps {
+                match if undo { kdm.undo_in(scope) } else { kdm.redo_in(scope) } {
+                    Ok((true, _)) => taken += 1,
+                    Ok((false, _)) => break,
+                    Err(_) => {
+                        refused = true;
+                        break;
+                    }
+                }
+            }
+            if refused {
+                self.detach_kdm();
+                self.link.mark = self.history.pushed;
+                return;
+            }
+            if taken < steps {
+                let moved = if undo { &mut self.history.redo } else { &mut self.history.undo };
+                if let Some(e) = moved.iter_mut().rev().find(|e| e.agent == agent) {
+                    e.steps = taken;
+                }
+            }
         }
         if let Some(kdm) = self.link.kdm.as_ref() {
             self.doc = view_of(kdm, floor);
@@ -595,6 +619,65 @@ impl Session {
         }
         st.trim_kdm();
         result.map_err(kdm_error)
+    }
+
+    /// Takes a draft's changes (made on a replica forked from this one, `mergeChanges`) into the
+    /// active document as one undo step of `origin`'s scope, as a command's edit is: local edits
+    /// not written yet are written first, the document and its selection follow the replica, and
+    /// the step undoes the whole draft. Add the draft's blobs first ([`Session::add_blobs`]). A
+    /// refused merge changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Damage> {
+        self.take_in(origin, "Merge Draft", |kdm| kdm.merge_changes(bytes, origin))
+    }
+
+    /// Writes the state a snapshot holds (a checkpoint of this document, `replica/restore`) over
+    /// the active document by object id, as one undo step of `origin`'s scope, taken in as a merged
+    /// draft is ([`Session::merge_changes`]). Nothing changes when the states are equal.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage> {
+        self.take_in(origin, "Restore Version", |kdm| kdm.restore_state(snapshot, origin))
+    }
+
+    /// One transaction `write` makes on the active document's replica, taken into the document as
+    /// a command's step: the view follows the replica, and the history gets the step (its undo
+    /// steps the replica's) when the transaction is one.
+    fn take_in(
+        &mut self,
+        origin: &Origin,
+        label: &str,
+        write: impl FnOnce(&mut SlideSession) -> kdm_model::kition_kit::session::Result<(u32, Damage)>,
+    ) -> Result<Damage> {
+        if self.comment_only.is_some() {
+            return Err(EngineError::Other("a commenter can only comment: a draft or an earlier version is not theirs to take in".into()));
+        }
+        let origin_now = self.origin();
+        let st = self.doc_mut()?;
+        // A gesture cut short belongs to the step on top, as for undo.
+        st.interaction = None;
+        st.sync_kdm(&origin_now, false);
+        let kdm = self.active_kdm(true)?;
+        let before_version = kdm.version();
+        let result = write(&mut *kdm);
+        let changed = kdm.version() != before_version;
+        let follow = changed && (result.is_ok() || kdm.view_loaded());
+        let st = self.doc_mut()?;
+        let (before, selection) = (st.doc.clone(), st.selection.clone());
+        if follow {
+            st.follow_kdm();
+            clamp_text_and_cells(st);
+        } else if changed {
+            st.detach_kdm();
+        }
+        let steps = result.as_ref().map_or(0, |(steps, _)| *steps);
+        if follow && steps > 0 {
+            let agent = origin.kind == OriginKind::Agent;
+            let scope = std::mem::replace(&mut st.history.agent, agent);
+            st.history.push(crate::HistoryEntry { label: label.to_owned(), doc: before, selection, steps, agent });
+            st.history.agent = scope;
+            // The step is written already: the bridge has nothing of it left to record.
+            st.link.mark = st.history.pushed;
+        }
+        st.trim_kdm();
+        result.map(|(_, damage)| damage).map_err(kdm_error)
     }
 
     /// Reads the saved file again into the active document (kition-sdk session continuity on

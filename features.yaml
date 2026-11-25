@@ -152,6 +152,15 @@ features:
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
     since: "2026-11-17"
+  - id: slide.collab.drafts
+    title: "Drafts merge in and earlier versions restore as one undo step"
+    dimension: [collab, data-safety]
+    priority: P1
+    status: partial
+    paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/kdm/kdm-model/src/session.rs]
+    target: "Kit UI protocol section 7 (replica/restore); engine contract members mergeChanges, compareChanges, restoreState, modelReply"
+    gap: Engine tests merge a draft, compare it first, restore a version and name reply ids; no case drives a draft or a restore in the editor yet.
+    since: "2026-11-25"
   - id: slide.collab.replica-merges-file
     title: "A presentation changed outside Kition keeps its history: the stored replica opens and the newer .kslide or .pptx is recorded onto it as one import change"
     dimension: [collab, data-safety]
@@ -197,9 +206,10 @@ features:
     priority: P1
     status: partial
     commands: [edit.undo, edit.redo, edit.cut, edit.copy, edit.paste, edit.pasteText, edit.duplicate, edit.delete, edit.selectAll, edit.deselect, edit.select]
-    paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx]
+    paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/kdm_bridge.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
+    cases: [regressions/issue-redo-passed-over-keeps-replica]
     since: "2026-11-17"
   - id: slide.slides.manage
     title: "New, duplicate, delete, move, hide, rename and navigate slides; layouts, notes and outline import"

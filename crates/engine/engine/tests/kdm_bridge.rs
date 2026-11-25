@@ -322,6 +322,25 @@ fn an_agents_undo_keeps_the_persons_later_edit() {
     assert_holds(&s, "the replica and the document agree after both undos");
 }
 
+/// A person's redo whose slide an agent deleted since: the replica has nothing of it left to redo,
+/// and the document keeps its replica and shows what the replica holds.
+#[test]
+fn a_redo_whose_slide_is_gone_keeps_the_replica() {
+    let mut s = new_session();
+    let doc_id = s.doc_id();
+    assert!(doc_id.is_some(), "the edits made the replica");
+    s.execute("slide.rename", &json!({"name": "Renamed"})).unwrap();
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute_as("slide.delete", &json!({"index": 1}), &Origin::agent("test")).unwrap();
+    let _ = s.execute("edit.redo", &json!({}));
+    assert_eq!(s.kdm_resets(), 0, "the replica stays");
+    assert_eq!(s.doc_id(), doc_id, "the same document");
+    assert_holds(&s, "after the redo");
+    assert!(doc(&s).slides.iter().all(|slide| slide.name != "Renamed"), "the deleted slide does not come back");
+    s.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 20, 20]})).unwrap();
+    assert_holds(&s, "an edit after the redo");
+}
+
 /// A new step clears only its own scope's redo steps, as the replica does.
 #[test]
 fn a_new_agent_step_keeps_the_persons_redo() {

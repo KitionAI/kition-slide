@@ -18,7 +18,7 @@ use kition_slide_model::SlideFile;
 
 use crate::blob_gc::{BlobIndex, Moved};
 use crate::validate::LocalRepair;
-use crate::{Ids, Result, SlideModel, kit_err, normalize, read_document, siblings, write_changes, write_comment_changes, write_document};
+use crate::{Ids, Result, SlideModel, kdm_err, kit_err, normalize, read_document, siblings, write_changes, write_comment_changes, write_document};
 
 /// One open slide as a KDM replica and the engine's view of it. See the module docs.
 pub struct SlideSession {
@@ -263,6 +263,58 @@ impl SlideSession {
         self.index.imported();
         self.index.collect_garbage(&mut self.blobs);
         damage
+    }
+
+    /// Takes a draft's changes (made on a fork of this replica) in as one transaction of `origin`
+    /// (`Replica::merge_changes`): one undo step of its scope unless `origin` is a `system` or
+    /// `import` one. Repairs the result and patches the view as an import does; add the draft's
+    /// blobs first ([`SlideSession::add_blobs`]). Answers the undo steps it made (1 or 0) and the
+    /// damage. A refused merge changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+        let before = self.replica.version();
+        self.replica.merge_changes(bytes, origin).map_err(kit_err)?;
+        self.took_in(before, origin)
+    }
+
+    /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
+    /// checkpoint keeps it) over the replica as one transaction of `origin`, keyed by object id
+    /// (`kition_kit::session::write_state`), so every object the two share keeps its id: one undo
+    /// step of its scope unless `origin` is a `system` or `import` one. Nothing changes when the
+    /// states are equal. Refuses another document's snapshot. Add the blobs it references first.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+        let schema = SlideModel::schema();
+        let loaded = Replica::load(Arc::clone(&schema), snapshot, ActorId::random()).map_err(kit_err)?;
+        if loaded.doc_id() != self.replica.doc_id() {
+            return Err(kit_err(KdmError::WrongDocument { expected: self.replica.doc_id().to_string(), found: loaded.doc_id().to_string() }));
+        }
+        let (now, then) = (kition_kit::session::state(&self.replica)?, kition_kit::session::state(&loaded)?);
+        if now == then {
+            return Ok((0, Damage::None));
+        }
+        let before = self.replica.version();
+        let result = self.replica.transact(origin, |tx| kition_kit::session::write_state(tx, &schema, &now, &then).map_err(kdm_err));
+        if let Err(error) = result {
+            self.replica.take_changed();
+            return Err(kit_err(error));
+        }
+        self.took_in(before, origin)
+    }
+
+    /// After a merge or a restore wrote one transaction of `origin` since `before`: repairs and
+    /// patches the view as an import does, and counts the transaction as an undo step of its scope.
+    /// A failed repair or view load is the error, as an import's is: the transaction stays
+    /// ([`SlideSession::view_loaded`] tells whether the view followed).
+    fn took_in(&mut self, before: Version, origin: &Origin) -> Result<(u32, Damage)> {
+        let wrote = self.replica.version() != before;
+        let (damage, moved) = self.settle();
+        self.log_added(moved.added.iter().cloned());
+        let undoable = wrote && !matches!(origin.kind, OriginKind::System | OriginKind::Import);
+        if undoable {
+            self.index.push_step(UndoScope::of(origin.kind).unwrap_or(UndoScope::Person), moved);
+        }
+        self.index.imported();
+        self.index.collect_garbage(&mut self.blobs);
+        damage.map(|damage| (u32::from(undoable), damage))
     }
 
     /// Whether the view matches the replica as it is now (its own read succeeds).

@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-redo-passed-over-keeps-replica
+feature: slide.edit.clipboard
+intent: >-
+  A person's redo whose slide an agent deleted since has nothing left to redo in the replica (the
+  plain document model passes such a step over). The document keeps its replica (no reset, the
+  same document id), shows what the replica holds, and the deleted slide does not come back.
+  Before, the engine took the replica's "nothing to redo" for a refusal and left the replica, so
+  the next edit started a new document.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/kdm_bridge.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: kdm_bridge
+      filter: a_redo_whose_slide_is_gone_keeps_the_replica
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-25"
+timeout_s: 120
