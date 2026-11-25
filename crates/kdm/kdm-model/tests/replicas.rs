@@ -135,7 +135,14 @@ fn a_drafted_edit_of_a_connector_to_a_shape_deleted_meanwhile_loses_that_end() {
             x.w += 5.0;
         }
     });
-    edit(&mut doc, &blobs, |p| Arc::make_mut(&mut p.slides[0]).shapes.retain(|s| s.name != "A"));
+    // The document deletes A as its delete command does: with A's animation (local writes are
+    // not repaired; the merge's repair checks what the draft changed).
+    edit(&mut doc, &blobs, |p| {
+        let s = Arc::make_mut(&mut p.slides[0]);
+        let a = s.shapes.iter().find(|s| s.name == "A").map(|s| s.id).unwrap_or_else(|| panic!("A"));
+        s.shapes.retain(|s| s.id != a);
+        s.animations.retain(|x| x.shape != a);
+    });
     merge(&mut doc, &changes);
     assert_clean(&doc, &blobs);
     let p = &doc.model().slide_file;
