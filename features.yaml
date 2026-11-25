@@ -209,7 +209,7 @@ features:
     paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/kdm_bridge.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
-    cases: [regressions/issue-redo-passed-over-keeps-replica]
+    cases: [regressions/issue-redo-passed-over-keeps-replica, regressions/issue-undo-passed-over-history]
     since: "2026-11-17"
   - id: slide.slides.manage
     title: "New, duplicate, delete, move, hide, rename and navigate slides; layouts, notes and outline import"

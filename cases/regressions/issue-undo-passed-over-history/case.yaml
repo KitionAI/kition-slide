@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-undo-passed-over-history
+feature: slide.edit.clipboard
+intent: >-
+  A person's undo whose last step's slide an agent deleted since: the replica passes that step
+  over and takes back the one below in the same call (UndoOutcome). The engine's history takes
+  both of its steps back together, so the history and the replica's undo steps stay in line (the
+  next undo takes back exactly the step below them, the redos bring them back in order), and the
+  blob index drops the step passed over. Before, the history kept one step the replica had
+  already taken back, and every later undo took back the step below the one it named.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/tests/kdm_bridge.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-engine
+      test: kdm_bridge
+      filter: an_undo_that_passes_over_a_step_takes_the_one_below_with_it
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-25"
+timeout_s: 120
