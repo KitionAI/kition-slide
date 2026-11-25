@@ -161,6 +161,8 @@ fn a_draft_moving_a_slide_deleted_meanwhile_into_a_section_leaves_no_member() {
     merge(&mut doc, &changes);
     assert_clean(&doc, &blobs);
     let p = &doc.model().slide_file;
-    assert_eq!(section(p, "One").slides, vec![all[0], all[1]]);
-    assert!(section(p, "Two").slides.is_empty());
+    assert_eq!(section(p, "One").slides, vec![all[0], all[1]], "the drafted member naming the deleted slide is dropped");
+    // The file has four slides (its title slide and three more): Two keeps the fourth.
+    assert_eq!(all.len(), 4);
+    assert_eq!(section(p, "Two").slides, vec![all[3]]);
 }
