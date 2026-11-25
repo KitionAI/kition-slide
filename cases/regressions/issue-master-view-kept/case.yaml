@@ -3,7 +3,7 @@ id: regressions/issue-master-view-kept
 feature: slide.masters.edit
 intent: >-
   Picking a master or layout in Slide Master view keeps the person there: the editor's own reads
-  after the change (`slide.inspect` with `select: false`) and an agent's `document.inspect` leave
+  after the change (`slide.inspect` with `select: false`) and an agent's `file.inspect` leave
   the selection alone. The editor's `slide.inspect {index}` used to make the current slide the one
   being edited again, dropping the person back to the slides (WebKit ribbon flow, 4 of 4).
 layer: gate

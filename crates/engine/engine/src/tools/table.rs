@@ -156,7 +156,7 @@ mod tests {
 
     fn session_with_table() -> (Session, ShapeId, Xfrm) {
         let mut s = Session::with_new();
-        let r = s.execute("insert.table", &json!({"rows": 3, "cols": 3})).unwrap();
+        let r = s.execute("table.insert", &json!({"rows": 3, "cols": 3})).unwrap();
         let id = ShapeId(r["id"].as_u64().unwrap() as u32);
         let st = s.doc().unwrap();
         let x = xfrm_of(&st.doc, &st.selection, st.shape(id).unwrap());

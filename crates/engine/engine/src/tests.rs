@@ -168,7 +168,7 @@ fn authored_autofit_and_duplicate_keep_their_scale_on_reopen() {
     }
     let mut s = session();
     let long = "An intentionally long process label ".repeat(20);
-    s.execute("insert.smartGraphic", &json!({"kind": "process", "items": [long.clone(), long.clone(), long]})).unwrap();
+    s.execute("smartGraphic.insert", &json!({"kind": "process", "items": [long.clone(), long.clone(), long]})).unwrap();
     let before = fitted(&s.doc().unwrap().current_slide().unwrap().shapes);
     assert_eq!(before.len(), 3);
     assert!(
@@ -194,8 +194,8 @@ fn autocorrect_recalculates_saved_autofit() {
     use model::text::AutoFit;
     let mut s = session();
     let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 45, 40], "text": "(tm)"})).unwrap()["id"].as_u64().unwrap();
-    s.execute("format.font", &json!({"family": "Inter"})).unwrap();
-    s.execute("format.size", &json!({"size": 20})).unwrap();
+    s.execute("format.fontName", &json!({"family": "Inter"})).unwrap();
+    s.execute("format.fontSize", &json!({"size": 20})).unwrap();
     s.execute("format.autofit", &json!({"mode": "shrink"})).unwrap();
     let before = s.doc().unwrap().shape(ShapeId(id as u32)).unwrap().text.as_ref().unwrap().body.autofit;
     assert!(matches!(before, Some(AutoFit::Shrink { font_scale, .. }) if font_scale < 1.0));
@@ -321,7 +321,7 @@ fn sample_slide_file_builds_and_renders() {
         let img = kition_slide_render::render_slide(&st.doc, i, &kition_slide_render::RenderOpts { scale: 0.2, ..Default::default() });
         assert_eq!(img.width, 192);
     }
-    let v = s.execute("document.inspect", &json!({})).unwrap();
+    let v = s.execute("file.inspect", &json!({})).unwrap();
     assert!(v["slides"].as_array().unwrap().len() >= 8);
 }
 
@@ -409,11 +409,11 @@ fn layout_change_keeps_text() {
 #[test]
 fn themes_and_slide_size() {
     let mut s = session();
-    s.execute("design.theme", &json!({"name": "Ember"})).unwrap();
+    s.execute("theme.set", &json!({"name": "Ember"})).unwrap();
     assert_eq!(s.doc().unwrap().doc.masters[0].theme.name, "Ember");
-    s.execute("design.slideSize", &json!({"preset": "standard"})).unwrap();
+    s.execute("slide.size", &json!({"preset": "standard"})).unwrap();
     assert_eq!(s.doc().unwrap().doc.slide_size.width, 720.0);
-    s.execute("design.headerFooter", &json!({"slideNumber": true, "footer": true, "footerText": "Hello"})).unwrap();
+    s.execute("slide.headerFooter", &json!({"slideNumber": true, "footer": true, "footerText": "Hello"})).unwrap();
     let v = s.execute("slide.inspect", &json!({})).unwrap();
     assert!(v["shapes"].as_array().unwrap().iter().any(|x| x["placeholder"] == "sldNum"));
 }
@@ -457,7 +457,7 @@ fn drawing_a_line_between_shapes_glues_it() {
     let mut s = session();
     let a = s.execute("shape.insert", &json!({"preset": "ellipse", "rect": [100, 100, 100, 100]})).unwrap()["id"].as_u64().unwrap();
     let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [400, 100, 100, 100]})).unwrap()["id"].as_u64().unwrap();
-    s.execute("edit.deselect", &json!({})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
     s.tool.kind = tools::ToolKind::Shape { preset: "straightConnector1".into() };
     let ev = |kind, x: f64, y: f64| tools::PointerEvent { kind, x, y, mods: Default::default(), tol: 4.0 };
     // Right site of the ellipse (200,150) → left site of the rect (400,150), a little off.
@@ -543,7 +543,7 @@ fn double_click_in_table_uses_grown_row_heights() {
     // Rows stored 4 pt tall are drawn tall enough for their text, so 6 pt down is still row 0.
     let mut s = session();
     let data = json!([["a", "b"], ["c", "d"], ["e", "f"]]);
-    let id = s.execute("insert.table", &json!({"rows": 3, "cols": 2, "rect": [100.0, 100.0, 400.0, 120.0], "data": data})).unwrap()["id"].clone();
+    let id = s.execute("table.insert", &json!({"rows": 3, "cols": 2, "rect": [100.0, 100.0, 400.0, 120.0], "data": data})).unwrap()["id"].clone();
     for row in 0..3 {
         s.execute("table.rowHeight", &json!({"id": id, "row": row, "height": 4.0})).unwrap();
     }
@@ -557,7 +557,7 @@ fn grown_table_frame_covers_its_drawn_rows() {
     // Rows stored 4 pt tall are drawn taller: the box, its handles and hit tests follow the drawn rows.
     let mut s = session();
     let data = json!([["a", "b"], ["c", "d"], ["e", "f"]]);
-    let id = s.execute("insert.table", &json!({"rows": 3, "cols": 2, "rect": [100.0, 100.0, 400.0, 120.0], "data": data})).unwrap()["id"].clone();
+    let id = s.execute("table.insert", &json!({"rows": 3, "cols": 2, "rect": [100.0, 100.0, 400.0, 120.0], "data": data})).unwrap()["id"].clone();
     for row in 0..3 {
         s.execute("table.rowHeight", &json!({"id": id, "row": row, "height": 4.0})).unwrap();
     }
@@ -607,19 +607,19 @@ fn header_footer_fixed_date_is_the_slides_own_text() {
     };
     let kind = |s: &Session| date(s).paragraphs[0].runs[0].kind.clone();
     // Automatic: a date field, saved with today's date.
-    s.execute("design.headerFooter", &json!({"date": true})).unwrap();
+    s.execute("slide.headerFooter", &json!({"date": true})).unwrap();
     assert_eq!(kind(&s), RunKind::Field { field: "datetime1".into() });
     assert_eq!(date(&s).text().matches('/').count(), 2, "M/D/YYYY");
     // Fixed: plain text in the slide's own placeholder (other slides' fields aren't affected).
-    s.execute("design.headerFooter", &json!({"date": true, "dateText": "Launch day"})).unwrap();
+    s.execute("slide.headerFooter", &json!({"date": true, "dateText": "Launch day"})).unwrap();
     assert_eq!((kind(&s), date(&s).text()), (RunKind::Text, "Launch day".to_string()));
     // Back to automatic.
-    s.execute("design.headerFooter", &json!({"date": true, "dateText": ""})).unwrap();
+    s.execute("slide.headerFooter", &json!({"date": true, "dateText": ""})).unwrap();
     assert!(matches!(kind(&s), RunKind::Field { .. }));
     // A new date field is saved with the date it shows.
     s.execute("text.edit", &json!({"id": s.doc().unwrap().current_slide().unwrap().shapes[0].id.0})).unwrap();
     s.execute("text.insert", &json!({"text": "Updated "})).unwrap();
-    s.execute("insert.dateTime", &json!({"format": "datetime10"})).unwrap();
+    s.execute("field.insertDateTime", &json!({"format": "datetime10"})).unwrap();
     let title = s.doc().unwrap().current_slide().unwrap().shapes[0].text.clone().unwrap();
     let run = title.paragraphs[0].runs.iter().find(|r| matches!(r.kind, RunKind::Field { .. })).cloned().unwrap();
     assert!(run.text.contains(':'), "H:mm {run:?}");
@@ -640,7 +640,7 @@ fn hyperlink_with_a_bare_caret_inserts_the_address() {
     let title = s.doc().unwrap().current_slide().unwrap().shapes[0].id.0;
     s.execute("text.edit", &json!({"id": title})).unwrap();
     s.execute("text.insert", &json!({"text": "See "})).unwrap();
-    s.execute("insert.hyperlink", &json!({"url": "https://example.org"})).unwrap();
+    s.execute("link.insert", &json!({"url": "https://example.org"})).unwrap();
     s.execute("text.insert", &json!({"text": " now"})).unwrap();
     assert_eq!(
         title_runs(&s),
@@ -654,10 +654,10 @@ fn hyperlink_display_text_and_targets() {
     let mut s = session();
     let title = s.doc().unwrap().current_slide().unwrap().shapes[0].id.0;
     s.execute("text.edit", &json!({"id": title})).unwrap();
-    s.execute("insert.hyperlink", &json!({"url": "mailto:a@b.org"})).unwrap();
+    s.execute("link.insert", &json!({"url": "mailto:a@b.org"})).unwrap();
     assert_eq!(title_runs(&s), vec![("a@b.org".into(), true)], "email links show the address without mailto:");
     s.execute("text.insert", &json!({"text": " "})).unwrap();
-    s.execute("insert.hyperlink", &json!({"slide": 0, "text": "start"})).unwrap();
+    s.execute("link.insert", &json!({"slide": 0, "text": "start"})).unwrap();
     assert_eq!(title_runs(&s), vec![("a@b.org".into(), true), (" ".into(), false), ("start".into(), true)]);
 }
 
@@ -668,10 +668,10 @@ fn hyperlink_on_a_word_or_shape_links_it() {
     s.execute("text.edit", &json!({"id": title})).unwrap();
     s.execute("text.insert", &json!({"text": "Hello world"})).unwrap();
     s.execute("text.move", &json!({"to": "left"})).unwrap();
-    s.execute("insert.hyperlink", &json!({"url": "https://example.org"})).unwrap();
+    s.execute("link.insert", &json!({"url": "https://example.org"})).unwrap();
     assert_eq!(title_runs(&s), vec![("Hello ".into(), false), ("world".into(), true)], "a caret inside a word links the word");
     s.execute("text.exit", &json!({})).unwrap();
-    s.execute("insert.hyperlink", &json!({"url": "https://example.org"})).unwrap();
+    s.execute("link.insert", &json!({"url": "https://example.org"})).unwrap();
     assert!(s.doc().unwrap().current_slide().unwrap().shapes[0].click.is_some(), "a selected shape gets the link as its click action");
 }
 
@@ -704,7 +704,7 @@ fn inserted_hyperlinks_look_like_links() {
     s.execute("text.insert", &json!({"text": "Read the docs"})).unwrap();
     s.execute("text.move", &json!({"to": "wordLeft", "extend": true})).unwrap();
     assert_eq!(s.execute("format.state", &json!({})).unwrap()["underline"], false);
-    s.execute("insert.hyperlink", &json!({"url": "https://example.org"})).unwrap();
+    s.execute("link.insert", &json!({"url": "https://example.org"})).unwrap();
     // Underlined (and hlink-coloured: same resolution as files) without touching the run's own props.
     assert_eq!(s.execute("format.state", &json!({})).unwrap()["underline"], true);
     let body = s.doc().unwrap().current_slide().unwrap().shapes[0].text.clone().unwrap();
@@ -782,7 +782,7 @@ fn table_cell_text(s: &Session, id: &serde_json::Value, r: usize, c: usize) -> S
 fn arrow_keys_leave_a_cell_only_at_its_edge() {
     let mut s = session();
     let data = json!([["ab", "cd"], ["ef", "gh"]]);
-    let id = s.execute("insert.table", &json!({"rows": 2, "cols": 2, "data": data})).unwrap()["id"].clone();
+    let id = s.execute("table.insert", &json!({"rows": 2, "cols": 2, "data": data})).unwrap()["id"].clone();
     s.execute("text.edit", &json!({"id": id, "cell": [0, 0], "at": [0, 1]})).unwrap();
     let cell = |s: &Session| s.doc().unwrap().selection.text.as_ref().and_then(|t| t.cell);
     let caret = |s: &Session| s.doc().unwrap().selection.text.as_ref().map(|t| t.caret);
@@ -809,7 +809,7 @@ fn arrow_keys_leave_a_cell_only_at_its_edge() {
 fn delete_with_cells_selected_clears_them_instead_of_the_table() {
     let mut s = session();
     let data = json!([["a", "b"], ["c", "d"]]);
-    let id = s.execute("insert.table", &json!({"rows": 2, "cols": 2, "data": data})).unwrap()["id"].clone();
+    let id = s.execute("table.insert", &json!({"rows": 2, "cols": 2, "data": data})).unwrap()["id"].clone();
     s.execute("table.selectCells", &json!({"id": id, "from": [0, 0], "to": [0, 1]})).unwrap();
     s.key("Delete", Mods::default()).unwrap();
     assert_eq!(table_cell_text(&s, &id, 0, 0), "");
@@ -833,7 +833,7 @@ fn delete_with_cells_selected_clears_them_instead_of_the_table() {
 #[test]
 fn borders_apply_to_edges_of_the_selection_and_round_trip_through_pptx() {
     let mut s = session();
-    let id = s.execute("insert.table", &json!({"rows": 3, "cols": 3})).unwrap()["id"].clone();
+    let id = s.execute("table.insert", &json!({"rows": 3, "cols": 3})).unwrap()["id"].clone();
     s.execute("table.selectCells", &json!({"id": id, "from": [1, 1], "to": [1, 1]})).unwrap();
     s.execute("table.border", &json!({"edges": "outside", "color": "#FF0000", "width": 3.0})).unwrap();
     s.execute("table.border", &json!({"id": id, "edges": "diagDown", "from": [0, 0]})).unwrap();
@@ -1003,7 +1003,7 @@ fn a_glow_leaves_a_donuts_hole_empty_and_the_outer_shadow_shows() {
 #[test]
 fn inspect_follows_a_resized_group_and_a_moved_child() {
     // After shape.setBounds on a group, slide.inspect kept the children's
-    // old boxes; moving a child left the group's box stale; design.colors answered null.
+    // old boxes; moving a child left the group's box stale; theme.colors answered null.
     let mut s = session();
     s.execute("slide.layout", &json!({"layout": "blank"})).unwrap();
     let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
@@ -1041,7 +1041,7 @@ fn inspect_follows_a_resized_group_and_a_moved_child() {
     // Formatting a member's text leaves the boxes exactly as they were (a smart graphic's frame larger
     // than its shapes is not shrunk to them).
     let before = s.doc().unwrap().shape(kition_slide_model::ShapeId(g as u32)).unwrap().clone();
-    s.execute("format.size", &json!({"ids": [a], "size": 30})).unwrap();
+    s.execute("format.fontSize", &json!({"ids": [a], "size": 30})).unwrap();
     let after = s.doc().unwrap().shape(kition_slide_model::ShapeId(g as u32)).unwrap().clone();
     assert_eq!(after.xfrm, before.xfrm);
     let boxes = |sh: &kition_slide_model::Shape| match &sh.kind {
@@ -1049,13 +1049,13 @@ fn inspect_follows_a_resized_group_and_a_moved_child() {
         _ => panic!(),
     };
     assert_eq!(boxes(&after), boxes(&before));
-    // design.colors answers the scheme, and {} only reads it.
-    let c = s.execute("design.colors", &json!({"colors": {"accent1": "#123456"}})).unwrap();
+    // theme.colors answers the scheme, and {} only reads it.
+    let c = s.execute("theme.colors", &json!({"colors": {"accent1": "#123456"}})).unwrap();
     assert_eq!(c["colors"]["accent1"], "#123456");
     assert_eq!(c["name"], "Custom");
-    let read = s.execute("design.colors", &json!({})).unwrap();
+    let read = s.execute("theme.colors", &json!({})).unwrap();
     assert_eq!(read, c);
-    assert!(s.execute("design.colors", &json!({"colors": {"accent9": "#123456"}})).is_err());
+    assert!(s.execute("theme.colors", &json!({"colors": {"accent9": "#123456"}})).is_err());
 }
 
 fn low_contrast(s: &mut Session) -> Vec<u64> {
@@ -1086,16 +1086,16 @@ fn contrast_backgrounds_for_all_and_a_dark_theme() {
     s.execute("shape.fill", &json!({"ids": [glow], "color": "#1E3A8A"})).unwrap();
     s.execute("shape.effects", &json!({"ids": [glow], "glow": {"color": "#60A5FA", "radius": 12}})).unwrap();
     // A text box on the styled card is measured against the card too.
-    let over = s.execute("insert.textBox", &json!({"rect": [60, 120, 200, 30], "text": "On the card"})).unwrap()["id"].as_u64().unwrap();
+    let over = s.execute("textBox.insert", &json!({"rect": [60, 120, 200, 30], "text": "On the card"})).unwrap()["id"].as_u64().unwrap();
     s.execute("format.color", &json!({"ids": [styled, grad, glow, over], "color": "#FFFFFF"})).unwrap();
     assert_eq!(low_contrast(&mut s), Vec::<u64>::new());
     // White text straight on the white slide still is low contrast.
-    let bare = s.execute("insert.textBox", &json!({"rect": [40, 300, 300, 40], "text": "On the slide"})).unwrap()["id"].as_u64().unwrap();
+    let bare = s.execute("textBox.insert", &json!({"rect": [40, 300, 300, 40], "text": "On the slide"})).unwrap()["id"].as_u64().unwrap();
     s.execute("format.color", &json!({"ids": [bare], "color": "#FFFFFF"})).unwrap();
     assert_eq!(low_contrast(&mut s), vec![bare]);
 
     // Apply to All reaches slides added later.
-    s.execute("design.background", &json!({"color": "#102030", "all": true})).unwrap();
+    s.execute("slide.background", &json!({"color": "#102030", "all": true})).unwrap();
     s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
     let v = s.execute("slide.inspect", &json!({})).unwrap();
     assert_eq!(v["background"], "#102030", "{v}");
@@ -1104,8 +1104,8 @@ fn contrast_backgrounds_for_all_and_a_dark_theme() {
     // Nocturne keeps dark in dk1 and light in lt1 and maps the background to the dark ones, so a
     // medium2-accent1 table draws dark text on its light body tints.
     let mut s = session();
-    s.execute("design.theme", &json!({"name": "Nocturne"})).unwrap();
-    let c = s.execute("design.colors", &json!({})).unwrap();
+    s.execute("theme.set", &json!({"name": "Nocturne"})).unwrap();
+    let c = s.execute("theme.colors", &json!({})).unwrap();
     assert_eq!((c["colors"]["dk1"].as_str(), c["colors"]["lt1"].as_str()), (Some("#121826"), Some("#FFFFFF")));
     s.execute("slide.new", &json!({"layout": "titleOnly"})).unwrap();
     let v = s.execute("slide.inspect", &json!({})).unwrap();
@@ -1114,12 +1114,12 @@ fn contrast_backgrounds_for_all_and_a_dark_theme() {
     s.execute("text.set", &json!({"id": title, "text": "Running order"})).unwrap();
     assert_eq!(low_contrast(&mut s), Vec::<u64>::new(), "the title is light on the dark slide");
     let t = s
-        .execute("insert.table", &json!({"rows": 3, "cols": 2, "rect": [60, 150, 840, 180], "data": [["Time", "Session"], ["MMMMMMMM", "MMMMMMMM"], ["MMMMMMMM", "MMMMMMMM"]]}))
+        .execute("table.insert", &json!({"rows": 3, "cols": 2, "rect": [60, 150, 840, 180], "data": [["Time", "Session"], ["MMMMMMMM", "MMMMMMMM"], ["MMMMMMMM", "MMMMMMMM"]]}))
         .unwrap()["id"]
         .as_u64()
         .unwrap();
     s.execute("table.style", &json!({"id": t, "style": "medium2-accent1"})).unwrap();
-    s.execute("format.size", &json!({"ids": [t], "size": 28})).unwrap();
+    s.execute("format.fontSize", &json!({"ids": [t], "size": 28})).unwrap();
     let img = render_current(&s, 1.0);
     // The darkest pixel in the first body row: dark text, not the tint.
     let mut darkest = u32::MAX;
@@ -1145,7 +1145,7 @@ fn smart_art_takes_a_rect_draws_its_links_and_is_formatted_as_a_group() {
     };
     // `rect` places it.
     let g = s
-        .execute("insert.smartGraphic", &json!({"kind": "hierarchy", "items": ["CEO", "Sales", "Product", "Finance"], "rect": [100, 80, 600, 300]}))
+        .execute("smartGraphic.insert", &json!({"kind": "hierarchy", "items": ["CEO", "Sales", "Product", "Finance"], "rect": [100, 80, 600, 300]}))
         .unwrap()["id"]
         .as_u64()
         .unwrap();
@@ -1158,7 +1158,7 @@ fn smart_art_takes_a_rect_draws_its_links_and_is_formatted_as_a_group() {
     assert_eq!(kids.iter().filter(|c| c.is_line()).count(), 3, "lines from the root to its three children");
     // Formatting the group formats its shapes.
     s.execute("shape.fill", &json!({"ids": [g], "color": "#123456"})).unwrap();
-    s.execute("format.size", &json!({"ids": [g], "size": 30})).unwrap();
+    s.execute("format.fontSize", &json!({"ids": [g], "size": 30})).unwrap();
     s.execute("format.color", &json!({"ids": [g], "color": "#FFEE00"})).unwrap();
     for c in group_shapes(&s, g).iter().filter(|c| !c.is_line()) {
         assert_eq!(c.fill, Some(kition_slide_model::Fill::solid(kition_slide_model::ColorRef::rgb(kition_slide_color::Rgba::rgb(0x12, 0x34, 0x56)))));
@@ -1171,12 +1171,12 @@ fn smart_art_takes_a_rect_draws_its_links_and_is_formatted_as_a_group() {
     // A cycle sizes its nodes to the area, draws an arrow between each node and the next, and
     // sets text no wider than its nodes.
     let small = s
-        .execute("insert.smartGraphic", &json!({"kind": "cycle", "items": ["Plan", "Build", "Measure", "Learn"], "rect": [0, 0, 200, 200]}))
+        .execute("smartGraphic.insert", &json!({"kind": "cycle", "items": ["Plan", "Build", "Measure", "Learn"], "rect": [0, 0, 200, 200]}))
         .unwrap()["id"]
         .as_u64()
         .unwrap();
     let big = s
-        .execute("insert.smartGraphic", &json!({"kind": "cycle", "items": ["Plan", "Build", "Measure", "Learn"], "rect": [300, 0, 500, 500]}))
+        .execute("smartGraphic.insert", &json!({"kind": "cycle", "items": ["Plan", "Build", "Measure", "Learn"], "rect": [300, 0, 500, 500]}))
         .unwrap()["id"]
         .as_u64()
         .unwrap();
@@ -1205,7 +1205,7 @@ fn vertical_text_runs_down_its_box_and_an_arch_keeps_its_size() {
     s.execute("slide.layout", &json!({"layout": "blank"})).unwrap();
     // A resizing text box turned vertical keeps its height, its line runs down it, and its
     // width fits the one column.
-    let t = s.execute("insert.textBox", &json!({"rect": [240, 40, 300, 40], "text": "Vertical caption text"})).unwrap()["id"].as_u64().unwrap();
+    let t = s.execute("textBox.insert", &json!({"rect": [240, 40, 300, 40], "text": "Vertical caption text"})).unwrap()["id"].as_u64().unwrap();
     s.execute("shape.setBounds", &json!({"ids": [t], "w": 40, "h": 300})).unwrap();
     s.execute("format.direction", &json!({"ids": [t], "dir": "rotate90"})).unwrap();
     let b = s.execute("shape.inspect", &json!({"id": t})).unwrap()["box"].clone();
@@ -1237,10 +1237,10 @@ fn vertical_text_runs_down_its_box_and_an_arch_keeps_its_size() {
     let arch = |size: f64| {
         let mut s = session();
         s.execute("slide.layout", &json!({"layout": "blank"})).unwrap();
-        let w = s.execute("insert.textBox", &json!({"rect": [100, 100, 600, 200], "text": "Arch over the top"})).unwrap()["id"].as_u64().unwrap();
+        let w = s.execute("textBox.insert", &json!({"rect": [100, 100, 600, 200], "text": "Arch over the top"})).unwrap()["id"].as_u64().unwrap();
         s.execute("format.autofit", &json!({"ids": [w], "mode": "none"})).unwrap();
         s.execute("shape.setBounds", &json!({"ids": [w], "x": 100, "y": 100, "w": 600, "h": 200})).unwrap();
-        s.execute("format.size", &json!({"ids": [w], "size": size})).unwrap();
+        s.execute("format.fontSize", &json!({"ids": [w], "size": size})).unwrap();
         s.execute("format.align", &json!({"ids": [w], "align": "center"})).unwrap();
         s.execute("format.transform", &json!({"ids": [w], "preset": "textArchUp"})).unwrap();
         let img = render_current(&s, 1.0);
@@ -1276,12 +1276,12 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
     let mut s = session();
     s.execute("slide.layout", &json!({"layout": "blank"})).unwrap();
     // Unknown chart types and palettes are refused.
-    assert!(s.execute("insert.chart", &json!({"type": "sankey"})).is_err());
+    assert!(s.execute("chart.insert", &json!({"type": "sankey"})).is_err());
     let data = json!({"categories": ["A", "B", "C", "D"], "series": [{"name": "Cash", "values": [100, -30, 50, 120], "totals": [3]}]});
     let mut p = data.clone();
     p["type"] = json!("waterfall");
     p["rect"] = json!([40, 40, 400, 300]);
-    let w = s.execute("insert.chart", &p).unwrap()["id"].as_u64().unwrap();
+    let w = s.execute("chart.insert", &p).unwrap()["id"].as_u64().unwrap();
     assert!(s.execute("chart.type", &json!({"id": w, "type": "pyramid3d"})).is_err());
     assert!(s.execute("chart.options", &json!({"id": w, "palette": "rainbow"})).is_err());
     s.execute("chart.options", &json!({"id": w, "palette": "colorful2", "gapWidth": 50})).unwrap();
@@ -1291,7 +1291,7 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
     // it is a waterfall, funnel or treemap.
     assert_eq!(c.title, None);
     let one = s
-        .execute("insert.chart", &json!({"type": "column", "series": [{"name": "Revenue", "values": [1, 2]}], "rect": [500, 400, 100, 100]}))
+        .execute("chart.insert", &json!({"type": "column", "series": [{"name": "Revenue", "values": [1, 2]}], "rect": [500, 400, 100, 100]}))
         .unwrap()["id"]
         .as_u64()
         .unwrap();
@@ -1325,7 +1325,7 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
         p["series"][0]["values"] = json!([400, 300, 150, 60]);
         p["type"] = json!(kind);
         p["rect"] = json!([40, 40, 400, 300]);
-        let id = s.execute("insert.chart", &p).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("chart.insert", &p).unwrap()["id"].as_u64().unwrap();
         let img = render_current(&s, 1.0);
         let filled: usize = colours_in(&img, [40, 40, 440, 340]).iter().filter(|(c, _)| c[0] < 200 || c[1] < 200 || c[2] < 200).map(|(_, n)| n).sum();
         assert!(filled > 400 * 300 / 4, "{kind}: {filled} filled pixels");
@@ -1335,7 +1335,7 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
     // Combo: columns with the last series as a line, unless a series says otherwise.
     let combo = s
         .execute(
-            "insert.chart",
+            "chart.insert",
             &json!({"type": "combo", "categories": ["A", "B"], "series": [{"name": "Units", "values": [3, 4]}, {"name": "Share", "values": [1, 2]}]}),
         )
         .unwrap()["id"]
@@ -1345,7 +1345,7 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
     assert_eq!(kinds, vec![Some(kition_slide_model::chart::ChartType::Column), Some(kition_slide_model::chart::ChartType::Line)]);
 
     // Chart text takes the text formatting commands; series take colours.
-    s.execute("format.size", &json!({"ids": [combo], "size": 16})).unwrap();
+    s.execute("format.fontSize", &json!({"ids": [combo], "size": 16})).unwrap();
     s.execute("format.color", &json!({"ids": [combo], "color": "#AA0000"})).unwrap();
     s.execute("format.bold", &json!({"ids": [combo]})).unwrap();
     s.execute("chart.options", &json!({"id": combo, "colors": ["#112233", "#445566"]})).unwrap();

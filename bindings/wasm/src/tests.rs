@@ -70,7 +70,7 @@ fn the_summary_is_the_decks_slide_size_not_the_canvas() {
 #[test]
 fn a_missing_font_without_a_metric_twin_is_a_warning() {
     let mut doc = SlideDocument::create("Deck.pptx", 960, 540).unwrap();
-    doc.execute("design.fonts", json!({"major": "No Such Family 123", "minor": "No Such Family 123"})).unwrap();
+    doc.execute("theme.fonts", json!({"major": "No Such Family 123", "minor": "No Such Family 123"})).unwrap();
     let found = doc.check();
     let font = found.iter().find(|d| d.code == "slide.font-substituted").expect("the missing font is said");
     assert_eq!(font.severity, kition_kit::diagnostics::Severity::Warning, "{:?}", font.message);
@@ -80,7 +80,7 @@ fn a_missing_font_without_a_metric_twin_is_a_warning() {
 #[test]
 fn keeps_the_kit_contract() {
     check_contract::<SlideDocument>(&fixture(), "Slide.kslide", |doc| {
-        doc.execute("insert.textBox", json!({ "rect": [100, 100, 300, 80], "text": "Hello" })).map(|_| ())
+        doc.execute("textBox.insert", json!({ "rect": [100, 100, 300, 80], "text": "Hello" })).map(|_| ())
     })
     .unwrap();
 }
@@ -341,7 +341,7 @@ fn editor_chrome_is_drawn_in_the_kits_brand() {
 fn text_box_doc() -> (SlideDocument, (f64, f64)) {
     let mut doc = SlideDocument::create("Cursor.kslide", 0, 0).unwrap();
     doc.set_single(true);
-    doc.execute("insert.textBox", json!({ "rect": [100, 100, 300, 80], "text": "alpha beta gamma delta" })).unwrap();
+    doc.execute("textBox.insert", json!({ "rect": [100, 100, 300, 80], "text": "alpha beta gamma delta" })).unwrap();
     doc.key("Escape", ToolMods::default(), 1.0).unwrap();
     click(&mut doc, MARGIN + 700.0, MARGIN + 450.0);
     assert_eq!(doc.inspect().unwrap()["selection"], 0);

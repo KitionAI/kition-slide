@@ -239,7 +239,7 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
     if p.get("frame").is_none() {
         let size = s.doc()?.doc.slide_size;
         o.frame = match o.kind {
-            // As `insert.chart` places one.
+            // As `chart.insert` places one.
             dm::ObjectKind::Chart => Xfrm::new(size.width * 0.15, size.height * 0.15, size.width * 0.7, size.height * 0.7),
             dm::ObjectKind::TextBox => Xfrm::new((size.width - 216.0) / 2.0, (size.height - 36.0) / 2.0, 216.0, 36.0),
             dm::ObjectKind::Shape | dm::ObjectKind::Ink | dm::ObjectKind::Group => {
@@ -458,8 +458,8 @@ fn ungroup(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// After a top-level `drawing.insert` was written to the replica: its result names the new shape
 /// by its `KitDrawing 1.0` id (its replica object, which the write just made).
-/// The answer, with what format.font says (fix 25) for every run font this machine lacks, so a font
-/// set through KitDrawing text is said as one set through format.font is.
+/// The answer, with what format.fontName says (fix 25) for every run font this machine lacks, so a font
+/// set through KitDrawing text is said as one set through format.fontName is.
 /// `answer` with `design`: what a designer would change about the object the command made (the
 /// answer's `id`) or changed (`id`), on the slide being edited (see [`crate::design`]).
 fn with_design(s: &Session, answer: Result<Value>, id: Option<&Value>) -> Result<Value> {
@@ -861,7 +861,7 @@ fn text_back(old: TextBody, t: &dm::TextBody) -> std::result::Result<TextBody, D
                 let mut props: RunProps = first.clone();
                 if let Some(font) = &r.font {
                     props.font = Some(font.clone());
-                    // An East Asian family is the run's East Asian font too (see format.font).
+                    // An East Asian family is the run's East Asian font too (see format.fontName).
                     if !kition_slide_fonts::east_asian_substitutes(font).is_empty() {
                         props.font_ea = Some(font.clone());
                     }

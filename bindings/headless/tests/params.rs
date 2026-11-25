@@ -45,7 +45,7 @@ fn ill_typed_params_are_refused_and_change_nothing() {
 #[test]
 fn a_command_that_cannot_run_says_why_by_a_typed_reason() {
     let mut doc = SlideDocument::create("Deck.kslide", 960, 540).unwrap();
-    let message = doc.execute("picture.reset", json!({})).unwrap_err();
+    let message = doc.execute("image.reset", json!({})).unwrap_err();
     assert_eq!(
         kition_kit::failure::parse_failure(&message).map(|(_, reason)| reason),
         Some(kition_kit::failure::CommandFailure::Disabled),
@@ -63,7 +63,7 @@ fn a_command_that_cannot_run_says_why_by_a_typed_reason() {
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let id = kit.open(OpenRequest { file: &folder.file("Deck.kslide").unwrap(), read_only: false, create: None }).unwrap().id;
-    let error = kit.execute(&id, "picture.reset", params(json!({})), Origin::Agent).unwrap_err();
+    let error = kit.execute(&id, "image.reset", params(json!({})), Origin::Agent).unwrap_err();
     assert_eq!(error.code, ErrorReason::CommandDisabled.code(), "{}", error.message);
     assert!(!error.message.contains(kition_kit::failure::FAILURE_SEPARATOR), "{:?}", error.message);
     let _ = std::fs::remove_dir_all(root);

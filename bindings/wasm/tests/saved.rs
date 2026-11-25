@@ -176,7 +176,7 @@ fn steps(file: &SlideFile) -> Vec<(String, Step)> {
     let plain = find(file, 0, |shape| has_text(shape) && matches!(shape.kind, ShapeKind::Shape));
     if let Some((_, _, id)) = &plain {
         add("text.set", Step::Command("text.set", json!({ "id": id, "text": "Mine" })));
-        add("format.size", Step::Command("format.size", json!({ "ids": [id], "size": 13.3 })));
+        add("format.fontSize", Step::Command("format.fontSize", json!({ "ids": [id], "size": 13.3 })));
         add("format.bold", Step::Command("format.bold", json!({ "ids": [id] })));
         add("shape.move", Step::Command("shape.move", json!({ "ids": [id], "dx": 7.31, "dy": -2.17 })));
         add("shape.resize", Step::Command("shape.resize", json!({ "ids": [id], "w": 201.337, "h": 61.111 })));
@@ -207,12 +207,12 @@ fn steps(file: &SlideFile) -> Vec<(String, Step)> {
         }
     }
     add("slide.notes", Step::Command("slide.notes", json!({ "text": "Speak slowly", "index": 0 })));
-    add("insert.textBox", Step::Command("insert.textBox", json!({ "rect": [33.3, 44.4, 155.55, 66.66], "text": "New box" })));
+    add("textBox.insert", Step::Command("textBox.insert", json!({ "rect": [33.3, 44.4, 155.55, 66.66], "text": "New box" })));
     add("shape.insert", Step::Command("shape.insert", json!({ "preset": "ellipse", "rect": [300.1, 200.2, 120.3, 80.4], "text": "Oval" })));
     add(
-        "insert.table",
+        "table.insert",
         Step::Command(
-            "insert.table",
+            "table.insert",
             json!({ "rows": 2, "cols": 3, "rect": [40.5, 300.25, 333.3, 90.9], "data": [["a", "b", "c"], ["d", "e", "f"]] }),
         ),
     );
@@ -276,10 +276,10 @@ fn ten_slides() -> Vec<u8> {
         if n > 1 {
             doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
         }
-        doc.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
-        doc.execute("insert.textBox", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
+        doc.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
+        doc.execute("textBox.insert", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
     }
-    doc.execute("insert.picture", json!({ "name": "red.png", "data": RED })).unwrap();
+    doc.execute("image.insert", json!({ "name": "red.png", "data": RED })).unwrap();
     doc.save(Some(NAME)).unwrap()
 }
 
@@ -290,7 +290,7 @@ const RED: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4w
 fn mixed() -> Vec<u8> {
     let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
     doc.execute("slide.new", json!({ "layout": "titleAndContent", "title": "Mixed", "body": "One\nTwo\nThree" })).unwrap();
-    doc.execute("insert.table", json!({ "rows": 2, "cols": 2, "rect": [500, 60, 300, 120], "data": [["a", "b"], ["c", "d"]] })).unwrap();
+    doc.execute("table.insert", json!({ "rows": 2, "cols": 2, "rect": [500, 60, 300, 120], "data": [["a", "b"], ["c", "d"]] })).unwrap();
     doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
     let a = doc.execute("shape.insert", json!({ "preset": "rect", "rect": [100, 100, 120, 80], "text": "A" })).unwrap()["id"].clone();
     let b = doc.execute("shape.insert", json!({ "preset": "rect", "rect": [400, 100, 120, 80], "text": "B" })).unwrap()["id"].clone();
@@ -299,8 +299,8 @@ fn mixed() -> Vec<u8> {
     let d = doc.execute("shape.insert", json!({ "preset": "ellipse", "rect": [400, 300, 120, 80], "text": "D" })).unwrap()["id"].clone();
     let _ = doc.execute("shape.connect", json!({ "from": c, "to": d }));
     let _ = doc.execute("animation.add", json!({ "ids": [c], "effect": "fade" }));
-    let _ = doc.execute("insert.chart", json!({ "kind": "column" }));
-    doc.execute("insert.picture", json!({ "name": "red.png", "data": RED })).unwrap();
+    let _ = doc.execute("chart.insert", json!({ "kind": "column" }));
+    doc.execute("image.insert", json!({ "name": "red.png", "data": RED })).unwrap();
     doc.execute("slide.notes", json!({ "text": "Notes of slide 3", "index": 2 })).unwrap();
     doc.save(Some(NAME)).unwrap()
 }
@@ -618,7 +618,7 @@ fn media_creations_and_commands_share_the_current_blob_store() {
         .batch(
             &mut doc,
             &json!({"ops": [
-                {"op": "command", "id": "insert.picture", "params": {"name": "red.png", "data": RED}},
+                {"op": "command", "id": "image.insert", "params": {"name": "red.png", "data": RED}},
                 {"op": "set", "target": slide, "field": "props.name", "value": "With picture"}
             ]}),
             false,

@@ -23,7 +23,7 @@ struct Fixture {
 impl Fixture {
     fn new(placeholder: bool, grouped: bool) -> Self {
         let mut doc = SlideDocument::create("Text.pptx", 960, 540).unwrap();
-        let target = doc.execute("insert.textBox", json!({"text": "Before", "rect": [60, 60, 240, 80]})).unwrap()["id"].as_u64().unwrap();
+        let target = doc.execute("textBox.insert", json!({"text": "Before", "rect": [60, 60, 240, 80]})).unwrap()["id"].as_u64().unwrap();
         if grouped {
             let neighbour = doc.execute("shape.insert", json!({"preset": "rect", "rect": [320, 60, 40, 80]})).unwrap()["id"].clone();
             doc.execute("arrange.group", json!({"ids": [target, neighbour]})).unwrap();
@@ -153,7 +153,7 @@ async fn layout_placeholder_text_style_is_held_but_another_slides_name_is_not() 
                 Arc::make_mut(&mut deck.slides[1]).name = "Unrelated".into();
             }
         });
-        f.write(&basis, "format.grow", related).await;
+        f.write(&basis, "format.increaseFontSize", related).await;
         f.kits.shutdown().await;
     }
 }
@@ -206,7 +206,7 @@ async fn default_text_style_is_held_but_other_slides_name_is_not() {
                 Arc::make_mut(&mut deck.slides[1]).name = "Unrelated".into();
             }
         });
-        f.write(&basis, "format.grow", related).await;
+        f.write(&basis, "format.increaseFontSize", related).await;
         f.kits.shutdown().await;
     }
 }

@@ -10,8 +10,8 @@ intent: >-
   machine has is reported as slide.font-substituted. A session a host owns every file of opens,
   saves, exports, inserts media and keeps AutoRecover copies by no path, even when a gate lets the
   command through. An audit found the engine writing and reading any path it was given (file.save,
-  file.saveAs, file.saveTemplate, file.export, file.open, insert.picture, insert.audio,
-  insert.video), a deck opened from its replica saved to its bare name in the current folder, and
+  file.saveAs, file.saveTemplate, file.export, file.open, image.insert, audio.insert,
+  video.insert), a deck opened from its replica saved to its bare name in the current folder, and
   the kit scanning the machine's font folders and telling the agent which fonts were installed.
 layer: gate
 tags: [headless, security]

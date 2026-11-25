@@ -4,7 +4,7 @@ use super::*;
 
 fn bytes(command: &str, params: &Value) -> Result<Option<Vec<u8>>, String> {
     let key = match command {
-        "insert.picture" | "insert.audio" | "insert.video" => "data",
+        "image.insert" | "audio.insert" | "video.insert" => "data",
         "shape.fill" => "picture",
         _ => return Ok(None),
     };

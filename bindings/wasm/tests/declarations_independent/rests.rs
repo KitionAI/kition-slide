@@ -49,13 +49,13 @@ mod rests_f;
 /// that every call reads every state.
 ///
 /// Reviewed: explicit-id drawing/shape delegates, fresh freeform/smart graphic insertion, and
-/// design.fonts' master lookup have no selection facts (the view is Part). recovery-discard has
+/// theme.fonts' master lookup have no selection facts (the view is Part). recovery-discard has
 /// no Part fact: recovery files do not use the editor's current part. The sampled
 /// table Part facts are supported by with_table -> edit_shapes -> current_shapes; its selection
 /// fallbacks remain separate facts.
 // C8-slide-read-4: all 31 originally unsampled facts checked. Eight erroneous facts already
 // removed by review remain removed: drawing.chart/delete/reconnect/text/ungroup Selection
-// (cmd/drawing.rs:291-349,433-448), insert.smartGraphic Selection (cmd/insert.rs:938-963),
+// (cmd/drawing.rs:291-349,433-448), smartGraphic.insert Selection (cmd/insert.rs:938-963),
 // shape.delete Selection (cmd/shape.rs:1012-1027), recovery.discard Part (cmd/file.rs:494-504).
 // The 23 surviving unsampled facts are RIGHT; evidence is attached below (shared table helper).
 pub const SCANNED: &[(&str, &str)] = &[
@@ -80,10 +80,10 @@ pub const SCANNED: &[(&str, &str)] = &[
     ("edit.undo", "part"),
     ("edit.undo", "selection"),
     // C8-slide-read-4 RIGHT: cmd/insert.rs:601-616 inserts into text or delegates header/footer on the current part.
-    ("insert.dateTime", "part"),
-    ("insert.hyperlink", "part"),
+    ("field.insertDateTime", "part"),
+    ("link.insert", "part"),
     // C8-slide-read-4 RIGHT: cmd/insert.rs:601-611 inserts into text or delegates header/footer on the current part.
-    ("insert.slideNumber", "part"),
+    ("field.insertSlideNumber", "part"),
     // C8-slide-read-4 RIGHT: cmd/slide.rs:557-567 clamps the current slide when removing slides.
     ("section.remove", "part"),
     ("shape.delete", "part"),

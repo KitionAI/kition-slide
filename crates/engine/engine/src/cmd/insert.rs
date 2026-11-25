@@ -23,9 +23,9 @@ pub fn specs() -> Vec<CommandSpec> {
             insert_shape
         ),
         cmd!(query "shape.presets", "Shape Gallery", [], None, "{} → [{name, label, category}]", always, presets),
-        cmd!("insert.textBox", "Text Box", ["Insert", "Text"], None, "{rect?: [x,y,w,h], text?: string}", has_slide, text_box),
+        cmd!("textBox.insert", "Text Box", ["Insert", "Text"], None, "{rect?: [x,y,w,h], text?: string}", has_slide, text_box),
         cmd!(
-            "insert.picture",
+            "image.insert",
             "Picture from File…",
             ["Insert", "Images", "Pictures"],
             None,
@@ -33,9 +33,9 @@ pub fn specs() -> Vec<CommandSpec> {
             has_slide,
             picture
         ),
-        cmd!("insert.table", "Table…", ["Insert", "Tables"], None, "{rows, cols, rect?, data?: [[text]] (cell text, row by row)}", has_slide, table),
+        cmd!("table.insert", "Table…", ["Insert", "Tables"], None, "{rows, cols, rect?, data?: [[text]] (cell text, row by row)}", has_slide, table),
         cmd!(
-            "insert.chart",
+            "chart.insert",
             "Chart…",
             ["Insert", "Illustrations"],
             None,
@@ -43,14 +43,14 @@ pub fn specs() -> Vec<CommandSpec> {
             has_slide,
             chart
         ),
-        cmd!("insert.audio", "Audio from File…", ["Insert", "Media", "Audio"], None, "{path? | data: base64, name?, rect?}", has_slide, audio),
-        cmd!("insert.video", "Video from File…", ["Insert", "Media", "Video"], None, "{path? | data: base64, name?, rect?}", has_slide, video),
-        cmd!("insert.artText", "Art text", ["Insert", "Text"], None, "{text?, style?: 0..}", has_slide, art_text),
-        cmd!("insert.slideNumber", "Slide Number", ["Insert", "Text"], None, "{}", has_slide, slide_number),
-        cmd!("insert.dateTime", "Date & Time", ["Insert", "Text"], None, "{format?: datetime1..}", has_slide, date_time),
-        cmd!("insert.symbol", "Symbol", ["Insert", "Symbols"], None, "{text: character(s)}", has_slide, symbol),
+        cmd!("audio.insert", "Audio from File…", ["Insert", "Media", "Audio"], None, "{path? | data: base64, name?, rect?}", has_slide, audio),
+        cmd!("video.insert", "Video from File…", ["Insert", "Media", "Video"], None, "{path? | data: base64, name?, rect?}", has_slide, video),
+        cmd!("artText.insert", "Art text", ["Insert", "Text"], None, "{text?, style?: 0..}", has_slide, art_text),
+        cmd!("field.insertSlideNumber", "Slide Number", ["Insert", "Text"], None, "{}", has_slide, slide_number),
+        cmd!("field.insertDateTime", "Date & Time", ["Insert", "Text"], None, "{format?: datetime1..}", has_slide, date_time),
+        cmd!("symbol.insert", "Symbol", ["Insert", "Symbols"], None, "{text: character(s)}", has_slide, symbol),
         cmd!(
-            "insert.hyperlink",
+            "link.insert",
             "Link",
             ["Insert", "Links"],
             Some("Cmd+K"),
@@ -63,7 +63,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Change Chart Type",
             ["Chart Design", "Type"],
             None,
-            "{type: column|stackedColumn|bar|line|area|pie|doughnut|scatter|radar|waterfall|funnel|treemap|combo|… (as insert.chart), id?}",
+            "{type: column|stackedColumn|bar|line|area|pie|doughnut|scatter|radar|waterfall|funnel|treemap|combo|… (as chart.insert), id?}",
             has_selection,
             chart_type_cmd
         ),
@@ -86,7 +86,7 @@ pub fn specs() -> Vec<CommandSpec> {
             chart_options
         ),
         cmd!(
-            "insert.smartGraphic",
+            "smartGraphic.insert",
             "Smart graphics",
             ["Insert", "Illustrations"],
             None,
@@ -95,7 +95,7 @@ pub fn specs() -> Vec<CommandSpec> {
             smart_graphic
         ),
         cmd!(
-            "insert.actionButton",
+            "actionButton.insert",
             "Action Buttons",
             ["Insert", "Illustrations"],
             None,
@@ -309,10 +309,10 @@ fn fitted(s: &Session, bytes: &[u8]) -> (f64, f64) {
 }
 
 fn picture(s: &mut Session, p: &Value) -> Result<Value> {
-    let (name, bytes) = media_bytes(s, p, "insert.picture")?;
+    let (name, bytes) = media_bytes(s, p, "image.insert")?;
     let ct = content_type(&name, &bytes);
     if !ct.starts_with("image/") {
-        return Err(bad("insert.picture", format!("{name} is not a picture")));
+        return Err(bad("image.insert", format!("{name} is not a picture")));
     }
     if ct != "image/svg+xml" && kition_slide_render::decode_image(&bytes).is_none() {
         return Err(EngineError::Other(format!("{name}: the picture can't be read")));
@@ -360,7 +360,7 @@ fn picture(s: &mut Session, p: &Value) -> Result<Value> {
         // Replace the placeholder with the picture (it keeps the placeholder link).
         let phv = s.doc()?.shape(ph_id).and_then(|x| x.ph.clone());
         s.edit(|doc, sel| {
-            let list = crate::shapes_mut(doc, sel).ok_or_else(|| bad("insert.picture", "no slide"))?;
+            let list = crate::shapes_mut(doc, sel).ok_or_else(|| bad("image.insert", "no slide"))?;
             if let Some(sh) = kition_slide_model::find_shape_mut(list, ph_id) {
                 sh.kind = shape.kind.clone();
                 sh.xfrm = Some(rect);
@@ -401,7 +401,7 @@ fn table(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"id": id}))
 }
 
-/// The chart types `insert.chart` and `chart.type` take.
+/// The chart types `chart.insert` and `chart.type` take.
 pub const CHART_TYPES: &str = "column, stackedColumn, percentColumn, bar, stackedBar, percentBar, line, lineMarkers, stackedLine, area, stackedArea, pie, doughnut, scatter, bubble, radar, filledRadar, waterfall, funnel, histogram, pareto, treemap, sunburst, boxWhisker, stock, surface, combo";
 
 /// The chart type named `name`; an unknown name is refused with the names there are.
@@ -473,12 +473,12 @@ fn series_param(p: &Value, cmd: &str) -> Result<Option<Vec<kition_slide_model::c
 }
 
 fn chart(s: &mut Session, p: &Value) -> Result<Value> {
-    let kind = chart_type(str_param(p, "type").unwrap_or("column"), "insert.chart")?;
+    let kind = chart_type(str_param(p, "type").unwrap_or("column"), "chart.insert")?;
     let mut c = Chart::sample(kind);
     if let Some(cats) = p.get("categories").and_then(Value::as_array) {
         c.categories = cats.iter().map(|v| v.as_str().map(String::from).unwrap_or_else(|| v.to_string())).collect();
     }
-    if let Some(series) = series_param(p, "insert.chart")? {
+    if let Some(series) = series_param(p, "chart.insert")? {
         // A chart given its data has no placeholder title: one series is titled with its name
         // (PowerPoint's automatic title), several have none unless `title` names one.
         c.title = match series.as_slice() {
@@ -499,7 +499,7 @@ fn chart(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn media(s: &mut Session, p: &Value, video: bool) -> Result<Value> {
-    let cmd = if video { "insert.video" } else { "insert.audio" };
+    let cmd = if video { "video.insert" } else { "audio.insert" };
     let (name, bytes) = media_bytes(s, p, cmd)?;
     let ct = content_type(&name, &bytes);
     let bytes = std::sync::Arc::new(bytes);
@@ -604,7 +604,7 @@ fn field_run(s: &mut Session, field: &str, text: &str) -> Result<Value> {
     }
     // Not editing: turn on the footer field for the slide (Header & Footer).
     let key = if field == "slidenum" { "slideNumber" } else { "date" };
-    s.execute("design.headerFooter", &json!({key: true}))
+    s.execute("slide.headerFooter", &json!({key: true}))
 }
 
 fn slide_number(s: &mut Session, _p: &Value) -> Result<Value> {
@@ -617,9 +617,9 @@ fn date_time(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn symbol(s: &mut Session, p: &Value) -> Result<Value> {
-    let t = str_param(p, "text").ok_or_else(|| bad("insert.symbol", "missing `text`"))?.to_string();
+    let t = str_param(p, "text").ok_or_else(|| bad("symbol.insert", "missing `text`"))?.to_string();
     if s.doc()?.selection.text.is_none() {
-        return Err(bad("insert.symbol", "place the insertion point in text first"));
+        return Err(bad("symbol.insert", "place the insertion point in text first"));
     }
     super::text::insert_text(s, &t, None)
 }
@@ -630,18 +630,18 @@ fn hyperlink(s: &mut Session, p: &Value) -> Result<Value> {
     let (action, display) = if let Some(u) = str_param(p, "url") {
         (Action::Url { url: u.to_string() }, u.strip_prefix("mailto:").unwrap_or(u).to_string())
     } else if let Some(i) = usize_param(p, "slide") {
-        let slide = s.doc()?.doc.slides.get(i).ok_or_else(|| bad("insert.hyperlink", "no such slide"))?;
+        let slide = s.doc()?.doc.slides.get(i).ok_or_else(|| bad("link.insert", "no such slide"))?;
         let title = slide.title();
         (Action::Slide { slide: slide.id }, if title.is_empty() { format!("Slide {}", i + 1) } else { title })
     } else {
-        return Err(bad("insert.hyperlink", "missing `url` or `slide`"));
+        return Err(bad("link.insert", "missing `url` or `slide`"));
     };
     let display = str_param(p, "text").map_or(display, str::to_string);
     let link = Hyperlink { action, tooltip: str_param(p, "tooltip").unwrap_or("").to_string(), highlight_click: false };
     if p.get("id").is_none() && p.get("ids").is_none() && s.doc()?.selection.text.is_some() {
         return super::text::link_text(s, link, &display);
     }
-    edit_shapes(s, p, "insert.hyperlink", |sh| {
+    edit_shapes(s, p, "link.insert", |sh| {
         sh.click = Some(link.clone());
         Ok(())
     })
@@ -911,7 +911,7 @@ fn smart_graphic(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // A diagram is a group: one shape alone cannot be grouped, so refuse before adding any.
     if shapes.len() + links.len() < 2 {
-        return Err(bad("insert.smartGraphic", format!("a `{kind}` diagram needs at least two items")));
+        return Err(bad("smartGraphic.insert", format!("a `{kind}` diagram needs at least two items")));
     }
     let mut ids = vec![];
     for (preset, x, i) in links {
@@ -963,7 +963,7 @@ fn smart_graphic(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(gid) = g.get("id").and_then(Value::as_u64) {
         // The diagram's frame is its area, as a smart graphic's frame is, not just its shapes' bounds.
         s.edit(|doc, sel| {
-            let list = crate::shapes_mut(doc, sel).ok_or_else(|| bad("insert.smartGraphic", "no slide"))?;
+            let list = crate::shapes_mut(doc, sel).ok_or_else(|| bad("smartGraphic.insert", "no slide"))?;
             if let Some(sh) = kition_slide_model::find_shape_mut(list, ShapeId(gid as u32))
                 && let ShapeKind::Group { child, .. } = &mut sh.kind
             {

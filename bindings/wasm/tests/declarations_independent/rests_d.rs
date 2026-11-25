@@ -454,11 +454,11 @@ pub const ROWS: &[Rest] = &[
         "part,selection",
         &[("$Table", "table.cells", "-"), ("root", "defaultTextStyle", "-")],
     ),
-    // format.font: format_run: ids are selected for the call, else the selection; text selection: the range or the word at the caret; else every run of each target (group members, table cells, a chart's text); edit_shapes materialises an inherited box; fit_text_box; shrink refit; family (and East Asian font for an East Asian family)
-    r("format.font", r#"{"family": "Lora", "ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-")]),
-    r("format.font", r#"{"family": "Lora"}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-")]),
+    // format.fontName: format_run: ids are selected for the call, else the selection; text selection: the range or the word at the caret; else every run of each target (group members, table cells, a chart's text); edit_shapes materialises an inherited box; fit_text_box; shrink refit; family (and East Asian font for an East Asian family)
+    r("format.fontName", r#"{"family": "Lora", "ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-")]),
+    r("format.fontName", r#"{"family": "Lora"}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-")]),
     r(
-        "format.font",
+        "format.fontName",
         r#"{"family": "Lora", "ids": ["$Title"]}"#,
         "",
         &[
@@ -471,13 +471,13 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.font",
+        "format.fontName",
         r#"{"family": "Lora", "ids": ["$Group"]}"#,
         "",
         &[("$Group", "children", "-"), ("$GA", "body.paragraphs,body.props", "-"), ("$GB", "body.paragraphs,body.props", "-")],
     ),
     r(
-        "format.font",
+        "format.fontName",
         r#"{"family": "Lora", "ids": ["$Text"]}"#,
         "",
         &[
@@ -489,17 +489,17 @@ pub const ROWS: &[Rest] = &[
     ),
     rs(
         r#"[["text.edit", {"id": "$Rect"}], ["text.select", {"anchor": [0, 0], "caret": [0, 2]}]]"#,
-        "format.font",
+        "format.fontName",
         r#"{"family": "Lora"}"#,
         "part,selection",
         &[("$Rect", "body.paragraphs,body.props", "-")],
     ),
-    r("format.font", r#"{"family": "Lora", "ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-")]),
-    // format.size: format_run: ids are selected for the call, else the selection; text selection: the range or the word at the caret; else every run of each target (group members, table cells, a chart's text); edit_shapes materialises an inherited box; fit_text_box; shrink refit; size
-    r("format.size", r#"{"size": 28, "ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-")]),
-    r("format.size", r#"{"size": 28}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-")]),
+    r("format.fontName", r#"{"family": "Lora", "ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-")]),
+    // format.fontSize: format_run: ids are selected for the call, else the selection; text selection: the range or the word at the caret; else every run of each target (group members, table cells, a chart's text); edit_shapes materialises an inherited box; fit_text_box; shrink refit; size
+    r("format.fontSize", r#"{"size": 28, "ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-")]),
+    r("format.fontSize", r#"{"size": 28}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-")]),
     r(
-        "format.size",
+        "format.fontSize",
         r#"{"size": 28, "ids": ["$Title"]}"#,
         "",
         &[
@@ -512,13 +512,13 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.size",
+        "format.fontSize",
         r#"{"size": 28, "ids": ["$Group"]}"#,
         "",
         &[("$Group", "children", "-"), ("$GA", "body.paragraphs,body.props", "-"), ("$GB", "body.paragraphs,body.props", "-")],
     ),
     r(
-        "format.size",
+        "format.fontSize",
         r#"{"size": 28, "ids": ["$Text"]}"#,
         "",
         &[
@@ -530,17 +530,17 @@ pub const ROWS: &[Rest] = &[
     ),
     rs(
         r#"[["text.edit", {"id": "$Rect"}], ["text.select", {"anchor": [0, 0], "caret": [0, 2]}]]"#,
-        "format.size",
+        "format.fontSize",
         r#"{"size": 28}"#,
         "part,selection",
         &[("$Rect", "body.paragraphs,body.props", "-")],
     ),
-    r("format.size", r#"{"size": 28, "ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-")]),
-    // format.grow: format_run; each run steps from its own size, a run without one from the effective size of the FIRST selected shape's first run (resolved through its styles, root defaultTextStyle) applied to every target; ids selected for the call, else the selection
-    r("format.grow", r#"{"ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
-    r("format.grow", r#"{}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
+    r("format.fontSize", r#"{"size": 28, "ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-")]),
+    // format.increaseFontSize: format_run; each run steps from its own size, a run without one from the effective size of the FIRST selected shape's first run (resolved through its styles, root defaultTextStyle) applied to every target; ids selected for the call, else the selection
+    r("format.increaseFontSize", r#"{"ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
+    r("format.increaseFontSize", r#"{}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
     r(
-        "format.grow",
+        "format.increaseFontSize",
         r#"{"ids": ["$Title"]}"#,
         "",
         &[
@@ -553,7 +553,7 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.grow",
+        "format.increaseFontSize",
         r#"{"ids": ["$Group"]}"#,
         "",
         &[
@@ -564,7 +564,7 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.grow",
+        "format.increaseFontSize",
         r#"{"ids": ["$Text"]}"#,
         "",
         &[
@@ -576,17 +576,17 @@ pub const ROWS: &[Rest] = &[
     ),
     rs(
         r#"[["text.edit", {"id": "$Rect"}], ["text.select", {"anchor": [0, 0], "caret": [0, 2]}]]"#,
-        "format.grow",
+        "format.increaseFontSize",
         r#"{}"#,
         "part,selection",
         &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")],
     ),
-    r("format.grow", r#"{"ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-"), ("root", "defaultTextStyle", "-")]),
-    // format.shrink: format_run; each run steps from its own size, a run without one from the effective size of the FIRST selected shape's first run (resolved through its styles, root defaultTextStyle) applied to every target; ids selected for the call, else the selection
-    r("format.shrink", r#"{"ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
-    r("format.shrink", r#"{}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
+    r("format.increaseFontSize", r#"{"ids": ["$Chart"]}"#, "", &[("$Chart", "chart", "-"), ("root", "defaultTextStyle", "-")]),
+    // format.decreaseFontSize: format_run; each run steps from its own size, a run without one from the effective size of the FIRST selected shape's first run (resolved through its styles, root defaultTextStyle) applied to every target; ids selected for the call, else the selection
+    r("format.decreaseFontSize", r#"{"ids": ["$Rect"]}"#, "", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
+    r("format.decreaseFontSize", r#"{}"#, "part,selection", &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")]),
     r(
-        "format.shrink",
+        "format.decreaseFontSize",
         r#"{"ids": ["$Title"]}"#,
         "",
         &[
@@ -599,7 +599,7 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.shrink",
+        "format.decreaseFontSize",
         r#"{"ids": ["$Group"]}"#,
         "",
         &[
@@ -610,7 +610,7 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     r(
-        "format.shrink",
+        "format.decreaseFontSize",
         r#"{"ids": ["$Text"]}"#,
         "",
         &[
@@ -622,13 +622,13 @@ pub const ROWS: &[Rest] = &[
     ),
     rs(
         r#"[["text.edit", {"id": "$Rect"}], ["text.select", {"anchor": [0, 0], "caret": [0, 2]}]]"#,
-        "format.shrink",
+        "format.decreaseFontSize",
         r#"{}"#,
         "part,selection",
         &[("$Rect", "body.paragraphs,body.props", "-"), ("root", "defaultTextStyle", "-")],
     ),
     r(
-        "format.shrink",
+        "format.decreaseFontSize",
         r#"{"ids": ["$Rect", "$Title"]}"#,
         "",
         &[

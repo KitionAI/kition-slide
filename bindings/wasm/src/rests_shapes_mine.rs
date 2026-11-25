@@ -27,15 +27,15 @@ pub(in super::super) fn owns(command: &str) -> bool {
         || command.starts_with("chart.")
         || matches!(
             command,
-            "insert.textBox"
-                | "insert.picture"
-                | "insert.table"
-                | "insert.chart"
-                | "insert.audio"
-                | "insert.video"
-                | "insert.artText"
-                | "insert.smartGraphic"
-                | "insert.actionButton"
+            "textBox.insert"
+                | "image.insert"
+                | "table.insert"
+                | "chart.insert"
+                | "audio.insert"
+                | "video.insert"
+                | "artText.insert"
+                | "smartGraphic.insert"
+                | "actionButton.insert"
         )
 }
 
@@ -797,11 +797,11 @@ fn move_to_slide(scope: &Scope<'_>, holds: &mut Holds, params: &Value) {
 fn insert(scope: &Scope<'_>, holds: &mut Holds, command: &str, params: &Value) {
     let given = |name: &str| params.get(name).is_some_and(|value| !value.is_null());
     if let Some(bytes) = params.get("data").and_then(Value::as_str).and_then(cmd::base64_decode)
-        && matches!(command, "insert.picture" | "insert.audio" | "insert.video")
+        && matches!(command, "image.insert" | "audio.insert" | "video.insert")
     {
         scope.same_media(holds, &bytes);
     }
-    if command == "insert.picture" {
+    if command == "image.insert" {
         // A selected empty picture, content or body placeholder takes the picture.
         for selected in &scope.selection.shapes {
             let Some(shape) = scope.find(*selected) else { continue };
@@ -822,11 +822,11 @@ fn insert(scope: &Scope<'_>, holds: &mut Holds, command: &str, params: &Value) {
         }
     }
     scope.create(holds);
-    let framed = given("rect") && command != "insert.artText";
+    let framed = given("rect") && command != "artText.insert";
     if !framed {
         holds.read("slide-file", &["props.slideSize"]);
     }
-    if matches!(command, "insert.textBox" | "insert.artText") {
+    if matches!(command, "textBox.insert" | "artText.insert") {
         scope.fit_new_text(holds);
     }
 }

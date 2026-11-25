@@ -9,10 +9,10 @@ use crate::{Result, Session};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(query "document.inspect", "Inspect slide", [], None, "{} → slides with titles, layouts, shape counts; selection; size; theme", has_doc, document),
+        cmd!(query "file.inspect", "Inspect slide", [], None, "{} → slides with titles, layouts, shape counts; selection; size; theme", has_doc, document),
         cmd!(query "slide.inspect", "Inspect Slide", [], None, "{index?, select?: bool (false: a person's read leaves the current slide; an agent's read always does)} → the slide's shapes with ids, kinds, boxes, text, fills, animations, transition, notes", has_doc, slide),
         cmd!(query "shape.inspect", "Inspect Shape", [], None, "{id} → full shape JSON plus its effective box", has_doc, shape),
-        cmd!(query "commands.list", "List Commands", [], None, "{filter?: substring} → [{id, label, params, enabled}]", always, commands),
+        cmd!(query "command.list", "List Commands", [], None, "{filter?: substring} → [{id, label, params, enabled}]", always, commands),
     ]
 }
 

@@ -1,8 +1,8 @@
 //! `drawing.ink` and `drawing.erase`: the Kit Harness Protocol's `KitDrawing 1.2` ink over the
 //! slide's ink layer (an ink shape holding the slide's strokes, in slide points), through the ink
 //! contract Kition's kits share (`kition_office_core::ink`); and the Draw tab's pens as the commands
-//! every kit has (`draw.pen`, `draw.pencil`, `draw.highlighter`, `draw.eraser`, `draw.select`,
-//! `draw.state`), so the shared Draw controls drive them.
+//! every kit has (`ink.pen`, `ink.pencil`, `ink.highlighter`, `ink.eraser`, `ink.select`,
+//! `ink.state`), so the shared Draw controls drive them.
 
 use kition_office_core::ink::{self, EraserGesture, InkStroke, InkTool};
 use kition_office_core::model as dm;
@@ -29,18 +29,18 @@ pub fn specs() -> Vec<CommandSpec> {
             add
         ),
         cmd!("drawing.erase", "Erase Ink", [], None, "{path: [[x, y], …] | x, y, radius?} (deletes the strokes the path touches)", has_slide, erase),
-        cmd!(query "draw.pen", "Pen", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "pen")),
-        cmd!(query "draw.pencil", "Pencil", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "pencil")),
-        cmd!(query "draw.highlighter", "Highlighter", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "highlighter")),
-        cmd!(query "draw.eraser", "Eraser", [], None, "{}", has_slide, |s, _| {
+        cmd!(query "ink.pen", "Pen", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "pen")),
+        cmd!(query "ink.pencil", "Pencil", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "pencil")),
+        cmd!(query "ink.highlighter", "Highlighter", [], None, "{color?: hex, width?: pt}", has_slide, |s, p| pen(s, p, "highlighter")),
+        cmd!(query "ink.eraser", "Eraser", [], None, "{}", has_slide, |s, _| {
             s.set_tool(ToolKind::Ink { mode: "eraser".into(), color: Rgba::BLACK, width: 2.0 });
             Ok(draw_state(s))
         }),
-        cmd!(query "draw.select", "Select", [], None, "{}", has_slide, |s, _| {
+        cmd!(query "ink.select", "Select", [], None, "{}", has_slide, |s, _| {
             s.set_tool(ToolKind::Select);
             Ok(draw_state(s))
         }),
-        cmd!(query "draw.state", "Draw State", [], None, "{}", has_slide, |s, _| Ok(draw_state(s))),
+        cmd!(query "ink.state", "Draw State", [], None, "{}", has_slide, |s, _| Ok(draw_state(s))),
     ]
 }
 
@@ -69,8 +69,8 @@ fn pen(s: &mut Session, p: &Value, mode: &str) -> Result<Value> {
         _ => pen_defaults(mode),
     };
     if let Some(c) = str_param(p, "color") {
-        let c = dm::Color::from_value(&json!(c)).ok_or_else(|| bad("draw.pen", "`color` is #RRGGBB"))?;
-        let dm::ColorBase::Rgb { rgb } = c.base else { return Err(bad("draw.pen", "`color` is #RRGGBB")) };
+        let c = dm::Color::from_value(&json!(c)).ok_or_else(|| bad("ink.pen", "`color` is #RRGGBB"))?;
+        let dm::ColorBase::Rgb { rgb } = c.base else { return Err(bad("ink.pen", "`color` is #RRGGBB")) };
         color = Rgba::rgb(rgb.0, rgb.1, rgb.2);
     }
     if let Some(w) = f64_param(p, "width") {
@@ -224,8 +224,8 @@ mod tests {
     #[test]
     fn strokes_draw_describe_undo_erase_and_reopen_as_pptx() {
         let mut s = Session::with_new();
-        s.execute("draw.pencil", &json!({ "width": 3 })).unwrap();
-        assert_eq!(s.execute("draw.state", &json!({})).unwrap()["tool"], "pencil");
+        s.execute("ink.pencil", &json!({ "width": 3 })).unwrap();
+        assert_eq!(s.execute("ink.state", &json!({})).unwrap()["tool"], "pencil");
         s.execute(
             "drawing.ink",
             &json!({ "strokes": [
@@ -265,7 +265,7 @@ mod tests {
     fn the_eraser_tool_erases_a_drag_in_one_step() {
         let mut s = Session::with_new();
         s.execute("drawing.ink", &json!({ "strokes": [{ "points": [[100, 100], [200, 100]] }, { "points": [[100, 200], [200, 200]] }] })).unwrap();
-        s.execute("draw.eraser", &json!({})).unwrap();
+        s.execute("ink.eraser", &json!({})).unwrap();
         let undo = s.active().unwrap().history.undo.len();
         use crate::tools::{PointerEvent, PointerKind};
         let ev = |kind: PointerKind, x: f64, y: f64| PointerEvent { kind, x, y, mods: Default::default(), tol: 2.0 };

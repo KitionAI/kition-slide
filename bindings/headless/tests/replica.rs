@@ -36,7 +36,7 @@ fn a_deck_opens_from_its_exported_replica_with_its_media() {
     std::fs::create_dir_all(&root).unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let mut deck = SlideDocument::create("Deck.kslide", 960, 540).unwrap();
-    deck.execute("insert.picture", json!({ "name": "dot.png", "data": PICTURE })).unwrap();
+    deck.execute("image.insert", json!({ "name": "dot.png", "data": PICTURE })).unwrap();
     std::fs::write(root.join("Deck.kslide"), deck.save(None).unwrap()).unwrap();
 
     let mut kit = Headless::<SlideDocument>::with_replica_port(

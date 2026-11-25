@@ -856,7 +856,7 @@ impl Session {
                     ToolKind::TextBox => {
                         let w = preview.filter(|_| dragged).map(|x| x.w).unwrap_or(0.0);
                         let at = preview.filter(|_| dragged).map(|x| Point::new(x.x, x.y)).unwrap_or(start);
-                        self.execute("insert.textBox", &json!({"rect": [at.x, at.y, w, 30.0]}))?
+                        self.execute("textBox.insert", &json!({"rect": [at.x, at.y, w, 30.0]}))?
                     }
                     _ => Value::Null,
                 };

@@ -101,7 +101,7 @@ try {
   await until(async () => (await exported('Sample.pdf')) > 0, 200)
   step('exports the slides as PDF through the host', String.fromCharCode(...(await head('Sample.pdf', 5))) === '%PDF-')
   step('says it exported once the host wrote the file', (await toast()).includes('Sample.pdf'), await toast())
-  const slides = await page.evaluate(async () => (await window.devHost.connection().ai.run([{ command: 'document.inspect', params: {} }], false)).completed[0].result.slides.length)
+  const slides = await page.evaluate(async () => (await window.devHost.connection().ai.run([{ command: 'file.inspect', params: {} }], false)).completed[0].result.slides.length)
   await kit.getByTestId('slides-export').click()
   await kit.getByTestId('slides-export-format').selectOption('png')
   await kit.getByTestId('slides-export-scope').selectOption('all')

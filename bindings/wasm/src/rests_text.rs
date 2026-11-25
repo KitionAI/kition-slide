@@ -38,10 +38,10 @@ fn class(command: &str) -> Option<Class> {
         | "format.strikethrough"
         | "format.superscript"
         | "format.subscript"
-        | "format.font"
-        | "format.size"
-        | "format.grow"
-        | "format.shrink"
+        | "format.fontName"
+        | "format.fontSize"
+        | "format.increaseFontSize"
+        | "format.decreaseFontSize"
         | "format.color"
         | "format.highlight"
         | "format.caps"
@@ -62,7 +62,7 @@ fn class(command: &str) -> Option<Class> {
 /// first selected shape's first run or paragraph) before it writes.
 fn toggles(command: &str, params: &Value) -> bool {
     match command {
-        "format.grow" | "format.shrink" => true,
+        "format.increaseFontSize" | "format.decreaseFontSize" => true,
         "format.bold"
         | "format.italic"
         | "format.underline"

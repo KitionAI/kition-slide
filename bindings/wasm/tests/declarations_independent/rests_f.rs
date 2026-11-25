@@ -4,11 +4,11 @@ use super::{Rest, pinned, r, rs};
 use pinned as _;
 
 pub const ROWS: &[Rest] = &[
-    // insert.slideNumber: editing text (selection.text) inserts a slidenum field at the caret of the edited body; otherwise
-    // design.headerFooter {slideNumber: true} on every slide: headerFooter edited from its value, each slide's layout and shapes
+    // field.insertSlideNumber: editing text (selection.text) inserts a slidenum field at the caret of the edited body; otherwise
+    // slide.headerFooter {slideNumber: true} on every slide: headerFooter edited from its value, each slide's layout and shapes
     // (placeholder kinds) read, the layout's Slide Number placeholder (name, ph) copied into a new shape on the slide.
     r(
-        "insert.slideNumber",
+        "field.insertSlideNumber",
         r#"{}"#,
         "selection",
         &[
@@ -25,18 +25,24 @@ pub const ROWS: &[Rest] = &[
         ],
     ),
     // normalized after review: the edit goes through edit_text, whose fit_text_box resolves the body properties for the autofit mode (crates/engine/engine/src/cmd/text.rs:83-92) and autofit::invalidate compares them (crates/engine/engine/src/autofit.rs:10-21); the rows of text.insert read the same path
-    pinned(rs(r#"[["text.edit", {"id": "$Rect"}]]"#, "insert.slideNumber", r#"{}"#, "selection", &[("$Rect", "body.paragraphs,body.props", "-")])),
+    pinned(rs(
+        r#"[["text.edit", {"id": "$Rect"}]]"#,
+        "field.insertSlideNumber",
+        r#"{}"#,
+        "selection",
+        &[("$Rect", "body.paragraphs,body.props", "-")],
+    )),
     rs(
         r#"[["text.edit", {"id": "$Table", "cell": [1, 1]}]]"#,
-        "insert.slideNumber",
+        "field.insertSlideNumber",
         r#"{}"#,
         "selection",
         &[("$Table", "table.cells,table.cols,table.rows", "-")],
     ),
-    // insert.dateTime: as insert.slideNumber; editing text inserts a date field (format param) at the caret, otherwise
-    // design.headerFooter {date: true} (the format is not used) adds each layout's Date placeholder to every slide.
+    // field.insertDateTime: as field.insertSlideNumber; editing text inserts a date field (format param) at the caret, otherwise
+    // slide.headerFooter {date: true} (the format is not used) adds each layout's Date placeholder to every slide.
     r(
-        "insert.dateTime",
+        "field.insertDateTime",
         r#"{"format": "datetime2"}"#,
         "selection",
         &[
@@ -55,7 +61,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: fit_text_box lays the text out to fit (crates/engine/engine/src/cmd/text.rs:83-125): `body` spelled as its two parts, plus the geometry (shape_geometry), the shape style and default text style (level_style, crates/engine/model/src/resolve.rs:264-275), the theme fonts (font_family, resolve.rs:309-313) and the slide's layout the context is found through (text.rs:138-141), as the text.insert rows read
     pinned(rs(
         r#"[["text.edit", {"id": "$Text"}]]"#,
-        "insert.dateTime",
+        "field.insertDateTime",
         r#"{"format": "datetime2"}"#,
         "selection",
         &[
@@ -66,14 +72,14 @@ pub const ROWS: &[Rest] = &[
         ],
     )),
     // normalized after review: the edit goes through edit_text, whose fit_text_box resolves the body properties for the autofit mode (crates/engine/engine/src/cmd/text.rs:83-92) and autofit::invalidate compares them (crates/engine/engine/src/autofit.rs:10-21); the rows of text.insert read the same path
-    pinned(rs(r#"[["text.edit", {"id": "$Rect"}]]"#, "insert.dateTime", r#"{}"#, "selection", &[("$Rect", "body.paragraphs,body.props", "-")])),
-    // insert.symbol: only while editing text; inserts the characters at the caret (selection replaced) of the edited body (shape,
+    pinned(rs(r#"[["text.edit", {"id": "$Rect"}]]"#, "field.insertDateTime", r#"{}"#, "selection", &[("$Rect", "body.paragraphs,body.props", "-")])),
+    // symbol.insert: only while editing text; inserts the characters at the caret (selection replaced) of the edited body (shape,
     // table cell, notes). A Shrink placeholder ($Title) is refitted: body.props from its text laid out in the inherited frame,
     // body properties and list styles; an auto-size text box ($Text) is refitted (its xfrm).
     // normalized after review: the edit goes through edit_text, whose fit_text_box resolves the body properties for the autofit mode (crates/engine/engine/src/cmd/text.rs:83-92) and autofit::invalidate compares them (crates/engine/engine/src/autofit.rs:10-21); the rows of text.insert read the same path
     pinned(rs(
         r#"[["text.edit", {"id": "$Rect"}]]"#,
-        "insert.symbol",
+        "symbol.insert",
         r#"{"text": "©"}"#,
         "selection",
         &[("$Rect", "body.paragraphs,body.props", "-")],
@@ -81,7 +87,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: the shrink refit lays the placeholder out (crates/engine/engine/src/autofit.rs:37-100): `body` spelled as its two parts, plus its frame, placeholder, geometry and style, the layout placeholder's style and the default text style (resolve.rs:119-139, 264-275), as the text.insert row on $Title reads
     pinned(rs(
         r#"[["text.edit", {"id": "$Title"}]]"#,
-        "insert.symbol",
+        "symbol.insert",
         r#"{"text": "©"}"#,
         "selection",
         &[
@@ -96,7 +102,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: fit_text_box lays the text out to fit (crates/engine/engine/src/cmd/text.rs:83-125): `body` spelled as its two parts, plus the geometry (shape_geometry), the shape style and default text style (level_style, crates/engine/model/src/resolve.rs:264-275), the theme fonts (font_family, resolve.rs:309-313) and the slide's layout the context is found through (text.rs:138-141), as the text.insert rows read
     pinned(rs(
         r#"[["text.edit", {"id": "$Text"}]]"#,
-        "insert.symbol",
+        "symbol.insert",
         r#"{"text": "©"}"#,
         "selection",
         &[
@@ -108,21 +114,21 @@ pub const ROWS: &[Rest] = &[
     )),
     rs(
         r#"[["text.edit", {"id": "$Table", "cell": [1, 1]}]]"#,
-        "insert.symbol",
+        "symbol.insert",
         r#"{"text": "©"}"#,
         "selection",
         &[("$Table", "table.cells,table.cols,table.rows", "-")],
     ),
-    rs(r#"[["text.edit", {"notes": true}]]"#, "insert.symbol", r#"{"text": "©"}"#, "part,selection", &[("$S2", "notesBody", "-")]),
-    // insert.hyperlink: with id/ids (or no text being edited: the selected shapes) sets look.click of each target, giving a
+    rs(r#"[["text.edit", {"notes": true}]]"#, "symbol.insert", r#"{"text": "©"}"#, "part,selection", &[("$S2", "notesBody", "-")]),
+    // link.insert: with id/ids (or no text being edited: the selected shapes) sets look.click of each target, giving a
     // placeholder without its own frame the inherited one; `slide` links to the slide at that index (its id; its title is the
     // text inserted at a bare caret). Editing text with no id: links the selection or the word at the caret, else inserts the text.
-    r("insert.hyperlink", r#"{"url": "https://example.com", "ids": ["$Oval"]}"#, "", &[("$Oval", "look.click", "-")]),
-    r("insert.hyperlink", r#"{"url": "https://example.com"}"#, "selection", &[("$Rect", "look.click", "-")]),
-    r("insert.hyperlink", r#"{"slide": 2, "ids": ["$Group"]}"#, "", &[("$Group", "look.click", "-"), ("$S3", "-", "*")]),
+    r("link.insert", r#"{"url": "https://example.com", "ids": ["$Oval"]}"#, "", &[("$Oval", "look.click", "-")]),
+    r("link.insert", r#"{"url": "https://example.com"}"#, "selection", &[("$Rect", "look.click", "-")]),
+    r("link.insert", r#"{"slide": 2, "ids": ["$Group"]}"#, "", &[("$Group", "look.click", "-"), ("$S3", "-", "*")]),
     // normalized after review: giving the placeholder its inherited frame runs the parent lookup, which reads the target's own placeholder and the master's placeholder kinds up to its Title (crates/engine/model/src/resolve.rs:76-92)
     pinned(r(
-        "insert.hyperlink",
+        "link.insert",
         r#"{"url": "https://example.com", "ids": ["$Title"]}"#,
         "",
         &[
@@ -135,7 +141,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: the edit goes through edit_text, whose fit_text_box resolves the body properties for the autofit mode (crates/engine/engine/src/cmd/text.rs:83-92) and autofit::invalidate compares them (crates/engine/engine/src/autofit.rs:10-21); the rows of text.insert read the same path
     pinned(rs(
         r#"[["text.edit", {"id": "$Rect", "at": [0, 1]}]]"#,
-        "insert.hyperlink",
+        "link.insert",
         r#"{"url": "https://example.com"}"#,
         "selection",
         &[("$Rect", "body.paragraphs,body.props", "-")],
@@ -143,7 +149,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: the edit goes through edit_text, whose fit_text_box resolves the body properties for the autofit mode (crates/engine/engine/src/cmd/text.rs:83-92) and autofit::invalidate compares them (crates/engine/engine/src/autofit.rs:10-21); the rows of text.insert read the same path
     pinned(rs(
         r#"[["text.edit", {"id": "$Rect"}]]"#,
-        "insert.hyperlink",
+        "link.insert",
         r#"{"slide": 0}"#,
         "selection",
         &[("$Rect", "body.paragraphs,body.props", "-"), ("$S1", "shapes", "*"), ("$S1Title", "body.paragraphs,look.ph", "-")],

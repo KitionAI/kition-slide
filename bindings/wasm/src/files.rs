@@ -11,10 +11,10 @@ pub const FILES: &[FileParam] = &[
     FileParam::create("file.saveAs", "path", &["kslide", "pptx"]),
     FileParam::create("file.saveTemplate", "path", &["potx", "kslide"]),
     FileParam::create("file.export", "path", &["pdf", "png", "jpg", "jpeg", "pptx", "kslide", "txt", "md"]),
-    FileParam::read("insert.picture", "path", PICTURES),
-    FileParam::read("picture.change", "path", PICTURES),
-    FileParam::read("insert.audio", "path", &["wav", "mp3", "m4a", "m4b", "aac", "flac", "ogg", "aiff", "aif", "mka", "weba", "wma"]),
-    FileParam::read("insert.video", "path", &["mp4", "m4v", "mov", "ogv", "mkv", "webm", "wmv", "avi"]),
+    FileParam::read("image.insert", "path", PICTURES),
+    FileParam::read("image.change", "path", PICTURES),
+    FileParam::read("audio.insert", "path", &["wav", "mp3", "m4a", "m4b", "aac", "flac", "ogg", "aiff", "aif", "mka", "weba", "wma"]),
+    FileParam::read("video.insert", "path", &["mp4", "m4v", "mov", "ogv", "mkv", "webm", "wmv", "avi"]),
 ];
 
 /// The pictures the engine recognizes by their bytes (`content_type`).

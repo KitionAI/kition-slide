@@ -99,7 +99,7 @@ fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition
             command,
             "media.options"
                 | "media.posterFrame"
-                | "insert.hyperlink"
+                | "link.insert"
                 | "drawing.delete"
                 | "drawing.transform"
                 | "drawing.format"
@@ -114,7 +114,7 @@ fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition
         targets.clear();
     }
     let mut replacing_picture = false;
-    if command == "insert.picture" {
+    if command == "image.insert" {
         for selected in &selection.shapes {
             if let Some(shape) = kition_slide_model::find_shape(shapes, *selected) {
                 if let Some(id) = public(shape) {
@@ -161,10 +161,10 @@ fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition
         "shape.visible" => Some(&["look.hidden"]),
         "shape.lock" => Some(&["look.locked"]),
         "shape.setDefault" => Some(&["body", "look.fill", "look.line", "look.effects", "look.style"]),
-        "picture.crop" | "picture.adjust" | "picture.change" | "media.options" => Some(&["kind", "look.kind"]),
-        "picture.reset" => Some(&["kind", "look.kind", "look.line", "look.effects"]),
+        "image.crop" | "image.adjust" | "image.change" | "media.options" => Some(&["kind", "look.kind"]),
+        "image.reset" => Some(&["kind", "look.kind", "look.line", "look.effects"]),
         "chart.type" | "chart.data" | "chart.options" | "drawing.chart" => Some(&["kind", "chart"]),
-        "insert.hyperlink" if local.get("id").is_some() || local.get("ids").is_some() => Some(&["look.click"]),
+        "link.insert" if local.get("id").is_some() || local.get("ids").is_some() => Some(&["look.click"]),
         _ => None,
     };
     for target in &targets {
@@ -252,15 +252,15 @@ fn legacy(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition
         command,
         "shape.insert"
             | "shape.freeform"
-            | "insert.textBox"
-            | "insert.picture"
-            | "insert.table"
-            | "insert.chart"
-            | "insert.audio"
-            | "insert.video"
-            | "insert.artText"
-            | "insert.smartGraphic"
-            | "insert.actionButton"
+            | "textBox.insert"
+            | "image.insert"
+            | "table.insert"
+            | "chart.insert"
+            | "audio.insert"
+            | "video.insert"
+            | "artText.insert"
+            | "smartGraphic.insert"
+            | "actionButton.insert"
             | "drawing.insert"
             | "drawing.connect"
     ) || (command == "shape.connect" && params.get("id").is_none());
@@ -386,7 +386,7 @@ fn inherited_fill(
 }
 
 fn hyperlink(doc: &SlideDocument, command: &str, params: &Value, selection: &kition_slide_engine::Selection, found: &mut kition_kit::Under) {
-    if command != "insert.hyperlink" || params.get("url").is_some() {
+    if command != "link.insert" || params.get("url").is_some() {
         return;
     }
     let Some(index) = params.get("slide").and_then(Value::as_u64).and_then(|index| usize::try_from(index).ok()) else { return };

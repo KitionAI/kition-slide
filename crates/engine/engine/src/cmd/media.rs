@@ -209,7 +209,7 @@ mod tests {
     fn insert_audio_probes_and_play_requests_reach_the_host() {
         let mut s = Session::with_new();
         let _ = s.execute("slide.new", &json!({"layout": "blank"}));
-        let r = s.execute("insert.audio", &json!({"name": "tone.wav", "data": base64_encode(&wav())})).expect("insert");
+        let r = s.execute("audio.insert", &json!({"name": "tone.wav", "data": base64_encode(&wav())})).expect("insert");
         assert_eq!(r["durationMs"], 500);
         assert_eq!(r["playable"], true);
         let id = r["id"].as_u64().expect("id");
@@ -246,7 +246,7 @@ mod tests {
         let mut s = Session::with_new();
         let _ = s.execute("slide.new", &json!({"layout": "blank"}));
         assert!(s.execute("media.gifPlay", &json!({})).is_err(), "no GIF yet");
-        let r = s.execute("insert.picture", &json!({"name": "a.gif", "data": base64_encode(&gif)})).expect("insert");
+        let r = s.execute("image.insert", &json!({"name": "a.gif", "data": base64_encode(&gif)})).expect("insert");
         let id = ShapeId(r["id"].as_u64().expect("id") as u32);
         let r = s.execute("media.gifPlay", &json!({})).expect("toggle");
         assert_eq!(r["playing"], false);
@@ -267,7 +267,7 @@ mod tests {
         asf.extend_from_slice(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11, 0xA6, 0xD9, 0x00, 0xAA, 0x00, 0x62, 0xCE, 0x6C]);
         asf.extend_from_slice(&30u64.to_le_bytes());
         asf.extend_from_slice(&[0; 6]);
-        let r = s.execute("insert.audio", &json!({"name": "song.wma", "data": base64_encode(&asf)})).expect("insert");
+        let r = s.execute("audio.insert", &json!({"name": "song.wma", "data": base64_encode(&asf)})).expect("insert");
         assert_eq!(r["playable"], false);
         assert!(r["warning"].as_str().is_some_and(|w| w.contains("can't be played")), "{r}");
     }

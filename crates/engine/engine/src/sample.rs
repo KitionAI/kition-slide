@@ -44,7 +44,7 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
 
     // Section header.
     run(s, "slide.new", json!({"layout": "sectionHeader", "title": "The Science", "body": "Charged particles, magnetic fields and glowing gases"}))?;
-    run(s, "design.background", json!({"color": "dk2"}))?;
+    run(s, "slide.background", json!({"color": "dk2"}))?;
     let st = s.doc()?;
     let ids: Vec<u64> = st.current_slide().map(|x| x.shapes.iter().map(|s| s.id.0 as u64).collect()).unwrap_or_default();
     run(s, "edit.select", json!({"ids": ids}))?;
@@ -63,7 +63,7 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
         run(s, "shape.line", json!({"id": id, "none": true}))?;
         run(s, "shape.effects", json!({"id": id, "shadow": "bottom"}))?;
         run(s, "edit.select", json!({"ids": [id]}))?;
-        run(s, "format.size", json!({"size": 17}))?;
+        run(s, "format.fontSize", json!({"size": 17}))?;
         run(s, "format.bold", json!({"on": true}))?;
         run(s, "animation.add", json!({"effect": "zoom", "class": "entrance", "start": if i == 0 { "onClick" } else { "afterPrevious" }}))?;
         if let Some(p) = prev {
@@ -75,10 +75,10 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
         prev = Some(id);
     }
     let cap =
-        run(s, "insert.textBox", json!({"rect": [60, 380, 840, 60], "text": "Oxygen glows green and red; nitrogen adds blue and purple fringes."}))?;
+        run(s, "textBox.insert", json!({"rect": [60, 380, 840, 60], "text": "Oxygen glows green and red; nitrogen adds blue and purple fringes."}))?;
     run(s, "edit.select", json!({"ids": [last_id(&cap)]}))?;
     run(s, "format.alignCenter", json!({}))?;
-    run(s, "format.size", json!({"size": 20}))?;
+    run(s, "format.fontSize", json!({"size": 20}))?;
     run(s, "format.italic", json!({"on": true}))?;
     run(s, "transition.set", json!({"kind": "morph"}))?;
 
@@ -86,7 +86,7 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
     run(s, "slide.new", json!({"layout": "titleOnly", "title": "Best months to look (clear nights)"}))?;
     run(
         s,
-        "insert.chart",
+        "chart.insert",
         json!({"type": "column", "rect": [80, 140, 800, 360], "title": "Average clear, dark nights per month", "categories": ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"], "series": [{"name": "Tromsø", "values": [6, 8, 7, 6, 7, 9, 11]}, {"name": "Fairbanks", "values": [9, 10, 8, 9, 11, 12, 13]}, {"name": "Yellowknife", "values": [8, 11, 9, 10, 12, 13, 14]}]}),
     )?;
     run(s, "transition.set", json!({"kind": "fade"}))?;
@@ -95,7 +95,7 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
     run(s, "slide.new", json!({"layout": "titleOnly", "title": "Camera settings that work"}))?;
     run(
         s,
-        "insert.table",
+        "table.insert",
         json!({"rows": 5, "cols": 3, "rect": [100, 150, 760, 260], "data": [["Setting", "Faint aurora", "Bright, active aurora"], ["Aperture", "f/1.4 – f/2.8", "f/2.8"], ["Shutter", "8 – 15 s", "1 – 4 s"], ["ISO", "1600 – 3200", "800 – 1600"], ["Focus", "Manual, on a bright star", "Manual, on a bright star"]]}),
     )?;
     run(s, "transition.set", json!({"kind": "cover", "option": "l"}))?;
@@ -125,8 +125,8 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
     run(s, "section.add", json!({"name": "Science", "at": 2}))?;
     run(s, "section.add", json!({"name": "In the Field", "at": 5}))?;
     run(s, "slide.go", json!({"index": 0}))?;
-    run(s, "edit.deselect", json!({}))?;
-    run(s, "edit.deselect", json!({}))?;
+    run(s, "edit.deselectAll", json!({}))?;
+    run(s, "edit.deselectAll", json!({}))?;
     // The sample opens clean: no undo history, not dirty.
     if let Some(st) = s.active_mut() {
         st.history.undo.clear();

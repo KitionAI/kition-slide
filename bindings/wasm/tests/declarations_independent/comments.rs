@@ -26,7 +26,7 @@ fn projections() -> (SlideDocument, Vec<Projection>) {
         }
     }
     doc.execute("slide.go", json!({"index": 2})).unwrap();
-    let slides = doc.execute("document.inspect", json!({})).unwrap()["slides"].clone();
+    let slides = doc.execute("file.inspect", json!({})).unwrap()["slides"].clone();
     let derived = doc.derived(&[json!("slide-file")], &["commentOrder".into()]).unwrap();
     let expected_order = json!({
         (format!("slide:{}", slides[0]["id"])): [threads[0], threads[1]],

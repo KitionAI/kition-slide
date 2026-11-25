@@ -154,14 +154,14 @@ A real session on a copy of the showcase's seed pitch deck, abridged:
 Opened `pitch.pptx`: 7 slides, 960 × 540 pt
 {…,"part":{…,"design":[{"code":"design.small-text",
   "message":"\"TextBox 1\" has text under 15 pt, hard to read when presented. Keep body text at 18 pt or more.",
-  "shapes":[322],"try":["format.size {ids, size}"]}],…,"layout":"Blank",
+  "shapes":[322],"try":["format.fontSize {ids, size}"]}],…,"layout":"Blank",
   "notes":"Close on the milestone: 40,000 units makes the Series A story.",
   "shapes":[…,{"id":322,"kind":"textBox","name":"TextBox 1","text":"THE ASK",…},
     {"id":323,"kind":"textBox","name":"TextBox 2","text":"Raising $2.5M",…}, …]},"revision":"vif0",…}
 
 > slide_run {"path":"pitch.pptx","basis":"vif0","steps":[
     {"command":"text.set","at":{"part":{"slide":7}},"params":{"id":323,"text":"Raising $3M"}},
-    {"command":"format.size","params":{"ids":[322],"onSlide":7,"size":18}}]}
+    {"command":"format.fontSize","params":{"ids":[322],"onSlide":7,"size":18}}]}
 Ran 2 commands on `pitch.pptx` (saved): 7 slides, 960 × 540 pt Changes: objects 2 changed.
 
 > slide_check {"path":"pitch.pptx"}

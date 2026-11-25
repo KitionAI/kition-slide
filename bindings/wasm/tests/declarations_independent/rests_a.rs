@@ -98,7 +98,7 @@ pub const ROWS: &[Rest] = &[
         "part,selection",
         &[("$Text", "body,xfrm", "-"), ("$S2", "layout", "-"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle", "-")],
     ),
-    // edit.paste with `text` differing from the clipboard, no text editing: insert.textBox on the current slide at a rect from the slide size, named from ~shapeCount, fit to its text.
+    // edit.paste with `text` differing from the clipboard, no text editing: textBox.insert on the current slide at a rect from the slide size, named from ~shapeCount, fit to its text.
     r(
         "edit.paste",
         r#"{"text": "Hi"}"#,

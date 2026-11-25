@@ -25,7 +25,7 @@ fn appear_deck() -> (Session, Vec<Value>) {
     run(&mut s, "file.new", json!({}));
     let ids: Vec<Value> = (0..4)
         .map(|i| {
-            run(&mut s, "insert.textBox", json!({ "rect": [40.0 + 200.0 * f64::from(i), 100.0, 150.0, 60.0], "text": format!("Box {i}") }))["id"]
+            run(&mut s, "textBox.insert", json!({ "rect": [40.0 + 200.0 * f64::from(i), 100.0, 150.0, 60.0], "text": format!("Box {i}") }))["id"]
                 .clone()
         })
         .collect();

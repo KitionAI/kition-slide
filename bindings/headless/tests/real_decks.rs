@@ -52,11 +52,11 @@ fn ten_slides() -> Vec<u8> {
         if n > 1 {
             doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
         }
-        let made = doc.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
+        let made = doc.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
         titles.push(made["id"].as_u64().unwrap());
-        doc.execute("insert.textBox", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
+        doc.execute("textBox.insert", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
     }
-    doc.execute("insert.picture", json!({ "name": "red.png", "data": RED })).unwrap();
+    doc.execute("image.insert", json!({ "name": "red.png", "data": RED })).unwrap();
     let mut file = kition_slide_engine::cmd::file::open_slide_file(NAME, &doc.save(Some(NAME)).unwrap()).unwrap();
     let ninth = std::sync::Arc::make_mut(&mut file.slides[8]);
     for shape in &mut ninth.shapes {

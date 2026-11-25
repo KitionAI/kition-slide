@@ -257,7 +257,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "picture.crop",
+        "image.crop",
         Some("ids"),
         &["id"],
         &[],
@@ -268,7 +268,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "picture.adjust",
+        "image.adjust",
         Some("ids"),
         &["id"],
         &[],
@@ -279,7 +279,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "picture.reset",
+        "image.reset",
         Some("ids"),
         &["id"],
         &[],
@@ -290,7 +290,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "picture.change",
+        "image.change",
         Some("ids"),
         &["id"],
         &[],
@@ -326,7 +326,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.textBox",
+        "textBox.insert",
         None,
         &[],
         &[],
@@ -338,7 +338,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.picture",
+        "image.insert",
         None,
         &[],
         &["data", "path"],
@@ -350,7 +350,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.table",
+        "table.insert",
         None,
         &[],
         &[],
@@ -361,7 +361,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.chart",
+        "chart.insert",
         None,
         &[],
         &[],
@@ -372,7 +372,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.audio",
+        "audio.insert",
         None,
         &[],
         &["data", "path"],
@@ -383,7 +383,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.video",
+        "video.insert",
         None,
         &[],
         &["data", "path"],
@@ -394,7 +394,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.artText",
+        "artText.insert",
         None,
         &[],
         &[],
@@ -405,7 +405,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.slideNumber",
+        "field.insertSlideNumber",
         None,
         &[],
         &[],
@@ -413,11 +413,11 @@ pub(super) const ROWS: &[Row] = &[
         true,
         &[
             "text selection present: uses selected shape/cell/notes body and caret/range, props_at insertion point; replaces range with field run, fits text box and refreshes autofit",
-            "not editing text: delegates design.headerFooter slideNumber=true on current slide; reads inherited footer placeholders, theme/layout/master and slide's header/footer setting",
+            "not editing text: delegates slide.headerFooter slideNumber=true on current slide; reads inherited footer placeholders, theme/layout/master and slide's header/footer setting",
         ]
     ),
     row!(
-        "insert.dateTime",
+        "field.insertDateTime",
         None,
         &[],
         &[],
@@ -425,11 +425,11 @@ pub(super) const ROWS: &[Row] = &[
         true,
         &[
             "text selection present: format selects date field/time value; reads selected shape/cell/notes text and caret/range/run props; inserts field and fits text box",
-            "not editing text: delegates design.headerFooter date=true on current slide; reads existing date settings/inherited footer placeholders; input format is not forwarded",
+            "not editing text: delegates slide.headerFooter date=true on current slide; reads existing date settings/inherited footer placeholders; input format is not forwarded",
         ]
     ),
     row!(pinned
-        "insert.symbol",
+        "symbol.insert",
         None,
         &[],
         &[],
@@ -441,7 +441,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.hyperlink",
+        "link.insert",
         Some("ids"),
         &["id"],
         &["slide"],
@@ -487,7 +487,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(pinned
-        "insert.smartGraphic",
+        "smartGraphic.insert",
         None,
         &[],
         &[],
@@ -499,7 +499,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "insert.actionButton",
+        "actionButton.insert",
         None,
         &[],
         &[],

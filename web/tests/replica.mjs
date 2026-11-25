@@ -27,7 +27,7 @@ const version = (path) => page.evaluate((path) => window.devHost.files.get(path)
 const docId = () => page.evaluate(() => window.devHost.connection().replica.info())
 /** Every shape of every slide (an agent's read of each slide). */
 const shapes = async () => {
-  const count = (await run('document.inspect')).slides.length
+  const count = (await run('file.inspect')).slides.length
   const all = []
   for (let index = 0; index < count; index += 1) all.push(...(await run('slide.inspect', { index })).shapes)
   return all

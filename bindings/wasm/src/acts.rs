@@ -32,11 +32,11 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "slide.delete"
         | "slide.hide"
         | "slide.layout"
-        | "insert.picture"
-        | "insert.slideNumber"
-        | "insert.dateTime"
-        | "insert.symbol"
-        | "insert.hyperlink"
+        | "image.insert"
+        | "field.insertSlideNumber"
+        | "field.insertDateTime"
+        | "symbol.insert"
+        | "link.insert"
         | "chart.type"
         | "chart.data"
         | "chart.options"
@@ -56,10 +56,10 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "shape.visible"
         | "shape.lock"
         | "shape.setDefault"
-        | "picture.crop"
-        | "picture.adjust"
-        | "picture.reset"
-        | "picture.change"
+        | "image.crop"
+        | "image.adjust"
+        | "image.reset"
+        | "image.change"
         | "media.options"
         | "drawing.describe"
         | "arrange.bringToFront"
@@ -92,10 +92,10 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "format.strikethrough"
         | "format.superscript"
         | "format.subscript"
-        | "format.font"
-        | "format.size"
-        | "format.grow"
-        | "format.shrink"
+        | "format.fontName"
+        | "format.fontSize"
+        | "format.increaseFontSize"
+        | "format.decreaseFontSize"
         | "format.color"
         | "format.highlight"
         | "format.case"
@@ -184,7 +184,7 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "slide.fromOutline"
         | "shape.freeform"
         | "shape.delete"
-        | "insert.smartGraphic"
+        | "smartGraphic.insert"
         | "drawing.delete"
         | "drawing.transform"
         | "drawing.format"
@@ -193,15 +193,15 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "drawing.group"
         | "drawing.ungroup"
         | "drawing.chart"
-        | "design.fonts"
+        | "theme.fonts"
         | "shape.insert"
-        | "insert.textBox"
-        | "insert.table"
-        | "insert.chart"
-        | "insert.audio"
-        | "insert.video"
-        | "insert.artText"
-        | "insert.actionButton"
+        | "textBox.insert"
+        | "table.insert"
+        | "chart.insert"
+        | "audio.insert"
+        | "video.insert"
+        | "artText.insert"
+        | "actionButton.insert"
         | "shape.connect"
         | "shape.sites"
         | "drawing.insert"
@@ -210,11 +210,11 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "drawing.ink"
         | "drawing.erase"
         | "arrange.reorder"
-        | "design.theme"
-        | "design.colors"
-        | "design.background"
-        | "design.hideBackgroundGraphics"
-        | "design.headerFooter"
+        | "theme.set"
+        | "theme.colors"
+        | "slide.background"
+        | "slide.hideBackgroundGraphics"
+        | "slide.headerFooter"
         | "view.slideMaster"
         | "master.insertLayout"
         | "master.renameLayout"
@@ -234,7 +234,7 @@ pub fn reads(id: &str) -> &'static [EditorState] {
         | "presence.selection"
         | "presence.locate"
         | "comment.place" => PART,
-        "edit.deselect" | "slide.selectSlides" | "text.exit" | "text.select" => SELECTION,
+        "edit.deselectAll" | "slide.selectSlides" | "text.exit" | "text.select" => SELECTION,
         _ => &[],
     }
 }
@@ -309,10 +309,10 @@ pub fn mark_objects(command: &mut kition_kit::KitCommand) {
     if has(crate::ON_SLIDE) {
         command.places = match command.id.as_str() {
             "comment.add" => &["slide", "onSlide"],
-            "insert.hyperlink" => &["slide", "onSlide"],
+            "link.insert" => &["slide", "onSlide"],
             "animation.remove" => &["index", "onSlide"],
             "arrange.reorder" => &["index", "onSlide"],
-            "insert.picture" | "insert.audio" | "insert.video" => &["data", "path", "onSlide"],
+            "image.insert" | "audio.insert" | "video.insert" => &["data", "path", "onSlide"],
             "shape.fill" => &["picture", "onSlide"],
             "table.insertRowAbove" | "table.insertRowBelow" => &["row", "onSlide"],
             "table.insertColumnLeft" | "table.insertColumnRight" => &["col", "onSlide"],
@@ -330,7 +330,7 @@ pub fn moves_the_editor(id: &str) -> bool {
         id,
         "edit.select"
             | "edit.selectAll"
-            | "edit.deselect"
+            | "edit.deselectAll"
             | "slide.go"
             | "slide.next"
             | "slide.previous"
@@ -370,15 +370,15 @@ pub fn places(id: &str) -> &'static [&'static str] {
         "section.rename" | "section.remove" => &["index"],
         "comment.add" => &["slide"],
         "comment.reply" | "comment.delete" | "comment.resolve" => &["index"],
-        "design.background" => &["index"],
+        "slide.background" => &["index"],
         "master.renameLayout" | "master.deleteLayout" => &["master", "layout"],
         "show.customShow" => &["slides"],
-        "insert.hyperlink" => &["slide"],
+        "link.insert" => &["slide"],
         "drawing.erase" => &["path", "y"],
         "animation.timing" | "animation.options" | "animation.remove" => &["index"],
         "animation.move" => &["index", "to"],
         "arrange.reorder" => &["index"],
-        "insert.picture" | "insert.audio" | "insert.video" => &["data", "path"],
+        "image.insert" | "audio.insert" | "video.insert" => &["data", "path"],
         "shape.fill" => &["picture"],
         "table.insertRowAbove" | "table.insertRowBelow" => &["row"],
         "table.insertColumnLeft" | "table.insertColumnRight" => &["col"],
@@ -408,12 +408,12 @@ pub fn position_independent(id: &str) -> bool {
             | "shape.quickStyle"
             | "shape.visible"
             | "shape.lock"
-            | "picture.crop"
-            | "picture.adjust"
-            | "picture.reset"
-            | "picture.change"
+            | "image.crop"
+            | "image.adjust"
+            | "image.reset"
+            | "image.change"
             | "media.options"
-            | "insert.hyperlink"
+            | "link.insert"
             | "chart.type"
             | "chart.data"
             | "chart.options"

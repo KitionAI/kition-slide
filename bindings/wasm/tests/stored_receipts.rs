@@ -85,7 +85,7 @@ fn cross_slide_moves_have_the_saved_identity_in_their_transaction() {
     let mut failures = Vec::new();
     for name in ["Deck.kslide", "Deck.pptx"] {
         let mut doc = SlideDocument::create(name, 960, 540).unwrap();
-        doc.execute("insert.textBox", json!({"text": "Moved", "rect": [10, 10, 100, 50]})).unwrap();
+        doc.execute("textBox.insert", json!({"text": "Moved", "rect": [10, 10, 100, 50]})).unwrap();
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
         doc = SlideDocument::open(name, &doc.save(Some(name)).unwrap()).unwrap();
         let first = doc.execute("slide.inspect", json!({"index": 0})).unwrap();
@@ -131,10 +131,10 @@ fn cross_slide_moves_have_the_saved_identity_in_their_transaction() {
 fn command_limits_are_machine_readable() {
     let doc = SlideDocument::create("Bounds.pptx", 960, 540).unwrap();
     for (id, field, minimum, maximum) in [
-        ("format.size", "size", 1.0, 4000.0),
-        ("insert.table", "rows", 1.0, 75.0),
+        ("format.fontSize", "size", 1.0, 4000.0),
+        ("table.insert", "rows", 1.0, 75.0),
         ("animation.timing", "duration", 0.0, 600_000.0),
-        ("picture.adjust", "saturation", 0.0, 4.0),
+        ("image.adjust", "saturation", 0.0, 4.0),
     ] {
         let commands = doc.commands();
         let schema = commands.iter().find(|c| c.id == id).unwrap().schema.as_ref().unwrap();
@@ -159,7 +159,7 @@ fn nested_command_limits_are_machine_readable() {
 #[test]
 fn json_member_limits_are_validated_before_writing() {
     let mut doc = SlideDocument::create("Bounds.pptx", 960, 540).unwrap();
-    let id = doc.execute("insert.textBox", json!({"text": "Bounded", "rect": [0, 0, 100, 50]})).unwrap()["id"].clone();
+    let id = doc.execute("textBox.insert", json!({"text": "Bounded", "rect": [0, 0, 100, 50]})).unwrap()["id"].clone();
     let part = doc.execute("slide.inspect", json!({"index": 0})).unwrap();
     let shape = part["shapes"].as_array().unwrap().iter().find(|shape| shape["id"] == id).unwrap()["toolId"].clone();
     let mut exchange = Exchange::new();
@@ -181,7 +181,7 @@ fn layout_names_and_numeric_limits_describe_the_resolver() {
         assert!(command.object_types.contains(&("layout", &["Layout"][..])));
     }
     for (id, field, minimum, maximum) in
-        [("format.size", "size", 1.0, 4000.0), ("table.columnWidth", "width", 4.0, 4000.0), ("animation.timing", "duration", 0.0, 600_000.0)]
+        [("format.fontSize", "size", 1.0, 4000.0), ("table.columnWidth", "width", 4.0, 4000.0), ("animation.timing", "duration", 0.0, 600_000.0)]
     {
         let schema = commands.iter().find(|command| command.id == id).unwrap().schema.as_ref().unwrap();
         assert_eq!(schema[field]["minimum"].as_f64(), Some(minimum));

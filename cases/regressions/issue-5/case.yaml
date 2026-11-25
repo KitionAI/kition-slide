@@ -4,7 +4,7 @@ feature: slide.design.themes
 intent: >-
   design.low-contrast measures text against the fill drawn behind it, also when that fill comes
   from the shape's style or is a gradient (it measured against the slide background and flagged
-  white text on styled and gradient cards); design.background with all (Apply to All) puts the
+  white text on styled and gradient cards); slide.background with all (Apply to All) puts the
   background on the masters and layouts so slides added later take it (they stayed white); the
   Nocturne theme keeps dark in dk1 and light in lt1 and maps background and text through its
   colour map, and table styles name dk1 and lt1 directly, so a medium2-accent1 table draws dark

@@ -80,7 +80,7 @@ fn picture_text_multiplies_picture_and_paragraph_alpha_once() {
 #[test]
 fn text_picture_crop_uses_the_existing_picture_fill_path() {
     let (pres, mut picture) = presentation();
-    picture.crop = [0.5, 0.0, 0.0, 0.0];
+    image.crop = [0.5, 0.0, 0.0, 0.0];
     let rctx = Ctx::for_slide(&pres, &pres.slides[0]).unwrap();
     let layout = layout(&rctx, Fill::Picture(picture));
     let image = render(&rctx, &layout, 1.0);

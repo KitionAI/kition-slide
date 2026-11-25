@@ -20,7 +20,7 @@ fn deck() -> Vec<u8> {
     let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
     doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
     for i in 0..6 {
-        let made = doc.execute("insert.textBox", json!({"rect": [10, 10 + 60 * i, 200, 50], "text": format!("S{i}")})).unwrap();
+        let made = doc.execute("textBox.insert", json!({"rect": [10, 10 + 60 * i, 200, 50], "text": format!("S{i}")})).unwrap();
         doc.execute("animation.add", json!({"ids": [made["id"]], "effect": "fade"})).unwrap();
     }
     doc.execute("slide.delete", json!({"index": 0})).unwrap();

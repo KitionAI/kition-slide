@@ -37,9 +37,9 @@ fn deck() -> Vec<u8> {
         if n > 1 {
             doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
         }
-        let made = doc.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": format!("Slide {n}") })).unwrap();
+        let made = doc.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": format!("Slide {n}") })).unwrap();
         boxes.push(made["id"].as_u64().unwrap());
-        doc.execute("insert.textBox", json!({ "rect": [60, 300, 400, 80], "text": format!("Note {n}") })).unwrap();
+        doc.execute("textBox.insert", json!({ "rect": [60, 300, 400, 80], "text": format!("Note {n}") })).unwrap();
     }
     let mut file = kition_slide_engine::cmd::file::open_slide_file("Deck.pptx", &doc.save(Some("Deck.pptx")).unwrap()).unwrap();
     let fifth = std::sync::Arc::make_mut(&mut file.slides[4]);
@@ -233,7 +233,7 @@ async fn a_receipt_names_the_shapes_and_slides_a_run_changed_by_the_ids_inspect_
     let ran = f
         .ok(
             "run",
-            json!({ "target": { "slide": 5 }, "steps": [{ "command": "insert.textBox", "params": { "rect": [500, 60, 200, 60], "text": "New" } }] }),
+            json!({ "target": { "slide": 5 }, "steps": [{ "command": "textBox.insert", "params": { "rect": [500, 60, 200, 60], "text": "New" } }] }),
         )
         .await;
     let (fifth, _) = f.inspect(5).await;

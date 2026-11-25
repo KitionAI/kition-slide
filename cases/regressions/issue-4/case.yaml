@@ -5,7 +5,7 @@ intent: >-
   After shape.setBounds on a group, slide.inspect lists its children with their boxes on the
   slide, mapped through the group's child space (they kept their old boxes); moving or resizing
   a group member (in slide points, as inspect lists it) refits the group's box around its
-  members (it went stale); design.colors answers the theme's colour scheme as {name, colors} (it
+  members (it went stale); theme.colors answers the theme's colour scheme as {name, colors} (it
   answered null) and refuses an unknown slot.
 layer: gate
 source:

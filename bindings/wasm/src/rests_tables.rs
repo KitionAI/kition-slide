@@ -32,7 +32,7 @@ fn local_id(value: &Value) -> Option<ShapeId> {
 }
 
 pub(super) fn add(doc: &SlideDocument, command: &str, params: &Value, found: &mut kition_kit::Under) -> Result<(), String> {
-    if matches!(command, "insert.slideNumber" | "insert.dateTime" | "insert.symbol" | "insert.hyperlink") {
+    if matches!(command, "field.insertSlideNumber" | "field.insertDateTime" | "symbol.insert" | "link.insert") {
         return fields_and_links(doc, command, params, found);
     }
     let Some(fields) = reads(command) else { return Ok(()) };
@@ -146,8 +146,8 @@ fn fields_and_links(doc: &SlideDocument, command: &str, params: &Value, found: &
         .or_else(|| local.get("id").filter(|id| !id.is_null()).and_then(local_id).map(|id| vec![id]))
         .unwrap_or_default();
     let editing = state.selection.text.clone();
-    let caret = editing.is_some() && (command != "insert.hyperlink" || named.is_empty());
-    if command == "insert.hyperlink"
+    let caret = editing.is_some() && (command != "link.insert" || named.is_empty());
+    if command == "link.insert"
         && let Some(at) = params.get("slide").and_then(Value::as_u64).and_then(|n| usize::try_from(n).ok())
         && let Some(slide) = state.doc.slides.get(at)
     {
@@ -167,7 +167,7 @@ fn fields_and_links(doc: &SlideDocument, command: &str, params: &Value, found: &
     if caret {
         super::rests_text::add(doc, "text.insert", &json!({}), found)?;
         // A field or symbol typed into a table cell locates the cell in the grid.
-        if command != "insert.hyperlink"
+        if command != "link.insert"
             && let Some(text) = editing.as_ref().filter(|text| text.cell.is_some())
             && let Some(shape) = state.shape(text.shape)
         {
@@ -176,9 +176,9 @@ fn fields_and_links(doc: &SlideDocument, command: &str, params: &Value, found: &
         return Ok(());
     }
     match command {
-        "insert.slideNumber" => footers(state, PhType::SlideNum, found),
-        "insert.dateTime" => footers(state, PhType::Date, found),
-        "insert.hyperlink" => {
+        "field.insertSlideNumber" => footers(state, PhType::SlideNum, found),
+        "field.insertDateTime" => footers(state, PhType::Date, found),
+        "link.insert" => {
             let targets = if named.is_empty() { state.selection.shapes.clone() } else { named };
             links(state, &targets, found);
         }
@@ -187,7 +187,7 @@ fn fields_and_links(doc: &SlideDocument, command: &str, params: &Value, found: &
     Ok(())
 }
 
-/// design.headerFooter turning on `kind` on every slide (cmd/design.rs:349-440): the deck's
+/// slide.headerFooter turning on `kind` on every slide (cmd/design.rs:349-440): the deck's
 /// header and footer settings, each slide's layout and shapes (the placeholder kinds it has),
 /// each layout's shapes and the placeholder of that kind it copies (name and placeholder).
 fn footers(state: &DocState, kind: PhType, found: &mut kition_kit::Under) {

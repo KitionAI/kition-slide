@@ -26,7 +26,7 @@ impl Fixture {
     fn new() -> Self {
         let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
-        doc.execute("insert.video", json!({"name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(ORIGINAL)})).unwrap();
+        doc.execute("video.insert", json!({"name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(ORIGINAL)})).unwrap();
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
         let workspace = tempfile::tempdir().unwrap();
         let bytes = doc.save(Some(NAME)).unwrap();

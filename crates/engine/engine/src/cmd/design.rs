@@ -14,10 +14,10 @@ use crate::{Result, Session, Target};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("design.theme", "Themes", ["Design", "Themes"], None, "{name} (see design.themes)", has_doc, theme),
-        cmd!(query "design.themes", "Theme Gallery", [], None, "{} → themes, colour schemes and font schemes", always, themes),
+        cmd!("theme.set", "Themes", ["Design", "Themes"], None, "{name} (see theme.list)", has_doc, theme),
+        cmd!(query "theme.list", "Theme Gallery", [], None, "{} → themes, colour schemes and font schemes", always, themes),
         cmd!(
-            "design.colors",
+            "theme.colors",
             "Colors",
             ["Design", "Variants"],
             None,
@@ -25,9 +25,9 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             colors
         ),
-        cmd!("design.fonts", "Fonts", ["Design", "Variants"], None, "{name} | {major, minor}", has_doc, fonts),
+        cmd!("theme.fonts", "Fonts", ["Design", "Variants"], None, "{name} | {major, minor}", has_doc, fonts),
         cmd!(
-            "design.background",
+            "slide.background",
             "Format Background",
             ["Design", "Customize"],
             None,
@@ -35,9 +35,9 @@ pub fn specs() -> Vec<CommandSpec> {
             has_slide,
             background
         ),
-        cmd!("design.hideBackgroundGraphics", "Hide Background Graphics", ["Format Background"], None, "{hide?: bool}", has_slide, hide_bg_graphics),
+        cmd!("slide.hideBackgroundGraphics", "Hide Background Graphics", ["Format Background"], None, "{hide?: bool}", has_slide, hide_bg_graphics),
         cmd!(
-            "design.slideSize",
+            "slide.size",
             "Slide Size",
             ["Design", "Customize"],
             None,
@@ -46,7 +46,7 @@ pub fn specs() -> Vec<CommandSpec> {
             slide_size
         ),
         cmd!(
-            "design.headerFooter",
+            "slide.headerFooter",
             "Header and Footer…",
             ["Insert", "Text"],
             None,
@@ -72,12 +72,11 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 fn theme(s: &mut Session, p: &Value) -> Result<Value> {
-    let name = str_param(p, "name").ok_or_else(|| bad("design.theme", "missing `name`"))?;
-    let t =
-        builtin_themes().into_iter().find(|t| t.name.eq_ignore_ascii_case(name)).ok_or_else(|| bad("design.theme", format!("no theme `{name}`")))?;
+    let name = str_param(p, "name").ok_or_else(|| bad("theme.set", "missing `name`"))?;
+    let t = builtin_themes().into_iter().find(|t| t.name.eq_ignore_ascii_case(name)).ok_or_else(|| bad("theme.set", format!("no theme `{name}`")))?;
     s.edit(|doc, sel| {
         let mi = master_index(doc, sel);
-        let m = doc.masters.get_mut(mi).ok_or_else(|| bad("design.theme", "no master"))?;
+        let m = doc.masters.get_mut(mi).ok_or_else(|| bad("theme.set", "no master"))?;
         let m = Arc::make_mut(m);
         m.theme = t.clone();
         m.name = t.name.clone();
@@ -108,29 +107,29 @@ fn colors(s: &mut Session, p: &Value) -> Result<Value> {
             builtin_color_schemes()
                 .into_iter()
                 .find(|c| c.name.eq_ignore_ascii_case(name))
-                .ok_or_else(|| bad("design.colors", format!("no colour scheme `{name}`")))?,
+                .ok_or_else(|| bad("theme.colors", format!("no colour scheme `{name}`")))?,
         )
     } else {
         None
     };
     let mut custom = vec![];
     if let Some(given) = p.get("colors").filter(|v| !v.is_null()) {
-        let map = given.as_object().ok_or_else(|| bad("design.colors", "`colors` is {slot: #RRGGBB}"))?;
+        let map = given.as_object().ok_or_else(|| bad("theme.colors", "`colors` is {slot: #RRGGBB}"))?;
         for (k, v) in map {
             let slot = kition_slide_color::SchemeSlot::from_xml(k)
                 .filter(|slot| kition_slide_color::SchemeSlot::THEME.contains(slot))
-                .ok_or_else(|| bad("design.colors", format!("no colour slot `{k}`: dk1, lt1, dk2, lt2, accent1 … accent6, hlink, folHlink")))?;
+                .ok_or_else(|| bad("theme.colors", format!("no colour slot `{k}`: dk1, lt1, dk2, lt2, accent1 … accent6, hlink, folHlink")))?;
             let rgb = v
                 .as_str()
                 .and_then(kition_slide_color::Rgba::from_hex)
-                .ok_or_else(|| bad("design.colors", format!("`{k}` is not a #RRGGBB colour: {v}")))?;
+                .ok_or_else(|| bad("theme.colors", format!("`{k}` is not a #RRGGBB colour: {v}")))?;
             custom.push((slot, rgb));
         }
     }
     if scheme.is_some() || !custom.is_empty() {
         s.edit(|doc, sel| {
             let mi = master_index(doc, sel);
-            let m = Arc::make_mut(doc.masters.get_mut(mi).ok_or_else(|| bad("design.colors", "no master"))?);
+            let m = Arc::make_mut(doc.masters.get_mut(mi).ok_or_else(|| bad("theme.colors", "no master"))?);
             if let Some(sc) = &scheme {
                 m.theme.colors = sc.clone();
             }
@@ -144,7 +143,7 @@ fn colors(s: &mut Session, p: &Value) -> Result<Value> {
         })?;
     }
     let st = s.doc()?;
-    let m = st.doc.masters.get(master_index(&st.doc, &st.selection)).ok_or_else(|| bad("design.colors", "no master"))?;
+    let m = st.doc.masters.get(master_index(&st.doc, &st.selection)).ok_or_else(|| bad("theme.colors", "no master"))?;
     let c = &m.theme.colors;
     let colors: serde_json::Map<String, Value> =
         kition_slide_color::SchemeSlot::THEME.iter().map(|slot| (slot.xml_name().to_string(), json!(format!("#{}", c.get(*slot).hex())))).collect();
@@ -158,14 +157,14 @@ fn fonts(s: &mut Session, p: &Value) -> Result<Value> {
             .find(|f| f.name.eq_ignore_ascii_case(name))
             .ok_or_else(|| {
                 let names: Vec<String> = builtin_font_schemes().into_iter().map(|f| f.name).collect();
-                bad("design.fonts", format!("no font scheme `{name}`: `name` is a theme font scheme ({}); for a font family pass `major` and `minor`, e.g. {{\"major\": \"{name}\", \"minor\": \"{name}\"}}", names.join(", ")))
+                bad("theme.fonts", format!("no font scheme `{name}`: `name` is a theme font scheme ({}); for a font family pass `major` and `minor`, e.g. {{\"major\": \"{name}\", \"minor\": \"{name}\"}}", names.join(", ")))
             })?
     } else {
-        let major = str_param(p, "major").ok_or_else(|| bad("design.fonts", "give `name`, or `major` and `minor`"))?;
+        let major = str_param(p, "major").ok_or_else(|| bad("theme.fonts", "give `name`, or `major` and `minor`"))?;
         let minor = str_param(p, "minor").unwrap_or(major);
         // The theme's own sets with their Latin font changed: their East Asian, complex-script and
         // per-script fonts stay, and an East Asian family becomes the East Asian font too (with
-        // only the Latin one, PowerPoint draws Han text in the old East Asian font; format.font).
+        // only the Latin one, PowerPoint draws Han text in the old East Asian font; format.fontName).
         let current = {
             let st = s.doc()?;
             st.doc.masters.get(master_index(&st.doc, &st.selection)).map(|m| m.theme.fonts.clone()).unwrap_or_default()
@@ -181,10 +180,10 @@ fn fonts(s: &mut Session, p: &Value) -> Result<Value> {
     };
     s.edit(|doc, sel| {
         let mi = master_index(doc, sel);
-        Arc::make_mut(doc.masters.get_mut(mi).ok_or_else(|| bad("design.fonts", "no master"))?).theme.fonts = scheme;
+        Arc::make_mut(doc.masters.get_mut(mi).ok_or_else(|| bad("theme.fonts", "no master"))?).theme.fonts = scheme;
         Ok(())
     })?;
-    // A family this machine lacks is said, as format.font says it.
+    // A family this machine lacks is said, as format.fontName says it.
     let notes: Vec<Value> = [str_param(p, "major"), str_param(p, "minor")].into_iter().flatten().filter_map(super::format::font_note).collect();
     if notes.is_empty() { ok() } else { Ok(json!({ "fonts": notes })) }
 }
@@ -208,7 +207,7 @@ fn background(s: &mut Session, p: &Value) -> Result<Value> {
             color: kition_slide_model::ColorRef::scheme(slots.get(i % 4).copied().unwrap_or(kition_slide_color::SchemeSlot::Bg1)),
         })
     } else if let Some(g) = p.get("gradient") {
-        let mut g = super::shape::gradient_param(g).ok_or_else(|| bad("design.background", "gradient needs two or more `stops`"))?;
+        let mut g = super::shape::gradient_param(g).ok_or_else(|| bad("slide.background", "gradient needs two or more `stops`"))?;
         g.rotate_with_shape = false;
         Some(Background::Fill { fill: Fill::Gradient(g) })
     } else if let Some(pt) = p.get("pattern") {
@@ -221,12 +220,12 @@ fn background(s: &mut Session, p: &Value) -> Result<Value> {
         })
     } else if p.get("picture").is_some() {
         let picture = with_param(p, "data", p.get("picture").cloned().unwrap_or_default());
-        let (name, bytes) = super::insert::media_bytes(s, &picture, "design.background")?;
+        let (name, bytes) = super::insert::media_bytes(s, &picture, "slide.background")?;
         let ct = super::insert::content_type(&name, &bytes);
         let media = s.edit(|doc, _| Ok(doc.add_media(&name, ct, bytes)))?;
         Some(Background::Fill { fill: Fill::Picture(kition_slide_model::style::PictureFill { media, ..Default::default() }) })
     } else {
-        return Err(bad("design.background", "give `color`, `gradient`, `pattern`, `picture`, `style` or `reset`"));
+        return Err(bad("slide.background", "give `color`, `gradient`, `pattern`, `picture`, `style` or `reset`"));
     };
     let all = bool_or(p, "all", false);
     let index = usize_param(p, "index");
@@ -305,12 +304,12 @@ fn slide_size(s: &mut Session, p: &Value) -> Result<Value> {
     let size = if let Some(pre) = str_param(p, "preset") {
         let k = pre.to_ascii_lowercase();
         let found = defaults::SLIDE_SIZES.iter().find(|(l, _, _)| l.to_ascii_lowercase().starts_with(&k) || l.to_ascii_lowercase().contains(&k));
-        let (_, w, h) = found.ok_or_else(|| bad("design.slideSize", format!("unknown preset `{pre}`")))?;
+        let (_, w, h) = found.ok_or_else(|| bad("slide.size", format!("unknown preset `{pre}`")))?;
         Size::new(*w, *h)
     } else {
         Size::new(
-            f64_param(p, "w").ok_or_else(|| bad("design.slideSize", "missing `w`"))?.clamp(72.0, 4032.0),
-            f64_param(p, "h").ok_or_else(|| bad("design.slideSize", "missing `h`"))?.clamp(72.0, 4032.0),
+            f64_param(p, "w").ok_or_else(|| bad("slide.size", "missing `w`"))?.clamp(72.0, 4032.0),
+            f64_param(p, "h").ok_or_else(|| bad("slide.size", "missing `h`"))?.clamp(72.0, 4032.0),
         )
     };
     let mode = str_param(p, "scale").unwrap_or("ensureFit").to_string();

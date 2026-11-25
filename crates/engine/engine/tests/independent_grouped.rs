@@ -72,7 +72,7 @@ fn inserting_a_picture_replaces_a_selected_grouped_placeholder() {
     let mut png = std::io::Cursor::new(Vec::new());
     image::DynamicImage::ImageRgba8(image).write_to(&mut png, image::ImageFormat::Png).unwrap();
     let answer =
-        session.execute("insert.picture", &json!({"data": kition_slide_engine::cmd::base64_encode(png.get_ref()), "name": "original.png"})).unwrap();
+        session.execute("image.insert", &json!({"data": kition_slide_engine::cmd::base64_encode(png.get_ref()), "name": "original.png"})).unwrap();
     assert_eq!(answer["id"], child.0);
     assert!(matches!(session.doc().unwrap().shape(child).unwrap().kind, ShapeKind::Picture { .. }));
 }

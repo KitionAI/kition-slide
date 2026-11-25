@@ -27,17 +27,17 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
-        doc.execute("insert.textBox", json!({ "text": "First", "rect": [60, 400, 240, 80] })).unwrap();
+        doc.execute("textBox.insert", json!({ "text": "First", "rect": [60, 400, 240, 80] })).unwrap();
         doc.execute("comment.add", json!({ "slide": 0, "text": "Opening", "author": "reader", "name": "Reader", "created": "2026-11-13T09:00:00Z" }))
             .unwrap();
         doc.execute("slide.new", json!({ "layout": "titleAndContent", "title": "Results", "body": "One" })).unwrap();
         doc.execute("slide.go", json!({ "index": 1 })).unwrap();
-        doc.execute("insert.textBox", json!({ "text": "Box", "rect": [60, 400, 240, 80] })).unwrap();
+        doc.execute("textBox.insert", json!({ "text": "Box", "rect": [60, 400, 240, 80] })).unwrap();
         doc.execute("comment.add", json!({ "slide": 1, "text": "Check", "author": "reader", "name": "Reader", "created": "2026-11-13T10:00:00Z" }))
             .unwrap();
         doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
         doc.execute("slide.go", json!({ "index": 2 })).unwrap();
-        doc.execute("insert.textBox", json!({ "text": "Last", "rect": [60, 60, 240, 80] })).unwrap();
+        doc.execute("textBox.insert", json!({ "text": "Last", "rect": [60, 60, 240, 80] })).unwrap();
         doc.execute("slide.go", json!({ "index": 0 })).unwrap();
         let workspace = tempfile::tempdir().unwrap();
         std::fs::write(workspace.path().join(NAME), doc.save(Some(NAME)).unwrap()).unwrap();
@@ -260,7 +260,7 @@ async fn background_holds_the_current_slides_background_but_not_its_name() {
                 slide.name = "Colleague's name".into();
             }
         });
-        f.run(&basis, json!({ "command": "design.background", "params": { "color": "#336699" } }), related).await;
+        f.run(&basis, json!({ "command": "slide.background", "params": { "color": "#336699" } }), related).await;
         if !related {
             let deck = f.deck();
             assert_eq!(deck.slides[0].name, "Colleague's name");

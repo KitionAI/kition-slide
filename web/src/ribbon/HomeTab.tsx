@@ -24,7 +24,7 @@ export function usePictureInsert() {
       const path = await host.pick('picture', PICTURES)
       if (!path) return
       const { bytes } = await host.files.read(path)
-      await run('insert.picture', { data: base64(bytes), name: path.split('/').pop() })
+      await run('image.insert', { data: base64(bytes), name: path.split('/').pop() })
     } catch (error) {
       toast('error', t('commandFailed'), error instanceof Error ? error.message : String(error))
     }
@@ -36,7 +36,7 @@ export function HomeTab() {
   const { run, enabled, format, facts, t, view } = useSlides()
   const tools = useTools()
   const picture = usePictureInsert()
-  const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.font, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
+  const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.fontName, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
   const textOn = enabled('format.bold')
   const align = format.align ?? ''
   return (
@@ -70,8 +70,8 @@ export function HomeTab() {
         <RibbonStack>
           <RibbonRow>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.font ?? ''} onChange={(event) => void run('format.font', { family: event.target.value })} data-testid="slides-font">
-                {format.font ? null : <option value="" />}
+              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.fontName ?? ''} onChange={(event) => void run('format.fontName', { family: event.target.value })} data-testid="slides-font">
+                {format.fontName ? null : <option value="" />}
                 {fonts.map((font) => (
                   <option key={font} value={font}>
                     {font}
@@ -80,9 +80,9 @@ export function HomeTab() {
               </select>
             </RibbonItem>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.size ?? ''} onChange={(event) => void run('format.size', { size: Number(event.target.value) })} data-testid="slides-font-size">
-                {format.size == null || SIZES.includes(format.size) ? null : <option value={format.size}>{format.size}</option>}
-                {format.size == null ? <option value="" /> : null}
+              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.fontSize ?? ''} onChange={(event) => void run('format.fontSize', { size: Number(event.target.value) })} data-testid="slides-font-size">
+                {format.fontSize == null || SIZES.includes(format.fontSize) ? null : <option value={format.fontSize}>{format.fontSize}</option>}
+                {format.fontSize == null ? <option value="" /> : null}
                 {SIZES.map((size) => (
                   <option key={size} value={size}>
                     {size}
@@ -90,8 +90,8 @@ export function HomeTab() {
                 ))}
               </select>
             </RibbonItem>
-            <CommandButton command="format.grow" icon={AArrowUp} label={t('grow')} size="icon" params={{}} />
-            <CommandButton command="format.shrink" icon={AArrowDown} label={t('shrink')} size="icon" params={{}} />
+            <CommandButton command="format.increaseFontSize" icon={AArrowUp} label={t('grow')} size="icon" params={{}} />
+            <CommandButton command="format.decreaseFontSize" icon={AArrowDown} label={t('shrink')} size="icon" params={{}} />
             <RibbonMenu icon={CaseSensitive} label={t('changeCase')} size="icon" disabled={!textOn}>{['sentence', 'lower', 'upper', 'title', 'toggle'].map((mode) => <MenuItem key={mode} label={mode} onSelect={() => void run('format.case', { mode })} />)}</RibbonMenu>
             <RibbonMenu icon={MoveHorizontalIcon} label={t('characterSpacing')} size="icon" disabled={!textOn}>{[-3, -1.5, 0, 3, 6].map((pt) => <MenuItem key={pt} label={`${pt} pt`} onSelect={() => void run('format.spacing', { pt })} />)}</RibbonMenu>
             <CommandButton command="format.clear" icon={RemoveFormatting} label={t('clearFormatting')} size="icon" params={{}} />
@@ -170,7 +170,7 @@ export function HomeTab() {
 
       {picture.can ? (
         <RibbonGroup label={t('group.images')} icon={Image}>
-          <RibbonButton icon={Image} label={t('picture')} size="large" disabled={!enabled('insert.picture')} onClick={() => void picture.insert()} primary />
+          <RibbonButton icon={Image} label={t('picture')} size="large" disabled={!enabled('image.insert')} onClick={() => void picture.insert()} primary />
         </RibbonGroup>
       ) : null}
       <RibbonGroup label={t('designIdeas')} icon={Sparkles}><RibbonButton icon={Sparkles} label={t('designIdeas')} size="large" onClick={() => view.setPane('designer')} primary /></RibbonGroup>

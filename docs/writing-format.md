@@ -32,21 +32,21 @@ Commands by namespace (the part of the id before the first dot):
 | `animation` | 11 | 8 | 11 | `animation.set`, `animation.add`, `animation.remove` |
 | `arrange` | 15 | 15 | 15 | `arrange.bringToFront`, `arrange.bringForward`, `arrange.sendBackward` |
 | `chart` | 3 | 3 | 3 | `chart.type`, `chart.data`, `chart.options` |
-| `commands` | 1 | 0 | 1 | `commands.list` |
+| `commands` | 1 | 0 | 1 | `command.list` |
 | `comment` | 6 | 4 | 6 | `comment.add`, `comment.reply`, `comment.delete` |
-| `design` | 8 | 7 | 8 | `design.theme`, `design.themes`, `design.colors` |
-| `document` | 1 | 0 | 1 | `document.inspect` |
-| `draw` | 6 | 0 | 6 | `draw.pen`, `draw.pencil`, `draw.highlighter` |
+| `design` | 8 | 7 | 8 | `theme.set`, `theme.list`, `theme.colors` |
+| `document` | 1 | 0 | 1 | `file.inspect` |
+| `draw` | 6 | 0 | 6 | `ink.pen`, `ink.pencil`, `ink.highlighter` |
 | `drawing` | 14 | 13 | 14 | `drawing.describe`, `drawing.insert`, `drawing.delete` |
 | `edit` | 11 | 7 | 11 | `edit.undo`, `edit.redo`, `edit.cut` |
 | `file` | 16 | 11 | 16 | `file.new`, `file.open`, `file.openBytes` |
 | `format` | 40 | 38 | 40 | `format.bold`, `format.italic`, `format.underline` |
-| `insert` | 13 | 13 | 13 | `insert.textBox`, `insert.picture`, `insert.table` |
+| `insert` | 13 | 13 | 13 | `textBox.insert`, `image.insert`, `table.insert` |
 | `master` | 4 | 4 | 4 | `master.insertLayout`, `master.renameLayout`, `master.deleteLayout` |
 | `media` | 9 | 2 | 9 | `media.options`, `media.play`, `media.pause` |
-| `picture` | 4 | 4 | 4 | `picture.crop`, `picture.adjust`, `picture.reset` |
+| `picture` | 4 | 4 | 4 | `image.crop`, `image.adjust`, `image.reset` |
 | `presence` | 2 | 0 | 2 | `presence.selection`, `presence.locate` |
-| `review` | 2 | 0 | 2 | `review.accessibility`, `review.spelling` |
+| `review` | 2 | 0 | 2 | `accessibility.check`, `spelling.check` |
 | `section` | 5 | 5 | 5 | `section.add`, `section.rename`, `section.remove` |
 | `shape` | 24 | 21 | 24 | `shape.insert`, `shape.presets`, `shape.connect` |
 | `show` | 4 | 2 | 4 | `show.fromStart`, `show.fromCurrent`, `show.setup` |
@@ -72,7 +72,7 @@ Most failed calls come from addressing a shape on the wrong slide. The rules:
 
 1. **Shape ids are numbers, and only mean something on their own slide.** Read them from
    `slide_inspect {path, target: {slide: N}}` → `part.shapes[].id`, or from the result of the
-   command that made the shape (`insert.textBox` → `{id}`). The same number on another slide is
+   command that made the shape (`textBox.insert` → `{id}`). The same number on another slide is
    another shape, or none.
 2. **Commands edit the current slide.** Three ways to make an id hit its slide; use one every
    time you edit off the first slide:
@@ -203,8 +203,8 @@ schema says which.
 | `format` | `kslide`, `pptx` | `file.save`, `file.saveAs`, `file.saveBytes` |
 | `format` | `png`, `jpeg`, `pptx`, `kslide`, `outline`, `pdf` | `file.export` |
 | `join` | `round`, `bevel`, `miter` | `shape.line` |
-| `kind` | `list`, `process`, `cycle`, `hierarchy`, `pyramid`, `matrix` | `insert.smartGraphic` |
-| `kind` | `back`, `forward`, `beginning`, `end`, `home`, `information`, `return`, `movie`, `document`, `sound`, `help`, `custom` | `insert.actionButton` |
+| `kind` | `list`, `process`, `cycle`, `hierarchy`, `pyramid`, `matrix` | `smartGraphic.insert` |
+| `kind` | `back`, `forward`, `beginning`, `end`, `home`, `information`, `return`, `movie`, `document`, `sound`, `help`, `custom` | `actionButton.insert` |
 | `kind` | `shape`, `textBox`, `chart` | `drawing.insert` |
 | `kind` | `content`, `text`, `picture`, `chart`, `table`, `media` | `master.insertPlaceholder` |
 | `mode` | `sentence`, `lower`, `upper`, `title`, `toggle` | `format.case` |
@@ -295,15 +295,15 @@ Useful commands:
 |---|---|
 | New slide with title and body | `slide.new {layout: titleAndContent, title, body}` (body `\n` = new paragraph) |
 | Replace a shape's text | `text.set {id, text, onSlide}` (keeps the first run's formatting) |
-| Text box | `insert.textBox {rect: [x, y, w, h], text}` |
+| Text box | `textBox.insert {rect: [x, y, w, h], text}` |
 | Shape | `shape.insert {preset: rect\|ellipse\|…, rect: [x, y, w, h]}` |
 | Move or size shapes | `shape.move {ids, x, y, onSlide}` (absolute) or `{ids, dx, dy}`; `shape.setBounds {ids, x, y, w, h}` |
-| Font, size, colour, bold | `format.font {ids, family}`, `format.size {ids, size}`, `format.color {ids, color}`, `format.bold {ids, on}` |
+| Font, size, colour, bold | `format.fontName {ids, family}`, `format.fontSize {ids, size}`, `format.color {ids, color}`, `format.bold {ids, on}` |
 | Fill | `shape.fill {ids, color}` |
 | Delete shapes | `shape.delete {ids, onSlide}` |
 | Delete slides | `slide.delete {ids: [slide id, …]}` |
-| Picture | `insert.picture {data: base64, name, rect}` |
-| Theme | `design.theme {name}` (names from `design.themes`) |
+| Picture | `image.insert {data: base64, name, rect}` |
+| Theme | `theme.set {name}` (names from `theme.list`) |
 
 Formatting commands with `ids` format the whole text of those shapes; no text selection is
 needed. There is no headless text selection, so to give part of a text another look, put that
@@ -318,7 +318,7 @@ not drawn or saved: use `format.color {ids}` on a shape instead.
 | `slide.unreadable-picture` | error | The bytes are not a picture: insert a PNG, JPEG, GIF, WebP, BMP, TIFF or SVG |
 | `slide.text-overflow` | warning | `fix`: `format.autofit {ids, onSlide, mode: shrink}`; or shorten the text, or enlarge the box |
 | `slide.effects-dropped` | warning | Reduce the shadow, glow, soft edge or reflection size |
-| `slide.font-substituted` | warning / info | Choose an installed family with `format.font {ids, family}` (info: a same-metrics stand-in) |
+| `slide.font-substituted` | warning / info | Choose an installed family with `format.fontName {ids, family}` (info: a same-metrics stand-in) |
 | `slide.off-slide` | warning | `fix`: `shape.move {ids, onSlide, x, y}` puts it back on the slide; or delete it |
 | `slide.empty-placeholder` | info | Fill it with `text.set`, or `fix`: `edit.delete {ids, onSlide}` |
 | `slide.missing-alt-text` | info | Describe the picture: `shape.altText {ids, onSlide, text}` (or `decorative: true`) |

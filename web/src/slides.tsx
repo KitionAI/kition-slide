@@ -116,7 +116,7 @@ export type FormatState = {
   painter?: boolean
 }
 
-/** `document.inspect`: the slides' layouts, slides, sections, and fonts. */
+/** `file.inspect`: the slides' layouts, slides, sections, and fonts. */
 export type DocumentFacts = {
   layouts: Array<{ id: number; name: string }>
   slides: Array<{ id: number; index: number; hidden: boolean; layout?: string; title?: string }>
@@ -174,7 +174,7 @@ function useSlidesState(host: HostConnection, t: Strings) {
     void (async () => {
       const [state, inspected, slide, listed] = await Promise.all([
         query<FormatState>('format.state'),
-        query<DocumentFacts>('document.inspect'),
+        query<DocumentFacts>('file.inspect'),
         query<{ notes?: string }>('slide.inspect', { index: current, select: false }),
         query<SlideThread[]>('comment.threads'),
       ])
@@ -285,8 +285,8 @@ function useSlidesState(host: HostConnection, t: Strings) {
       view.present(id === 'show.fromStart' ? 0 : current)
       return null
     }
-    if (id === 'review.spelling' || id === 'review.accessibility') {
-      view.setPane(id === 'review.spelling' ? 'spelling' : 'accessibility')
+    if (id === 'spelling.check' || id === 'accessibility.check') {
+      view.setPane(id === 'spelling.check' ? 'spelling' : 'accessibility')
       return null
     }
     // Agent schemas keep conditional parameters optional. In the editor, a field-based

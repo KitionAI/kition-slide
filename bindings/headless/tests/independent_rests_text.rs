@@ -35,7 +35,7 @@ impl Fixture {
         let a = number(doc.execute("shape.insert", json!({"preset": "rect", "rect": [100, 200, 120, 60]})).unwrap());
         let b = number(doc.execute("shape.insert", json!({"preset": "rect", "rect": [260, 200, 120, 60]})).unwrap());
         doc.execute("arrange.group", json!({"ids": [a, b]})).unwrap();
-        let grid = number(doc.execute("insert.table", json!({"rows": 2, "cols": 2, "rect": [500, 300, 200, 80]})).unwrap());
+        let grid = number(doc.execute("table.insert", json!({"rows": 2, "cols": 2, "rect": [500, 300, 200, 80]})).unwrap());
         let workspace = tempfile::tempdir().unwrap();
         let path = workspace.path().join(FILE);
         std::fs::write(&path, doc.save(Some(FILE)).unwrap()).unwrap();
@@ -246,7 +246,7 @@ async fn table_style_allows_frame_and_cell_changes_but_holds_the_style() {
     }
 }
 
-/// A layout placeholder read: without text being edited, insert.slideNumber turns on the slide
+/// A layout placeholder read: without text being edited, field.insertSlideNumber turns on the slide
 /// number on every slide, copying each layout's Slide Number placeholder.
 #[tokio::test(flavor = "multi_thread")]
 async fn slide_number_footer_holds_the_layout_placeholder_but_allows_a_slide_name() {
@@ -265,7 +265,7 @@ async fn slide_number_footer_holds_the_layout_placeholder_but_allows_a_slide_nam
                 rename_slide_2(deck);
             }
         });
-        f.write(&basis, "insert.slideNumber", json!({}), related).await;
+        f.write(&basis, "field.insertSlideNumber", json!({}), related).await;
         if !related {
             let deck = f.deck();
             assert!(deck.header_footer.slide_number);
@@ -285,7 +285,7 @@ async fn slide_number_footer_holds_each_slides_shapes() {
         let slide = Arc::make_mut(&mut deck.slides[1]);
         slide.shapes.push(Shape { id: kition_slide_model::ShapeId(900), identity: Default::default(), name: "Colleague".into(), ..filler });
     });
-    f.write(&basis, "insert.slideNumber", json!({}), true).await;
+    f.write(&basis, "field.insertSlideNumber", json!({}), true).await;
     f.kits.shutdown().await;
 }
 
@@ -299,7 +299,7 @@ async fn slide_link_allows_the_linked_slides_name_to_change() {
     let plain = f.id("Plain");
     let basis = f.basis().await;
     f.rewrite(rename_slide_2);
-    f.write(&basis, "insert.hyperlink", json!({"ids": [plain], "slide": 1}), false).await;
+    f.write(&basis, "link.insert", json!({"ids": [plain], "slide": 1}), false).await;
     let mut deck = f.deck();
     let target = deck.slides[1].id;
     assert_eq!(deck.slides[1].name, "Unrelated");
@@ -326,7 +326,7 @@ async fn shape_link_allows_a_fill_change_but_holds_the_click_action() {
                 plain.fill = Some(kition_slide_model::Fill::None);
             }
         });
-        f.write(&basis, "insert.hyperlink", json!({"ids": [f.id("Plain")], "slide": 1}), related).await;
+        f.write(&basis, "link.insert", json!({"ids": [f.id("Plain")], "slide": 1}), related).await;
         if !related {
             let mut deck = f.deck();
             let plain = named(&mut deck, "Plain");

@@ -23,7 +23,7 @@ async fn moved_shapes_keep_handles_but_old_addresses_refuse_relocated() {
         let workspace = tempfile::tempdir().unwrap();
         let path = workspace.path().join("Identity.pptx");
         let mut doc = SlideDocument::create("Identity.pptx", 960, 540).unwrap();
-        doc.execute("insert.textBox", json!({"text": "Held", "rect": [10, 10, 100, 50]})).unwrap();
+        doc.execute("textBox.insert", json!({"text": "Held", "rect": [10, 10, 100, 50]})).unwrap();
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
         let second = doc.execute("slide.inspect", json!({"index": 1})).unwrap()["toolId"].clone();
         std::fs::write(&path, doc.save(Some("Identity.pptx")).unwrap()).unwrap();
@@ -69,7 +69,7 @@ async fn renumbered_positional_addresses_refuse_relocated() {
         let path = workspace.path().join("Identity.pptx");
         let mut doc = SlideDocument::create("Identity.pptx", 960, 540).unwrap();
         for text in ["Held", "Other"] {
-            doc.execute("insert.textBox", json!({"text": text, "rect": [10, 10, 100, 50]})).unwrap();
+            doc.execute("textBox.insert", json!({"text": text, "rect": [10, 10, 100, 50]})).unwrap();
         }
         std::fs::write(&path, doc.save(Some("Identity.pptx")).unwrap()).unwrap();
         let definition = KitDefinition::from_manifest_text(include_str!("../../../kit.json")).unwrap();

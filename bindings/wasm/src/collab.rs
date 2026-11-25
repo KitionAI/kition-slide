@@ -418,7 +418,7 @@ mod tests {
     }
 
     /// The editor's own reads after a change (`slide.inspect` with `select: false` among them)
-    /// and an agent's `document.inspect` leave the person where they are: in Slide Master view, on
+    /// and an agent's `file.inspect` leave the person where they are: in Slide Master view, on
     /// the master they picked. The editor's `slide.inspect` used to drop them back to the slides.
     #[test]
     fn the_editors_reads_and_an_agents_keep_the_person_in_slide_master_view() {
@@ -428,22 +428,22 @@ mod tests {
         let agent = Origin::agent("agent");
         KitDocument::execute(&mut doc, "slide.new", json!({})).unwrap();
         KitDocument::execute(&mut doc, "view.slideMaster", json!({ "master": 0, "layout": null })).unwrap();
-        let before = KitDocument::execute(&mut doc, "document.inspect", json!({})).unwrap();
+        let before = KitDocument::execute(&mut doc, "file.inspect", json!({})).unwrap();
         assert_eq!(before["selection"]["target"]["kind"], "master", "{before}");
         for (command, params) in [
             ("format.state", json!({})),
-            ("document.inspect", json!({})),
+            ("file.inspect", json!({})),
             ("slide.inspect", json!({ "index": 1, "select": false })),
             ("comment.threads", json!({})),
             ("presence.selection", json!({})),
         ] {
             KitDocument::execute(&mut doc, command, params).unwrap();
-            let now = KitDocument::execute(&mut doc, "document.inspect", json!({})).unwrap();
+            let now = KitDocument::execute(&mut doc, "file.inspect", json!({})).unwrap();
             assert_eq!(now["selection"]["target"]["kind"], "master", "after {command}: {now}");
         }
-        let seen = doc.execute_as("document.inspect", json!({}), &agent).unwrap();
+        let seen = doc.execute_as("file.inspect", json!({}), &agent).unwrap();
         assert_eq!(seen["selection"]["target"]["kind"], "master", "the agent reads the person's view: {seen}");
-        let after = KitDocument::execute(&mut doc, "document.inspect", json!({})).unwrap();
+        let after = KitDocument::execute(&mut doc, "file.inspect", json!({})).unwrap();
         assert_eq!(after["selection"]["target"]["kind"], "master", "the agent's read moved the person: {after}");
         // Reading every slide (the slides panel) moves neither the view nor the current slide.
         KitDocument::execute(&mut doc, "view.closeMaster", json!({})).unwrap();
@@ -451,11 +451,11 @@ mod tests {
         for index in 0..2 {
             KitDocument::execute(&mut doc, "slide.inspect", json!({ "index": index, "select": false })).unwrap();
         }
-        let read = KitDocument::execute(&mut doc, "document.inspect", json!({})).unwrap();
+        let read = KitDocument::execute(&mut doc, "file.inspect", json!({})).unwrap();
         assert_eq!(read["selection"]["slide"], 0, "{read}");
         // Without `select: false` an inspected slide still becomes the one being edited.
         KitDocument::execute(&mut doc, "slide.inspect", json!({ "index": 1 })).unwrap();
-        let moved = KitDocument::execute(&mut doc, "document.inspect", json!({})).unwrap();
+        let moved = KitDocument::execute(&mut doc, "file.inspect", json!({})).unwrap();
         assert_eq!(moved["selection"]["slide"], 1, "{moved}");
     }
 

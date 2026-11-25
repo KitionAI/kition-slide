@@ -2,12 +2,12 @@ format: 1
 id: regressions/issue-1
 feature: slide.charts.edit
 intent: >-
-  insert.chart and chart.type refuse an unknown chart type (it became a column chart) and
+  chart.insert and chart.type refuse an unknown chart type (it became a column chart) and
   chart.options an unknown palette; a waterfall floats each bar on the running total with totals
   from zero, coloured increase, decrease and total; funnel and treemap draw centred bars and
-  tiles, not lines; combo draws columns with the last series as a line; format.size,
-  format.color, format.bold and format.font on a chart format its text; series take colours
-  (insert.chart series color, chart.options colors) and chart.options takes gapWidth and
+  tiles, not lines; combo draws columns with the last series as a line; format.fontSize,
+  format.color, format.bold and format.fontName on a chart format its text; series take colours
+  (chart.insert series color, chart.options colors) and chart.options takes gapWidth and
   overlap; a chart given its data gets no "Chart Title" placeholder.
 layer: gate
 source:

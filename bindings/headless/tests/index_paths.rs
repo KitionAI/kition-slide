@@ -21,11 +21,11 @@ fn deck() -> Vec<u8> {
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
         for i in 0..5 {
             let made = doc
-                .execute("insert.textBox", json!({"rect": [10, 10, 200, 80], "text": format!("Paragraph {n}-{i}\nSecond\nThird\nFourth\nFifth")}))
+                .execute("textBox.insert", json!({"rect": [10, 10, 200, 80], "text": format!("Paragraph {n}-{i}\nSecond\nThird\nFourth\nFifth")}))
                 .unwrap();
             doc.execute("animation.add", json!({"ids": [made["id"]], "effect": "appear"})).unwrap();
         }
-        doc.execute("insert.table", json!({"rows": 5, "cols": 5})).unwrap();
+        doc.execute("table.insert", json!({"rows": 5, "cols": 5})).unwrap();
     }
     doc.execute("slide.delete", json!({"index": 0})).unwrap();
     doc.save(Some(NAME)).unwrap()
@@ -72,7 +72,7 @@ impl Fixture {
             doc.execute("animation.add", json!({"ids": [part["shapes"][0]["toolId"]], "effect": "fade"})).unwrap();
             doc.execute("animation.move", json!({"index": 5, "to": at})).unwrap();
         } else {
-            let made = doc.execute("insert.textBox", json!({"text": "Colleague", "rect": [10, 10, 100, 50]})).unwrap();
+            let made = doc.execute("textBox.insert", json!({"text": "Colleague", "rect": [10, 10, 100, 50]})).unwrap();
             doc.execute("arrange.reorder", json!({"id": made["id"], "index": at})).unwrap();
         }
         std::fs::write(file, doc.save(Some(NAME)).unwrap()).unwrap();

@@ -23,7 +23,7 @@ impl Fixture {
         let a = doc.execute("shape.insert", json!({"preset":"rect", "rect":[60,300,120,80], "text":"A"})).unwrap()["id"].clone();
         let b = doc.execute("shape.insert", json!({"preset":"rect", "rect":[400,300,120,80], "text":"B"})).unwrap()["id"].clone();
         doc.execute("shape.connect", json!({"from":a,"to":b})).unwrap();
-        doc.execute("insert.table", json!({"rows":2,"cols":2,"rect":[60,420,240,80]})).unwrap();
+        doc.execute("table.insert", json!({"rows":2,"cols":2,"rect":[60,420,240,80]})).unwrap();
         doc.execute("slide.new", json!({"layout":"blank"})).unwrap();
         doc.execute("slide.go", json!({"index":0})).unwrap();
         let workspace = tempfile::tempdir().unwrap();
@@ -273,7 +273,7 @@ async fn paste_uses_own_paragraphs_and_allows_ancestor_paragraph_text() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn generated_ids_do_not_need_an_old_selection_but_generated_names_hold_shape_count() {
-    for command in ["shape.freeform", "insert.smartGraphic"] {
+    for command in ["shape.freeform", "smartGraphic.insert"] {
         for related in [false, true] {
             let f = Fixture::new();
             let basis = f.basis().await;

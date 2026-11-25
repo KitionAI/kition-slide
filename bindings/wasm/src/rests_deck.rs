@@ -685,24 +685,24 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
                 }
             }
         }
-        "design.theme" | "design.fonts" | "design.colors" => {
-            if command == "design.colors" && !given(params, "name") && !given(params, "colors") {
+        "theme.set" | "theme.fonts" | "theme.colors" => {
+            if command == "theme.colors" && !given(params, "name") && !given(params, "colors") {
                 return Ok(());
             }
             let Some(master) = design_master(state, &mut holds) else { return Ok(()) };
             if let Some(object) = deck.masters.get(master).and_then(|m| master_object(state, m)) {
                 match command {
-                    "design.theme" => holds.read(object.as_str(), &["colorMap", "listStyles", "props.name", "theme"]),
-                    "design.fonts" => holds.read(object.as_str(), &["listStyles", "theme.fonts"]),
+                    "theme.set" => holds.read(object.as_str(), &["colorMap", "listStyles", "props.name", "theme"]),
+                    "theme.fonts" => holds.read(object.as_str(), &["listStyles", "theme.fonts"]),
                     _ => holds.read(object.as_str(), &["theme.colors"]),
                 }
             }
-            if command != "design.colors" {
+            if command != "theme.colors" {
                 refits(state, master, &mut holds);
             }
         }
-        "design.background" => background(state, params, &mut holds),
-        "design.hideBackgroundGraphics" => {
+        "slide.background" => background(state, params, &mut holds),
+        "slide.hideBackgroundGraphics" => {
             let at = on_slide(params).unwrap_or(state.selection.slide);
             if let Some(slide) = deck.slides.get(at) {
                 holds.read(&slide_id(slide), &["props.showMasterShapes"]);
@@ -711,8 +711,8 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
                 }
             }
         }
-        "design.slideSize" => slide_size(state, params, &mut holds),
-        "design.headerFooter" => header_footer(state, params, &mut holds),
+        "slide.size" => slide_size(state, params, &mut holds),
+        "slide.headerFooter" => header_footer(state, params, &mut holds),
         "master.insertLayout" => {
             let Some(master) = design_master(state, &mut holds) else { return Ok(()) };
             let Some(m) = deck.masters.get(master) else { return Ok(()) };

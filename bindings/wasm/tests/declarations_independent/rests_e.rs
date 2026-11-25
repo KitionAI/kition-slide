@@ -6,12 +6,12 @@ use pinned as _;
 /// Group e (design, master, transition, animation, comment, show, media.posterFrame), read blind from the handlers in
 /// `crates/engine/engine/src/cmd/{design,transition,animation,review,media}.rs` and `Session::edit` (refit, reroute, autofit).
 pub const ROWS: &[Rest] = &[
-    // design.theme: the master of the current slide's layout (master_index), or the one Slide Master view edits; replaces its theme,
+    // theme.set: the master of the current slide's layout (master_index), or the one Slide Master view edits; replaces its theme,
     //   name (props.name) and colour map; the theme's font scheme changes (its name at least), so autofit refits every shrink-to-fit
     //   placeholder of every slide, layout and master from its text, its (inherited) frame and the master's list styles.
     // normalized after review: autofit refits from the placeholder's resolved frame, its own `xfrm` when it has one (crates/engine/engine/src/autofit.rs:41-47,79; resolve::xfrm)
     pinned(r(
-        "design.theme",
+        "theme.set",
         r##"{"name": "Harbor"}"##,
         "part",
         &[
@@ -53,7 +53,7 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: autofit refits from the placeholder's resolved frame, its own `xfrm` when it has one (crates/engine/engine/src/autofit.rs:41-47,79; resolve::xfrm)
     pinned(rs(
         r#"[["view.slideMaster", {}]]"#,
-        "design.theme",
+        "theme.set",
         r##"{"name": "Harbor"}"##,
         "part",
         &[
@@ -91,23 +91,23 @@ pub const ROWS: &[Rest] = &[
             ("$Layout:Vertical Title and Text/Vertical Text Placeholder 2", "body,xfrm", "-"),
         ],
     )),
-    // design.colors: the current slide's master; a scheme by name replaces theme.colors, slot colours edit it from its current value
+    // theme.colors: the current slide's master; a scheme by name replaces theme.colors, slot colours edit it from its current value
     //   (and rename it Custom); `{}` only reads it (no edit). Colours do not enter the autofit inputs (fonts, frames, text), so no refit.
-    r("design.colors", r##"{"name": "Ocean"}"##, "part", &[("$Master", "theme.colors", "-"), ("$S2", "layout", "-")]),
-    r("design.colors", r##"{"colors": {"accent1": "#FF0000"}}"##, "part", &[("$Master", "theme.colors", "-"), ("$S2", "layout", "-")]),
+    r("theme.colors", r##"{"name": "Ocean"}"##, "part", &[("$Master", "theme.colors", "-"), ("$S2", "layout", "-")]),
+    r("theme.colors", r##"{"colors": {"accent1": "#FF0000"}}"##, "part", &[("$Master", "theme.colors", "-"), ("$S2", "layout", "-")]),
     rs(
         r#"[["view.slideMaster", {"layout": null}]]"#,
-        "design.colors",
+        "theme.colors",
         r##"{"colors": {"accent2": "#00FF00"}}"##,
         "part",
         &[("$Master", "theme.colors", "-")],
     ),
-    r("design.colors", r##"{}"##, "", &[]),
-    // design.fonts: the current slide's master; `name` replaces theme.fonts, `major`/`minor` edit its Latin (and East Asian) fonts from
-    //   the current sets; then autofit refits every shrink-to-fit placeholder (as design.theme).
+    r("theme.colors", r##"{}"##, "", &[]),
+    // theme.fonts: the current slide's master; `name` replaces theme.fonts, `major`/`minor` edit its Latin (and East Asian) fonts from
+    //   the current sets; then autofit refits every shrink-to-fit placeholder (as theme.set).
     // normalized after review: autofit refits from the placeholder's resolved frame, its own `xfrm` when it has one (crates/engine/engine/src/autofit.rs:41-47,79; resolve::xfrm)
     pinned(r(
-        "design.fonts",
+        "theme.fonts",
         r##"{"name": "Classic"}"##,
         "part",
         &[
@@ -148,7 +148,7 @@ pub const ROWS: &[Rest] = &[
     )),
     // normalized after review: autofit refits from the placeholder's resolved frame, its own `xfrm` when it has one (crates/engine/engine/src/autofit.rs:41-47,79; resolve::xfrm)
     pinned(r(
-        "design.fonts",
+        "theme.fonts",
         r##"{"major": "Lato", "minor": "Lato"}"##,
         "part",
         &[
@@ -187,20 +187,20 @@ pub const ROWS: &[Rest] = &[
             ("$Layout:Vertical Title and Text/Vertical Text Placeholder 2", "body,xfrm", "-"),
         ],
     )),
-    // design.background: normal view: slide `index` or the current slide's background replaced; `all`: the masters' background
+    // slide.background: normal view: slide `index` or the current slide's background replaced; `all`: the masters' background
     //   (props.background) replaced, every layout's cleared, every slide's own cleared; Slide Master view: the master's or layout's.
     //   A picture is deduplicated against the deck's media by bytes (the fixture's red.png is reused).
-    r("design.background", r##"{"color": "#336699"}"##, "part", &[("$S2", "background", "-")]),
-    r("design.background", r##"{"color": "#336699", "index": 2}"##, "", &[("$S3", "background", "*")]),
+    r("slide.background", r##"{"color": "#336699"}"##, "part", &[("$S2", "background", "-")]),
+    r("slide.background", r##"{"color": "#336699", "index": 2}"##, "", &[("$S3", "background", "*")]),
     r(
-        "design.background",
+        "slide.background",
         r##"{"picture": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4wcAAAAJcAMlDyBJGAAAAAElFTkSuQmCC"}"##,
         "part",
         &[("$S2", "background", "-"), ("$Media:red.png", "blob", "-")],
     ),
     // normalized after review: the handler walks the deck's slide list (crates/engine/engine/src/cmd/design.rs:258); the fields it reads of each slide are held on the slide, and `slides` would hold every slide's content: the list is `~slideOrder`
     pinned(r(
-        "design.background",
+        "slide.background",
         r##"{"style": 3, "all": true}"##,
         "",
         &[
@@ -224,35 +224,35 @@ pub const ROWS: &[Rest] = &[
     )),
     // normalized after review: the handler walks the deck's slide list (crates/engine/engine/src/cmd/design.rs:258); the fields it reads of each slide are held on the slide, and `slides` would hold every slide's content: the list is `~slideOrder`
     pinned(r(
-        "design.background",
+        "slide.background",
         r##"{"reset": true, "all": true}"##,
         "",
         &[("$S1", "background", "-"), ("$S2", "background", "-"), ("$S3", "background", "-"), ("root", "~slideOrder", "-")],
     )),
     rs(
         r#"[["view.slideMaster", {}]]"#,
-        "design.background",
+        "slide.background",
         r##"{"color": "#336699"}"##,
         "part",
         &[("$Layout:Title and Content", "props.background", "*")],
     ),
     rs(
         r#"[["view.slideMaster", {"layout": null}]]"#,
-        "design.background",
+        "slide.background",
         r##"{"color": "#336699"}"##,
         "part",
         &[("$Master", "props.background", "-")],
     ),
-    // design.hideBackgroundGraphics: the current slide (also in Slide Master view); `hide` sets props.showMasterShapes, none toggles it.
-    r("design.hideBackgroundGraphics", r##"{"hide": true}"##, "part", &[("$S2", "props.showMasterShapes", "-")]),
-    r("design.hideBackgroundGraphics", r##"{}"##, "part", &[("$S2", "props.showMasterShapes", "-")]),
-    r("design.hideBackgroundGraphics", r##"{"hide": true, "onSlide": 3}"##, "", &[("$S3", "props.showMasterShapes", "*")]),
-    // design.slideSize: replaces props.slideSize from the old size: every master and layout shape's frame stretched; every slide's
+    // slide.hideBackgroundGraphics: the current slide (also in Slide Master view); `hide` sets props.showMasterShapes, none toggles it.
+    r("slide.hideBackgroundGraphics", r##"{"hide": true}"##, "part", &[("$S2", "props.showMasterShapes", "-")]),
+    r("slide.hideBackgroundGraphics", r##"{}"##, "part", &[("$S2", "props.showMasterShapes", "-")]),
+    r("slide.hideBackgroundGraphics", r##"{"hide": true, "onSlide": 3}"##, "", &[("$S3", "props.showMasterShapes", "*")]),
+    // slide.size: replaces props.slideSize from the old size: every master and layout shape's frame stretched; every slide's
     //   top-level shapes' frames and run sizes scaled by the mode (placeholders without a frame keep inheriting it); the connector is
     //   re-routed from its scaled ends; the changed layout frames refit the shrink-to-fit placeholders.
     // normalized after review: slides' shapes with a frame are scaled from it (scale_shapes, crates/engine/engine/src/cmd/design.rs:288) and autofit refits from it (crates/engine/engine/src/autofit.rs:41-47,79); the slides are walked as a list (design.rs:340), held as `~slideOrder`, not each slide's content
     pinned(r(
-        "design.slideSize",
+        "slide.size",
         r##"{"preset": "standard"}"##,
         "",
         &[
@@ -339,7 +339,7 @@ pub const ROWS: &[Rest] = &[
     )),
     // normalized after review: slides' shapes with a frame are scaled from it (scale_shapes, crates/engine/engine/src/cmd/design.rs:288) and autofit refits from it (crates/engine/engine/src/autofit.rs:41-47,79); the slides are walked as a list (design.rs:340), held as `~slideOrder`, not each slide's content
     pinned(r(
-        "design.slideSize",
+        "slide.size",
         r##"{"w": 800, "h": 600, "scale": "maximize"}"##,
         "",
         &[
@@ -425,7 +425,7 @@ pub const ROWS: &[Rest] = &[
         ],
     )),
     r(
-        "design.slideSize",
+        "slide.size",
         r##"{"preset": "standard", "scale": "none"}"##,
         "",
         &[
@@ -500,12 +500,12 @@ pub const ROWS: &[Rest] = &[
             ("$Layout:Vertical Title and Text/Slide Number Placeholder", "xfrm", "-"),
         ],
     ),
-    // design.headerFooter: edits root headerFooter from its current flags; for every slide (all, default) or the current one: its layout
+    // slide.headerFooter: edits root headerFooter from its current flags; for every slide (all, default) or the current one: its layout
     //   and its shapes' placeholder kinds decide whether a date/footer/number placeholder is added (copied from the layout's: name, ph)
     //   or removed; hideOnTitle reads the layouts' kind.
     // normalized after review: the handler walks the deck's slide list (crates/engine/engine/src/cmd/design.rs:374); the fields it reads of each slide are held on the slide, and `slides` would hold every slide's content: the list is `~slideOrder`
     pinned(r(
-        "design.headerFooter",
+        "slide.headerFooter",
         r##"{"footer": true, "footerText": "F"}"##,
         "",
         &[
@@ -519,14 +519,14 @@ pub const ROWS: &[Rest] = &[
         ],
     )),
     r(
-        "design.headerFooter",
+        "slide.headerFooter",
         r##"{"slideNumber": true, "all": false}"##,
         "part",
         &[("root", "headerFooter", "-"), ("$S2", "layout,shapes", "-"), ("$Layout:Title and Content/Slide Number Placeholder", "look.ph,name", "-")],
     ),
     // normalized after review: the handler walks the deck's slide list (crates/engine/engine/src/cmd/design.rs:374); the fields it reads of each slide are held on the slide, and `slides` would hold every slide's content: the list is `~slideOrder`
     pinned(r(
-        "design.headerFooter",
+        "slide.headerFooter",
         r##"{"footer": true, "hideOnTitle": true}"##,
         "",
         &[

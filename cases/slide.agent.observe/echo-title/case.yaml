@@ -41,6 +41,6 @@ solution:
       path: deck.kslide
       steps:
         - { command: slide.new, params: {} }
-        - { command: insert.textBox, params: { rect: [60, 60, 600, 60], text: "Quarterly review – summary" } }
+        - { command: textBox.insert, params: { rect: [60, 60, 600, 60], text: "Quarterly review – summary" } }
 since: "2026-11-17"
 timeout_s: 600

@@ -4,7 +4,7 @@
 //! or a picture, changed or deleted, and the workspace holds only what the host saved. An audit
 //! (slide section) found that the engine opens, saves, exports and inserts pictures
 //! and media by any path it is given (`file.save`, `file.saveAs`, `file.saveTemplate`,
-//! `file.export`, `file.open`, `insert.picture`, `insert.audio`, `insert.video`), that a deck
+//! `file.export`, `file.open`, `image.insert`, `audio.insert`, `video.insert`), that a deck
 //! opened from its replica is saved to its bare name, so `file.save {}` writes into the current
 //! folder, and that the kit scans the machine's font folders and tells the agent which fonts are
 //! installed. The pictures and media a command names by path are read through the host now, so a
@@ -146,17 +146,17 @@ fn act(root: &Path) -> Vec<String> {
     if !(found.contains("slide.font-substituted") && found.contains(HOME_FONT)) {
         wrong.push(format!("the check does not report {HOME_FONT}, a font only the machine's home font folder has, as substituted: {found}"));
     }
-    let _ = agent.run(&id, "design.fonts", json!({ "major": HOME_FONT, "minor": HOME_FONT }));
+    let _ = agent.run(&id, "theme.fonts", json!({ "major": HOME_FONT, "minor": HOME_FONT }));
 
     // A picture in the workspace, named by its path, is read through the host, placed and shown;
     // so is one given as bytes.
-    let placed = agent.run(&id, "insert.picture", json!({ "path": "inside.png" }));
+    let placed = agent.run(&id, "image.insert", json!({ "path": "inside.png" }));
     if placed.is_err() || !shows(&agent.picture(&id), INSIDE_RGB) {
         wrong.push(format!("the picture in the workspace is not placed and shown: {placed:?}"));
     }
     let _ = agent.run(&id, "edit.undo", json!({}));
     let inside = base64::encode(&std::fs::read(workspace.join("inside.png")).unwrap());
-    let placed = agent.run(&id, "insert.picture", json!({ "name": "inside.png", "data": inside }));
+    let placed = agent.run(&id, "image.insert", json!({ "name": "inside.png", "data": inside }));
     if placed.is_err() || !shows(&agent.picture(&id), INSIDE_RGB) {
         wrong.push(format!("a picture given as bytes is not placed and shown: {placed:?}"));
     }
@@ -175,12 +175,12 @@ fn act(root: &Path) -> Vec<String> {
         by_path.push(("file.export", json!({ "path": target.replace(".kslide", ".txt"), "format": "outline" })));
     }
     for source in [at("secret.png"), "../outside/secret.png".to_owned()] {
-        by_path.push(("insert.picture", json!({ "path": source })));
-        by_path.push(("picture.change", json!({ "path": source })));
-        by_path.push(("insert.audio", json!({ "path": source })));
-        by_path.push(("insert.video", json!({ "path": source })));
+        by_path.push(("image.insert", json!({ "path": source })));
+        by_path.push(("image.change", json!({ "path": source })));
+        by_path.push(("audio.insert", json!({ "path": source })));
+        by_path.push(("video.insert", json!({ "path": source })));
         by_path.push(("shape.fill", json!({ "picture": null, "path": source })));
-        by_path.push(("design.background", json!({ "picture": null, "path": source })));
+        by_path.push(("slide.background", json!({ "picture": null, "path": source })));
     }
     for source in [at("secret.txt"), at("secret.md"), "../outside/secret.txt".to_owned(), at("planted.kslide")] {
         by_path.push(("file.open", json!({ "path": source })));
@@ -200,7 +200,7 @@ fn act(root: &Path) -> Vec<String> {
     if shows(&agent.picture(&id), OUTSIDE_RGB) {
         wrong.push("the picture outside the workspace was read into the deck".to_owned());
     }
-    for (command, value) in [("document.inspect", json!({})), ("slide.inspect", json!({ "index": 0 })), ("file.saveBytes", json!({}))] {
+    for (command, value) in [("file.inspect", json!({})), ("slide.inspect", json!({ "index": 0 })), ("file.saveBytes", json!({}))] {
         let _ = agent.run(&id, command, value);
     }
     let described = agent.kit.describe(&id).map(|describe| Value::Object(describe.state)).map_err(|e| format!("{e:?}"));
@@ -215,7 +215,7 @@ fn act(root: &Path) -> Vec<String> {
         }
         let found = agent.kit.check(&linked).map_err(|e| format!("{e:?}"));
         let _ = agent.keep(format!("document.check {name}"), found);
-        for (command, value) in [("document.inspect", json!({})), ("file.saveBytes", json!({ "format": "pptx" })), ("file.save", json!({}))] {
+        for (command, value) in [("file.inspect", json!({})), ("file.saveBytes", json!({ "format": "pptx" })), ("file.save", json!({}))] {
             let _ = agent.run(&linked, command, value);
         }
     }
@@ -252,7 +252,7 @@ fn act(root: &Path) -> Vec<String> {
 /// A deck with one picture, as `.pptx`, its picture linking `target` instead of holding bytes.
 fn linked_deck(target: &str) -> Vec<u8> {
     let mut doc = SlideDocument::create("linked.pptx", 960, 540).unwrap();
-    doc.execute("insert.picture", json!({ "name": "linked.png", "data": base64::encode(&png(INSIDE_RGB)) })).unwrap();
+    doc.execute("image.insert", json!({ "name": "linked.png", "data": base64::encode(&png(INSIDE_RGB)) })).unwrap();
     let mut file = kition_slide_engine::cmd::file::open_slide_file("linked.pptx", &doc.save(Some("linked.pptx")).unwrap()).unwrap();
     for item in file.media.iter_mut().filter(|item| item.content_type.starts_with("image/")) {
         item.data = Arc::new(Vec::new());
@@ -283,8 +283,8 @@ fn agent_commands_reach_no_file_outside_the_workspace() {
     }
     // The workspace: a deck that asks for that font, a picture, and decks linking outside.
     let mut deck = SlideDocument::create(DECK, 960, 540).unwrap();
-    deck.execute("design.fonts", json!({ "major": HOME_FONT, "minor": HOME_FONT })).unwrap();
-    deck.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": "Title" })).unwrap();
+    deck.execute("theme.fonts", json!({ "major": HOME_FONT, "minor": HOME_FONT })).unwrap();
+    deck.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": "Title" })).unwrap();
     std::fs::write(workspace.join(DECK), deck.save(None).unwrap()).unwrap();
     std::fs::write(workspace.join("inside.png"), png(INSIDE_RGB)).unwrap();
     for (name, link) in LINKED {
@@ -300,7 +300,7 @@ fn agent_commands_reach_no_file_outside_the_workspace() {
     std::fs::write(outside.join("secret.txt"), format!("{SECRET}\n\n{SECRET} body\n")).unwrap();
     std::fs::write(outside.join("secret.md"), format!("# {SECRET}\n\n- {SECRET}\n")).unwrap();
     let mut planted = SlideDocument::create("planted.kslide", 960, 540).unwrap();
-    planted.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": SECRET })).unwrap();
+    planted.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": SECRET })).unwrap();
     std::fs::write(outside.join("planted.kslide"), planted.save(None).unwrap()).unwrap();
     std::fs::write(outside.join("sub/kept.txt"), SECRET).unwrap();
     let planted_outside = tree(&outside);

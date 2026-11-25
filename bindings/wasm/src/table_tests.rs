@@ -3,7 +3,7 @@ use super::*;
 fn table() -> (SlideDocument, Value) {
     let mut doc = SlideDocument::create("Table.pptx", 960, 540).unwrap();
     doc.set_single(true);
-    let id = doc.execute("insert.table", json!({"rows": 3, "cols": 3, "rect": [100, 100, 450, 180]})).unwrap()["id"].clone();
+    let id = doc.execute("table.insert", json!({"rows": 3, "cols": 3, "rect": [100, 100, 450, 180]})).unwrap()["id"].clone();
     (doc, id)
 }
 
@@ -27,7 +27,7 @@ fn table_pointer_shows_caret_and_selects_cells_without_moving_the_frame() {
     doc.execute("table.merge", json!({})).unwrap();
     pointer(&mut doc, PointerAction::Down, 275.0, 185.0, false);
     pointer(&mut doc, PointerAction::Up, 275.0, 185.0, false);
-    let inspected = doc.execute("document.inspect", json!({})).unwrap();
+    let inspected = doc.execute("file.inspect", json!({})).unwrap();
     assert_eq!(inspected["selection"]["text"]["cell"], json!([0, 0]));
     let shape = doc.execute("shape.inspect", json!({"id": id})).unwrap();
     assert_eq!(shape["box"]["x"], 100.0);

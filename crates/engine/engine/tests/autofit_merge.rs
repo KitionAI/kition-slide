@@ -57,11 +57,11 @@ fn assert_holds(s: &Session, what: &str) {
 fn three_lines() -> (Session, u64) {
     let mut a = Session::with_new();
     let id = a.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 150, 100], "text": "Base"})).unwrap()["id"].as_u64().unwrap();
-    a.execute("format.font", &json!({"family": "Inter"})).unwrap();
-    a.execute("format.size", &json!({"size": 20})).unwrap();
+    a.execute("format.fontName", &json!({"family": "Inter"})).unwrap();
+    a.execute("format.fontSize", &json!({"size": 20})).unwrap();
     a.execute("text.edit", &json!({"id": id, "end": true})).unwrap();
     a.execute("text.insert", &json!({"text": "\nFrom A\nFrom B"})).unwrap();
-    a.execute("edit.deselect", &json!({})).unwrap();
+    a.execute("edit.deselectAll", &json!({})).unwrap();
     (a, id)
 }
 
@@ -124,8 +124,8 @@ fn a_merged_draft_turning_shrink_on_for_text_resized_meanwhile_is_reflowed_in_it
 fn a_commenter_shows_and_exports_text_whose_fit_is_stale_without_writing() {
     let mut a = Session::with_new();
     a.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 150, 40], "text": "Base"})).unwrap();
-    a.execute("format.font", &json!({"family": "Inter"})).unwrap();
-    a.execute("format.size", &json!({"size": 20})).unwrap();
+    a.execute("format.fontName", &json!({"family": "Inter"})).unwrap();
+    a.execute("format.fontSize", &json!({"size": 20})).unwrap();
     a.execute("format.autofit", &json!({"mode": "shrink"})).unwrap();
     assert!(!layout(&a).overflow);
     // A replica whose text has grown past its fit (the fit and its receipt are the one-line

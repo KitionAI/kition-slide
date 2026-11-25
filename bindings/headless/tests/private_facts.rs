@@ -17,7 +17,7 @@ async fn private_shape_count_is_hidden_from_receipts_and_still_guards_writes() {
     let definition = KitDefinition::from_manifest_text(include_str!("../../../kit.json")).unwrap();
     let kits = KitManager::new(Some(workspace.path().to_owned()), vec![(definition, Some(PathBuf::from(env!("CARGO_BIN_EXE_kition-slide"))))]);
     let seen = tools::call_as(&kits, "slide_inspect", &json!({"path":"Facts.pptx"}), CallOptions::default(), "facts").await.unwrap().unwrap().output;
-    let step = json!({"command":"insert.textBox", "params":{"text":"Mine", "rect":[10,10,100,50]}});
+    let step = json!({"command":"textBox.insert", "params":{"text":"Mine", "rect":[10,10,100,50]}});
     let made =
         tools::call_as(&kits, "slide_run", &json!({"path":"Facts.pptx", "basis":seen["revision"], "steps":[step]}), CallOptions::default(), "facts")
             .await
@@ -37,7 +37,7 @@ async fn private_shape_count_is_hidden_from_receipts_and_still_guards_writes() {
         }
     }
     let mut other = SlideDocument::open("Facts.pptx", &std::fs::read(&path).unwrap()).unwrap();
-    other.execute("insert.textBox", json!({"text":"Colleague", "rect":[10,80,100,50]})).unwrap();
+    other.execute("textBox.insert", json!({"text":"Colleague", "rect":[10,80,100,50]})).unwrap();
     let bytes = other.save(Some("Facts.pptx")).unwrap();
     std::fs::write(&path, &bytes).unwrap();
     let refused =

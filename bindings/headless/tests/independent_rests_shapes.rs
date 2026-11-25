@@ -53,18 +53,18 @@ impl Fixture {
         named(&mut doc, a, "Group");
         let a = run(
             &mut doc,
-            "insert.chart",
+            "chart.insert",
             json!({"type": "column", "rect": [500, 200, 200, 150], "categories": ["Q1", "Q2"], "series": [{"name": "Sales", "values": [1, 2]}]}),
         );
         named(&mut doc, a, "Chart");
-        let a = run(&mut doc, "insert.textBox", json!({"rect": [100, 450, 200, 40], "text": "Note"}));
+        let a = run(&mut doc, "textBox.insert", json!({"rect": [100, 450, 200, 40], "text": "Note"}));
         named(&mut doc, a, "Text");
-        let a = run(&mut doc, "insert.picture", json!({"name": "red.png", "data": RED, "rect": [800, 300, 50, 50]}));
+        let a = run(&mut doc, "image.insert", json!({"name": "red.png", "data": RED, "rect": [800, 300, 50, 50]}));
         named(&mut doc, a, "Pic");
         let video = include_bytes!("../../../crates/media/media/tests/fixtures/clip-h264.mp4");
         let a = run(
             &mut doc,
-            "insert.video",
+            "video.insert",
             json!({"name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(video), "rect": [800, 400, 120, 80]}),
         );
         named(&mut doc, a, "Video");
@@ -280,7 +280,7 @@ async fn text_box_insert_holds_the_theme_fonts() {
                 theme.colors.colors[4] = theme.colors.colors[5];
             }
         });
-        let mut step = json!({"command": "insert.textBox", "params": {"rect": [10, 10, 200, 40], "text": "Hi"}});
+        let mut step = json!({"command": "textBox.insert", "params": {"rect": [10, 10, 200, 40], "text": "Hi"}});
         if !related {
             step["at"] = json!({"part": {"slide": 2}});
         }
@@ -308,7 +308,7 @@ async fn text_box_insert_holds_the_default_text_style() {
                 deck.first_slide_number = 7;
             }
         });
-        f.run(&basis, json!([{"command": "insert.textBox", "params": {"rect": [10, 10, 200, 40], "text": "Hi"}}]), related).await;
+        f.run(&basis, json!([{"command": "textBox.insert", "params": {"rect": [10, 10, 200, 40], "text": "Hi"}}]), related).await;
         if !related {
             let deck = f.deck();
             assert_eq!(deck.first_slide_number, 7);
@@ -338,7 +338,7 @@ async fn picture_insert_holds_the_media_it_reuses() {
                 named_mut(&mut slide2(deck).shapes, "Pic").descr = "Colleague alt text".into();
             }
         });
-        f.run(&basis, json!([{"command": "insert.picture", "params": {"name": "red.png", "data": RED, "rect": [10, 10, 50, 50]}}]), related).await;
+        f.run(&basis, json!([{"command": "image.insert", "params": {"name": "red.png", "data": RED, "rect": [10, 10, 50, 50]}}]), related).await;
         if !related {
             let deck = f.deck();
             let pictures: Vec<_> = deck

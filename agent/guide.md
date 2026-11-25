@@ -265,24 +265,24 @@ narrow scenario set does not close these gaps.
 |---|---|
 | New slide with title and body | [`slide.new`](/kits/slide/commands/slide.new/) `{layout: titleAndContent, title, body}` (`\n` in `body` starts a new paragraph) |
 | Replace a shape's text | [`text.set`](/kits/slide/commands/text.set/) `{id, text, onSlide}` (keeps the first run's formatting) |
-| Text box | [`insert.textBox`](/kits/slide/commands/insert.textBox/) `{rect: [x, y, w, h], text}` |
+| Text box | [`textBox.insert`](/kits/slide/commands/textBox.insert/) `{rect: [x, y, w, h], text}` |
 | Shape | [`shape.insert`](/kits/slide/commands/shape.insert/) `{preset: rect\|ellipse\|…, rect: [x, y, w, h]}` |
 | Move shapes | [`shape.move`](/kits/slide/commands/shape.move/) `{ids, x, y, onSlide}` (absolute), `{ids, dx, dy}`, or `{ids, toSlide: "slide:262"}` across slides |
 | Size shapes | [`shape.setBounds`](/kits/slide/commands/shape.setBounds/) `{ids, x, y, w, h}` |
-| Font | [`format.font`](/kits/slide/commands/format.font/) `{ids, family}` |
-| Size | [`format.size`](/kits/slide/commands/format.size/) `{ids, size}` |
+| Font | [`format.fontName`](/kits/slide/commands/format.fontName/) `{ids, family}` |
+| Size | [`format.fontSize`](/kits/slide/commands/format.fontSize/) `{ids, size}` |
 | Colour | [`format.color`](/kits/slide/commands/format.color/) `{ids, color}` |
 | Bold | [`format.bold`](/kits/slide/commands/format.bold/) `{ids, on}` |
 | Fill | [`shape.fill`](/kits/slide/commands/shape.fill/) `{ids, color}` |
 | Delete shapes | [`shape.delete`](/kits/slide/commands/shape.delete/) `{ids, onSlide}` |
 | Delete slides | [`slide.delete`](/kits/slide/commands/slide.delete/) `{ids: [slide id, …]}` |
-| Picture | [`insert.picture`](/kits/slide/commands/insert.picture/) `{path}` (in the workspace) or `{data: base64, name, rect}` |
-| Theme | [`design.theme`](/kits/slide/commands/design.theme/) `{name}` (names from [`design.themes`](/kits/slide/commands/design.themes/)) |
+| Picture | [`image.insert`](/kits/slide/commands/image.insert/) `{path}` (in the workspace) or `{data: base64, name, rect}` |
+| Theme | [`theme.set`](/kits/slide/commands/theme.set/) `{name}` (names from [`theme.list`](/kits/slide/commands/theme.list/)) |
 
 Formatting commands with `ids` format the whole text of those shapes; no text selection is needed.
 
-The kit reads and writes files only in the workspace, through the host: `insert.picture`,
-`picture.change`, `insert.audio` and `insert.video` take a `path` in the workspace (relative to the
+The kit reads and writes files only in the workspace, through the host: `image.insert`,
+`image.change`, `audio.insert` and `video.insert` take a `path` in the workspace (relative to the
 deck's folder) or base64 `data`; a path outside the workspace is refused. The host opens, saves and
 exports decks; `file.save`, `file.export` and the other commands that name a file are not offered.
 A picture a deck links (rather than holds) is never read.
@@ -412,7 +412,7 @@ only when it is what the person asked for. Every code the kit reports is on the
 | `slide.unreadable-picture` | error | The bytes are not a picture: insert a PNG, JPEG, GIF, WebP, BMP, TIFF or SVG |
 | `slide.text-overflow` | warning | `fix`: [`format.autofit`](/kits/slide/commands/format.autofit/) `{ids, onSlide, mode: shrink}`; or shorten the text, or enlarge the box |
 | `slide.effects-dropped` | warning | Reduce the shadow, glow, soft edge or reflection size |
-| `slide.font-substituted` | warning or info | Choose an installed family with [`format.font`](/kits/slide/commands/format.font/) `{ids, family}` (info: a stand-in with the same metrics) |
+| `slide.font-substituted` | warning or info | Choose an installed family with [`format.fontName`](/kits/slide/commands/format.fontName/) `{ids, family}` (info: a stand-in with the same metrics) |
 | `slide.off-slide` | warning | `fix`: [`shape.move`](/kits/slide/commands/shape.move/) `{ids, onSlide, x, y}` puts it back on the slide; or delete it |
 | `slide.empty-placeholder` | info | Fill it with [`text.set`](/kits/slide/commands/text.set/), or `fix`: [`edit.delete`](/kits/slide/commands/edit.delete/) `{ids, onSlide}` |
 | `slide.missing-alt-text` | info | Describe the picture: [`shape.altText`](/kits/slide/commands/shape.altText/) `{ids, onSlide, text}` (or `decorative: true`) |

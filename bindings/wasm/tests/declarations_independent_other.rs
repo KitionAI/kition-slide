@@ -11,7 +11,7 @@ fn poster_holds_referenced_blob_for_explicit_and_discovered_targets() {
     let mut doc = SlideDocument::create("Poster.pptx", 960, 540).unwrap();
     doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
     let bytes = include_bytes!("../../../crates/media/media/tests/fixtures/clip-h264.mp4");
-    doc.execute("insert.video", json!({"name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(bytes)})).unwrap();
+    doc.execute("video.insert", json!({"name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(bytes)})).unwrap();
     doc.execute("slide.go", json!({"index": 1})).unwrap();
     let state = Exchange::new().replica(&mut doc).unwrap().state_json().unwrap();
     let shape = state["objects"].as_object().unwrap().values().find(|object| object["$type"] == "Shape" && object["kind"] == "media").unwrap();

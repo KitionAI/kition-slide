@@ -190,7 +190,7 @@ async fn hyperlink_holds_destination_index_but_not_unused_destination_title() {
                     Some(TextBody::from_text("Colleague title"));
             }
         });
-        f.run(&basis, json!([{"command": "insert.hyperlink", "params": {"ids": [target], "slide": 1}}]), related).await;
+        f.run(&basis, json!([{"command": "link.insert", "params": {"ids": [target], "slide": 1}}]), related).await;
         if !related {
             let deck = f.deck();
             let action = deck.slides[0]
@@ -225,7 +225,7 @@ async fn hyperlink_default_display_holds_destination_title_after_text_edit_step(
             &basis,
             json!([
                 {"command": "text.edit", "params": {"id": target, "at": [0, 0]}},
-                {"command": "insert.hyperlink", "params": {"slide": 1}}
+                {"command": "link.insert", "params": {"slide": 1}}
             ]),
             related,
         )

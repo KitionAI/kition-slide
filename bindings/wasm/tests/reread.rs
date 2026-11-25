@@ -26,8 +26,8 @@ fn id_of(doc: &mut SlideDocument, text: &str) -> Value {
 
 fn deck() -> Vec<u8> {
     let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
-    doc.execute("insert.textBox", json!({"text": "Mine", "rect": [10, 10, 200, 50]})).unwrap();
-    doc.execute("insert.textBox", json!({"text": "Theirs", "rect": [10, 100, 200, 50]})).unwrap();
+    doc.execute("textBox.insert", json!({"text": "Mine", "rect": [10, 10, 200, 50]})).unwrap();
+    doc.execute("textBox.insert", json!({"text": "Theirs", "rect": [10, 100, 200, 50]})).unwrap();
     doc.save(Some(NAME)).unwrap()
 }
 

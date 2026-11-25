@@ -155,7 +155,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
                 h * 0.082
             ),
             &title.into_iter().collect::<Vec<_>>(),
-            &["format.size {ids, size}", "format.bold {ids}", "drawing.transform {ids, frame}"],
+            &["format.fontSize {ids, size}", "format.bold {ids}", "drawing.transform {ids, frame}"],
         ));
     }
     if (largest - body).abs() >= 0.5 && largest < body * HIERARCHY {
@@ -163,7 +163,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
             "design.weak-hierarchy",
             format!("The largest text is {largest:.0} pt and the body text {body:.0} pt: too close to read as title and body. Make the title at least {HIERARCHY}× the body, or bolder."),
             &title.into_iter().collect::<Vec<_>>(),
-            &["format.size {ids, size}", "format.bold {ids}"],
+            &["format.fontSize {ids, size}", "format.bold {ids}"],
         ));
     }
     if let Some(t) = texts.iter().max_by(|a, b| a.largest.total_cmp(&b.largest))
@@ -192,7 +192,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
                 (h * 0.033).round()
             ),
             &small.iter().map(|t| t.id).collect::<Vec<_>>(),
-            &["format.size {ids, size}"],
+            &["format.fontSize {ids, size}"],
         ));
     }
     let (above, below) = (top.max(0.0), (h - bottom).max(0.0));
@@ -207,7 +207,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
                 spanned * 100.0
             ),
             &[],
-            &["drawing.transform {ids, frame}", "format.size {ids, size}", "drawing.insert {kind: shape|chart, frame}"],
+            &["drawing.transform {ids, frame}", "format.fontSize {ids, size}", "drawing.insert {kind: shape|chart, frame}"],
         ));
     }
     if above > h * EMPTY_SHARE || below > h * EMPTY_SHARE {
@@ -219,7 +219,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
                 share * 100.0
             ),
             &[],
-            &["drawing.transform {ids, frame}", "format.size {ids, size}", "drawing.insert {kind: shape|chart, frame}"],
+            &["drawing.transform {ids, frame}", "format.fontSize {ids, size}", "drawing.insert {kind: shape|chart, frame}"],
         ));
     }
     let (background, solid) = match resolve::background(&ctx, Some(slide)) {
@@ -231,7 +231,7 @@ pub fn slide_advice(pres: &SlideFile, index: usize) -> Vec<Value> {
             "design.plain-slide",
             "The slide is text on a plain background, with no shape, picture or chart. An accent bar, a coloured panel, an icon or a gradient background gives it a designed look.".into(),
             &[],
-            &["drawing.insert {kind: shape, geometry, frame, fill}", "design.background {gradient}"],
+            &["drawing.insert {kind: shape, geometry, frame, fill}", "slide.background {gradient}"],
         ));
     }
     let background = background.map(|b| [b.r, b.g, b.b]);
@@ -337,7 +337,7 @@ mod tests {
     fn contrast_is_measured_against_the_panel_behind_the_text() {
         let mut s = Session::with_new();
         s.execute("slide.new", &json!({ "layout": "blank" })).unwrap();
-        s.execute("design.background", &json!({ "color": "#F8FAFC" })).unwrap();
+        s.execute("slide.background", &json!({ "color": "#F8FAFC" })).unwrap();
         s.execute("drawing.insert", &json!({ "kind": "shape", "geometry": { "preset": "roundRect" }, "frame": { "x": 360, "y": 180, "w": 240, "h": 260 }, "fill": "#0F172A" }))
             .unwrap();
         let on_card = s
@@ -373,7 +373,7 @@ mod tests {
 
         let mut s = Session::with_new();
         s.execute("slide.new", &json!({ "layout": "blank" })).unwrap();
-        s.execute("design.background", &json!({ "gradient": { "stops": [[0, "#ffffff"], [1, "#e8ecf4"]] } })).unwrap();
+        s.execute("slide.background", &json!({ "gradient": { "stops": [[0, "#ffffff"], [1, "#e8ecf4"]] } })).unwrap();
         s.execute(
             "drawing.insert",
             &json!({ "kind": "shape", "geometry": { "preset": "rect" }, "frame": { "x": 0, "y": 0, "w": 12, "h": 540 }, "fill": "#5645D4" }),

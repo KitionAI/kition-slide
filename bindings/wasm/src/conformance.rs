@@ -46,9 +46,9 @@ fn basic() -> SlideDocument {
     let mut slides = SlideDocument::create("Deck.kslide", 960, 540).expect("slides");
     run(&mut slides, "edit.selectAll", json!({}));
     run(&mut slides, "edit.delete", json!({}));
-    let title = id(&run(&mut slides, "insert.textBox", json!({ "rect": [60, 60, 600, 80], "text": "Quarterly review" })));
+    let title = id(&run(&mut slides, "textBox.insert", json!({ "rect": [60, 60, 600, 80], "text": "Quarterly review" })));
     let rect = id(&run(&mut slides, "shape.insert", json!({ "preset": "rect", "rect": [60, 180, 240, 140] })));
-    run(&mut slides, "format.font", json!({ "ids": [title, rect], "family": "Inter" }));
+    run(&mut slides, "format.fontName", json!({ "ids": [title, rect], "family": "Inter" }));
     slides
 }
 
@@ -57,7 +57,7 @@ fn edit() -> Value {
 }
 
 fn picture(slides: &mut SlideDocument, alt: Option<&str>) -> u64 {
-    let picture = id(&run(slides, "insert.picture", json!({ "data": PNG_BASE64, "name": "chart.png", "rect": [400, 60, 160, 120] })));
+    let picture = id(&run(slides, "image.insert", json!({ "data": PNG_BASE64, "name": "chart.png", "rect": [400, 60, 160, 120] })));
     if let Some(text) = alt {
         run(slides, "shape.altText", json!({ "ids": [picture], "text": text }));
     }
@@ -79,8 +79,8 @@ fn fixture(code: &str) -> SlideDocument {
         }
         "slide.text-overflow" => {
             let text = "This sentence is far too long for the small box it was typed into, so it runs past the bottom edge of its box. ".repeat(6);
-            let tiny = id(&run(&mut slides, "insert.textBox", json!({ "rect": [60, 360, 160, 30], "text": text })));
-            run(&mut slides, "format.font", json!({ "ids": [tiny], "family": "Inter" }));
+            let tiny = id(&run(&mut slides, "textBox.insert", json!({ "rect": [60, 360, 160, 30], "text": text })));
+            run(&mut slides, "format.fontName", json!({ "ids": [tiny], "family": "Inter" }));
             run(&mut slides, "format.autofit", json!({ "ids": [tiny], "mode": "none" }));
             // A text box grows to fit what is typed into it; a file made elsewhere keeps the small box.
             let file = file_mut(&mut slides);
@@ -108,8 +108,8 @@ fn fixture(code: &str) -> SlideDocument {
             }
         }
         "slide.font-substituted" => {
-            let note = id(&run(&mut slides, "insert.textBox", json!({ "rect": [60, 360, 400, 40], "text": "Speaker note" })));
-            run(&mut slides, "format.font", json!({ "ids": [note], "family": "Nowhere Sans Pro" }));
+            let note = id(&run(&mut slides, "textBox.insert", json!({ "rect": [60, 360, 400, 40], "text": "Speaker note" })));
+            run(&mut slides, "format.fontName", json!({ "ids": [note], "family": "Nowhere Sans Pro" }));
         }
         "slide.off-slide" => {
             run(&mut slides, "shape.insert", json!({ "preset": "rect", "rect": [2000, 60, 80, 80] }));

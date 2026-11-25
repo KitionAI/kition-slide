@@ -23,7 +23,7 @@ fn media_count(session: &Session) -> usize {
 fn picture_change_with_a_missing_target_leaves_no_media() {
     let mut session = deck();
     let before = media_count(&session);
-    assert!(session.execute("picture.change", &json!({"data": RED, "name": "red.png", "ids": ["999"]})).is_err());
+    assert!(session.execute("image.change", &json!({"data": RED, "name": "red.png", "ids": ["999"]})).is_err());
     assert_eq!(media_count(&session), before, "the refused change added a media item");
 }
 
@@ -39,7 +39,7 @@ fn shape_fill_picture_with_a_missing_target_leaves_no_media() {
 fn a_one_item_diagram_is_refused_without_a_stray_shape() {
     let mut session = deck();
     let before = session.active().unwrap().doc.slides[1].shapes.len();
-    let answer = session.execute("insert.smartGraphic", &json!({"kind": "process", "items": ["A"]}));
+    let answer = session.execute("smartGraphic.insert", &json!({"kind": "process", "items": ["A"]}));
     let after = session.active().unwrap().doc.slides[1].shapes.len();
     assert!(answer.is_ok() || after == before, "a failed diagram left {} shape(s)", after - before);
 }
@@ -49,11 +49,11 @@ fn picture_reset_leaves_a_selected_rectangle_alone() {
     let mut session = deck();
     let rect = session.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 100, 50]})).unwrap()["id"].as_u64().unwrap();
     session.execute("shape.line", &json!({"ids": [rect], "color": "#FF0000", "width": 3})).unwrap();
-    let pic = session.execute("insert.picture", &json!({"data": RED, "name": "red.png", "rect": [200, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
+    let pic = session.execute("image.insert", &json!({"data": RED, "name": "red.png", "rect": [200, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
     let line = |session: &Session| session.active().unwrap().doc.slides[1].shapes.iter().find(|s| u64::from(s.id.0) == rect).unwrap().line.clone();
     let before = line(&session);
-    session.execute("picture.reset", &json!({"ids": [rect, pic]})).unwrap();
-    assert_eq!(line(&session), before, "picture.reset removed a rectangle's outline");
+    session.execute("image.reset", &json!({"ids": [rect, pic]})).unwrap();
+    assert_eq!(line(&session), before, "image.reset removed a rectangle's outline");
     let picture = session.active().unwrap().doc.slides[1].shapes.iter().find(|s| u64::from(s.id.0) == pic).unwrap();
     assert!(matches!(picture.kind, ShapeKind::Picture { .. }));
 }

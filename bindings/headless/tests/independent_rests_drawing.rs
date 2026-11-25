@@ -34,8 +34,8 @@ impl Fixture {
         let g1 = id(doc.execute("shape.insert", json!({"preset": "rect", "rect": [600, 100, 80, 60], "text": "G1"})).unwrap());
         let g2 = id(doc.execute("shape.insert", json!({"preset": "rect", "rect": [700, 100, 80, 60], "text": "G2"})).unwrap());
         doc.execute("arrange.group", json!({"ids": [g1, g2]})).unwrap();
-        doc.execute("insert.textBox", json!({"rect": [100, 450, 200, 40], "text": "Note"})).unwrap();
-        doc.execute("insert.picture", json!({"name": "red.png", "data": RED, "rect": [800, 300, 50, 50]})).unwrap();
+        doc.execute("textBox.insert", json!({"rect": [100, 450, 200, 40], "text": "Note"})).unwrap();
+        doc.execute("image.insert", json!({"name": "red.png", "data": RED, "rect": [800, 300, 50, 50]})).unwrap();
         doc.execute("animation.add", json!({"effect": "fade", "ids": [a]})).unwrap();
         doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
         let workspace = tempfile::tempdir().unwrap();
@@ -317,7 +317,7 @@ async fn picture_change_holds_the_media_it_would_reuse_but_not_the_pictures_name
                 find(shapes(deck), &|shape| matches!(shape.kind, ShapeKind::Picture { .. })).name = "Colleague picture".into();
             }
         });
-        f.run(&basis, "picture.change", json!({"ids": [picture], "data": new, "name": "new.png"}), related).await;
+        f.run(&basis, "image.change", json!({"ids": [picture], "data": new, "name": "new.png"}), related).await;
         if !related {
             let mut deck = f.deck();
             let shape = find(shapes(&mut deck), &|shape| matches!(shape.kind, ShapeKind::Picture { .. }));

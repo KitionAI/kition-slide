@@ -151,7 +151,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "edit.deselect",
+        "edit.deselectAll",
         None,
         &[],
         &[],
@@ -339,7 +339,7 @@ pub(super) const ROWS: &[Row] = &[
         [ADDRESS, CURRENT_RUN, RUN, EDIT, FIT, "set baseline -0.25 or 0 from explicit on/effective baseline"]
     ),
     row!(
-        "format.font",
+        "format.fontName",
         Some("ids"),
         &["id"],
         &[],
@@ -354,7 +354,7 @@ pub(super) const ROWS: &[Row] = &[
         ]
     ),
     row!(
-        "format.size",
+        "format.fontSize",
         Some("ids"),
         &["id"],
         &[],
@@ -363,7 +363,7 @@ pub(super) const ROWS: &[Row] = &[
         [ADDRESS, RUN, EDIT, FIT, "size scalar clamps 1..4000 -> run size"]
     ),
     row!(
-        "format.grow",
+        "format.increaseFontSize",
         Some("ids"),
         &["id"],
         &[],
@@ -372,7 +372,7 @@ pub(super) const ROWS: &[Row] = &[
         [ADDRESS, CURRENT_RUN, RUN, EDIT, FIT, "each run size steps up; missing size uses effective first selected run size (18 fallback)"]
     ),
     row!(
-        "format.shrink",
+        "format.decreaseFontSize",
         Some("ids"),
         &["id"],
         &[],
@@ -816,7 +816,7 @@ fn text_replacement_holds_typography_and_geometry_without_holding_fill() {
     use serde_json::json;
 
     let mut doc = SlideDocument::create("Reading.pptx", 960, 540).unwrap();
-    let inserted = doc.execute("insert.textBox", json!({"text": "Before", "rect": [30, 40, 220, 80]})).unwrap();
+    let inserted = doc.execute("textBox.insert", json!({"text": "Before", "rect": [30, 40, 220, 80]})).unwrap();
     let id = doc.execute("shape.inspect", json!({"id": inserted["id"]})).unwrap()["shape"]["toolId"].clone();
     doc.version().unwrap();
     let under = doc.under("text.set", &json!({"id": id, "text": "After"})).unwrap().unwrap();
@@ -845,7 +845,7 @@ fn selected_text_replacement_holds_the_selected_shape() {
     use serde_json::json;
 
     let mut doc = SlideDocument::create("Reading.pptx", 960, 540).unwrap();
-    let inserted = doc.execute("insert.textBox", json!({"text": "Before"})).unwrap();
+    let inserted = doc.execute("textBox.insert", json!({"text": "Before"})).unwrap();
     let id = doc.execute("shape.inspect", json!({"id": inserted["id"]})).unwrap()["shape"]["toolId"].clone();
     doc.execute("edit.select", json!({"ids": [id]})).unwrap();
     doc.version().unwrap();
@@ -867,7 +867,7 @@ fn nested_text_holds_the_ancestor_frame_without_the_ancestor_name() {
     use serde_json::json;
 
     let mut doc = SlideDocument::create("Reading.pptx", 960, 540).unwrap();
-    let child = doc.execute("insert.textBox", json!({"text": "Before", "rect": [30, 40, 220, 80]})).unwrap()["id"].clone();
+    let child = doc.execute("textBox.insert", json!({"text": "Before", "rect": [30, 40, 220, 80]})).unwrap()["id"].clone();
     let neighbour = doc.execute("shape.insert", json!({"preset": "rect", "rect": [320, 40, 80, 80]})).unwrap()["id"].clone();
     let group = doc.execute("arrange.group", json!({"ids": [child, neighbour]})).unwrap()["id"].clone();
     let group = doc.execute("shape.inspect", json!({"id": group})).unwrap()["shape"]["toolId"].clone();
@@ -888,7 +888,7 @@ fn persistent_text_target_switches_from_master_view_to_its_slide() {
     use serde_json::json;
 
     let mut doc = SlideDocument::create("Reading.pptx", 960, 540).unwrap();
-    let inserted = doc.execute("insert.textBox", json!({"text": "Before"})).unwrap();
+    let inserted = doc.execute("textBox.insert", json!({"text": "Before"})).unwrap();
     let id = doc.execute("shape.inspect", json!({"id": inserted["id"]})).unwrap()["shape"]["toolId"].clone();
     doc.execute("view.slideMaster", json!({})).unwrap();
     doc.version().unwrap();

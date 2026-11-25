@@ -171,7 +171,7 @@ fn paste(doc: &SlideDocument, scope: &Scope<'_>, holds: &mut Holds, params: &Val
     }
 }
 
-/// Plain text pasted: into the edited body, else a new text box (`insert.textBox` at a box from
+/// Plain text pasted: into the edited body, else a new text box (`textBox.insert` at a box from
 /// the slide size, named by the shape count, fitted to its text).
 fn paste_plain(scope: &Scope<'_>, holds: &mut Holds, _text: &str) {
     if scope.selection.text.is_some() {

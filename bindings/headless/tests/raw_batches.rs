@@ -21,7 +21,7 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let mut doc = SlideDocument::create(NAME, 960, 540).unwrap();
-        doc.execute("insert.textBox", json!({"rect": [10, 10, 300, 200], "text": "First\nSecond\nThird\nFourth"})).unwrap();
+        doc.execute("textBox.insert", json!({"rect": [10, 10, 300, 200], "text": "First\nSecond\nThird\nFourth"})).unwrap();
         let workspace = tempfile::tempdir().unwrap();
         std::fs::write(workspace.path().join(NAME), doc.save(Some(NAME)).unwrap()).unwrap();
         let definition = KitDefinition::from_manifest_text(include_str!("../../../kit.json")).unwrap();

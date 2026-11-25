@@ -120,7 +120,7 @@ fn selected_text_is_a_range_and_a_quote_in_its_shape() {
 #[test]
 fn a_point_on_the_slide_is_kept_with_the_slide() {
     let mut s = session();
-    s.execute("edit.deselect", &json!({})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
     let anchor = s.execute("comment.anchor", &json!({"x": 320.4, "y": 210})).unwrap();
     let list = ids(&anchor);
     assert_eq!(list.get(1).map(String::as_str), Some("pt:320,210"), "{anchor}");

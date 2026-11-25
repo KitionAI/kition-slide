@@ -17,7 +17,7 @@ export function TaskPane() {
   useEffect(() => {
     if (!pane || pane === 'format' || pane === 'background' || pane === 'media' || pane === 'designer' || pane === 'comments') return
     let stale = false
-    const command = { animation: 'animation.get', selection: 'slide.inspect', spelling: 'review.spelling', accessibility: 'review.accessibility' }[pane]
+    const command = { animation: 'animation.get', selection: 'slide.inspect', spelling: 'spelling.check', accessibility: 'accessibility.check' }[pane]
     void query<Item[] | { shapes: Item[] }>(command).then((result) => {
       if (!stale) setItems(Array.isArray(result) ? result : result?.shapes ?? [])
     })

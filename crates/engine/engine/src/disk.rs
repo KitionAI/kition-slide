@@ -149,10 +149,10 @@ mod tests {
             ("file.export", json!({ "path": dir.at("export.pdf") })),
             ("file.export", json!({ "path": dir.at("export.png"), "all": true })),
             ("file.export", json!({ "path": dir.at("export.kslide"), "format": "kslide" })),
-            ("insert.picture", json!({ "path": dir.at("planted.png") })),
-            ("picture.change", json!({ "path": dir.at("planted.png") })),
-            ("insert.audio", json!({ "path": dir.at("planted.png") })),
-            ("insert.video", json!({ "path": dir.at("planted.png") })),
+            ("image.insert", json!({ "path": dir.at("planted.png") })),
+            ("image.change", json!({ "path": dir.at("planted.png") })),
+            ("audio.insert", json!({ "path": dir.at("planted.png") })),
+            ("video.insert", json!({ "path": dir.at("planted.png") })),
             ("file.recovery.save", json!({})),
             ("file.recovery.list", json!({})),
             ("file.recovery.open", json!({})),
@@ -166,16 +166,16 @@ mod tests {
         assert_eq!(s.documents().len(), documents, "a hosted session opened a deck by path");
 
         // Bytes still work.
-        s.execute("insert.picture", &json!({ "name": "red.png", "data": RED })).unwrap();
+        s.execute("image.insert", &json!({ "name": "red.png", "data": RED })).unwrap();
         s.execute("file.exportBytes", &json!({ "format": "pdf" })).unwrap();
         // With the host's reader a picture named by path is what the host lends, and nothing else.
         s.set_host_reader(Some(lend));
-        s.execute("insert.picture", &json!({ "path": "inside.png" })).unwrap();
-        assert!(s.execute("insert.picture", &json!({ "path": dir.at("planted.png") })).is_err(), "the host lent a file it does not lend");
+        s.execute("image.insert", &json!({ "path": "inside.png" })).unwrap();
+        assert!(s.execute("image.insert", &json!({ "path": dir.at("planted.png") })).is_err(), "the host lent a file it does not lend");
         assert!(s.execute("file.open", &json!({ "path": dir.at("planted.kslide") })).is_err(), "a hosted session opened a deck by path");
         assert_eq!(dir.names(), planted);
         // And the same session not hosted reads the picture by path, as the app does.
         s.set_host_files_only(false);
-        s.execute("insert.picture", &json!({ "path": dir.at("planted.png") })).unwrap();
+        s.execute("image.insert", &json!({ "path": dir.at("planted.png") })).unwrap();
     }
 }

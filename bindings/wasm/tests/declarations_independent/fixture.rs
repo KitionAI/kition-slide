@@ -69,22 +69,22 @@ pub fn fixture() -> (SlideDocument, Vec<(&'static str, String)>) {
         Some(_) => made(&mut doc, a),
         None => shapes(&mut doc, 1).iter().find(|shape| shape["kind"] == "group").unwrap()["toolId"].as_str().unwrap().to_owned(),
     };
-    let a = run(&mut doc, "insert.table", json!({ "rows": 2, "cols": 2, "rect": [100, 120, 300, 100], "data": [["a", "b"], ["c", "d"]] }));
+    let a = run(&mut doc, "table.insert", json!({ "rows": 2, "cols": 2, "rect": [100, 120, 300, 100], "data": [["a", "b"], ["c", "d"]] }));
     let table = made(&mut doc, a);
     let a = run(
         &mut doc,
-        "insert.chart",
+        "chart.insert",
         json!({ "type": "column", "rect": [500, 200, 200, 150], "categories": ["Q1", "Q2"], "series": [{ "name": "Sales", "values": [1, 2] }] }),
     );
     let chart = made(&mut doc, a);
-    let a = run(&mut doc, "insert.textBox", json!({ "rect": [100, 450, 200, 40], "text": "Note" }));
+    let a = run(&mut doc, "textBox.insert", json!({ "rect": [100, 450, 200, 40], "text": "Note" }));
     let text = made(&mut doc, a);
-    let a = run(&mut doc, "insert.picture", json!({ "name": "red.png", "data": RED, "rect": [800, 300, 50, 50] }));
+    let a = run(&mut doc, "image.insert", json!({ "name": "red.png", "data": RED, "rect": [800, 300, 50, 50] }));
     let pic = made(&mut doc, a);
     let video = include_bytes!("../../../../crates/media/media/tests/fixtures/clip-h264.mp4");
     let a = run(
         &mut doc,
-        "insert.video",
+        "video.insert",
         json!({ "name": "clip.mp4", "data": kition_slide_engine::cmd::base64_encode(video), "rect": [800, 400, 120, 80] }),
     );
     let clip = made(&mut doc, a);
@@ -122,7 +122,7 @@ pub fn fixture() -> (SlideDocument, Vec<(&'static str, String)>) {
     // Slides and the objects without tool ids, by the replica's ids.
     let state = Exchange::new().replica(&mut doc).unwrap().state_json().unwrap();
     let objects = state["objects"].as_object().unwrap().clone();
-    let slides: Vec<Value> = run(&mut doc, "document.inspect", json!({}))["slides"].as_array().cloned().unwrap_or_default();
+    let slides: Vec<Value> = run(&mut doc, "file.inspect", json!({}))["slides"].as_array().cloned().unwrap_or_default();
     for (role, slide) in ["$S1", "$S2", "$S3"].into_iter().zip(&slides) {
         roles.push((role, slide["toolId"].as_str().map(str::to_owned).unwrap_or_else(|| format!("slide:{}", slide["id"]))));
     }

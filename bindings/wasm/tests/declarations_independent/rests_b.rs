@@ -32,44 +32,44 @@ pub const ROWS: &[Rest] = &[
     r("shape.insert", r##"{"preset": "ellipse"}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
     r("shape.insert", r##"{"preset": "line", "rect": [10, 10, 50, 0]}"##, "part", &[("$S2", "~shapeCount", "-")]),
     r("shape.insert", r##"{"preset": "rect", "rect": [10, 10, 50, 50], "onSlide": 3}"##, "", &[("$S3", "~shapeCount", "*")]),
-    // insert.textBox: appends a text box named by shape count, then fits its box to the text
+    // textBox.insert: appends a text box named by shape count, then fits its box to the text
     // (layout -> master theme fonts, default text style); no rect: centred on the slide size.
     r(
-        "insert.textBox",
+        "textBox.insert",
         r##"{"rect": [10, 10, 200, 40], "text": "Hi"}"##,
         "part",
         &[("$S2", "layout,~shapeCount", "-"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle", "-")],
     ),
     r(
-        "insert.textBox",
+        "textBox.insert",
         r##"{"text": "Hi"}"##,
         "part",
         &[("$S2", "layout,~shapeCount", "-"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle,props.slideSize", "-")],
     ),
     r(
-        "insert.textBox",
+        "textBox.insert",
         r##"{"rect": [10, 10, 200, 40], "text": "Hi", "onSlide": 3}"##,
         "",
         &[("$S3", "layout,~shapeCount", "*"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle", "-")],
     ),
-    // insert.picture: a selected empty picture/content/body placeholder takes the picture (reads
+    // image.insert: a selected empty picture/content/body placeholder takes the picture (reads
     // the selection's `look.ph` and text, the placeholder's inherited box; replaces its kind,
     // frame, placeholder kind, text, alt text, media); else a new picture named by shape count, no
     // rect: fitted to and centred on the slide size. RED reuses $Media:red.png.
     r(
-        "insert.picture",
+        "image.insert",
         r##"{"name": "b.png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg==", "rect": [10, 10, 50, 50]}"##,
         "part,selection",
         &[("$S2", "~shapeCount", "-"), ("$Rect", "look.ph", "-")],
     ),
     r(
-        "insert.picture",
+        "image.insert",
         r##"{"name": "b.png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg=="}"##,
         "part,selection",
         &[("$S2", "~shapeCount", "-"), ("$Rect", "look.ph", "-"), ("root", "props.slideSize", "-")],
     ),
     r(
-        "insert.picture",
+        "image.insert",
         r##"{"name": "red.png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4wcAAAAJcAMlDyBJGAAAAAElFTkSuQmCC", "rect": [10, 10, 50, 50]}"##,
         "part,selection",
         &[("$S2", "~shapeCount", "-"), ("$Rect", "look.ph", "-"), ("$Media:red.png", "blob", "-")],
@@ -78,70 +78,70 @@ pub const ROWS: &[Rest] = &[
     // `xfrm_of` reads only that (cmd/mod.rs:293); the layout is not read.
     pinned(rs(
         r##"[["text.set", {"id": "$Body", "text": ""}], ["edit.select", {"ids": ["$Body"]}]]"##,
-        "insert.picture",
+        "image.insert",
         r##"{"name": "b.png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg=="}"##,
         "part,selection",
         &[("$Body", "body,kind,look.descr,look.kind,look.ph,media,xfrm", "-")],
     )),
     r(
-        "insert.picture",
+        "image.insert",
         r##"{"name": "b.png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg==", "rect": [10, 10, 50, 50], "onSlide": 3}"##,
         "",
         &[("$S3", "~shapeCount", "*")],
     ),
-    // insert.table: a new table named by shape count; no rect: 80 % of the slide width.
-    r("insert.table", r##"{"rows": 2, "cols": 3, "rect": [10, 10, 300, 80], "data": [["x", "y"]]}"##, "part", &[("$S2", "~shapeCount", "-")]),
-    r("insert.table", r##"{"rows": 2, "cols": 3}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
-    r("insert.table", r##"{"rows": 2, "cols": 2, "rect": [10, 10, 300, 80], "onSlide": 3}"##, "", &[("$S3", "~shapeCount", "*")]),
-    // insert.chart: a new chart from the values, named by shape count; no rect: 70 % of the slide.
+    // table.insert: a new table named by shape count; no rect: 80 % of the slide width.
+    r("table.insert", r##"{"rows": 2, "cols": 3, "rect": [10, 10, 300, 80], "data": [["x", "y"]]}"##, "part", &[("$S2", "~shapeCount", "-")]),
+    r("table.insert", r##"{"rows": 2, "cols": 3}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
+    r("table.insert", r##"{"rows": 2, "cols": 2, "rect": [10, 10, 300, 80], "onSlide": 3}"##, "", &[("$S3", "~shapeCount", "*")]),
+    // chart.insert: a new chart from the values, named by shape count; no rect: 70 % of the slide.
     r(
-        "insert.chart",
+        "chart.insert",
         r##"{"type": "pie", "rect": [10, 10, 200, 150], "categories": ["A", "B"], "series": [{"name": "S", "values": [1, 2]}]}"##,
         "part",
         &[("$S2", "~shapeCount", "-")],
     ),
-    r("insert.chart", r##"{"type": "line"}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
-    r("insert.chart", r##"{"type": "column", "rect": [10, 10, 200, 150], "onSlide": 3}"##, "", &[("$S3", "~shapeCount", "*")]),
-    // insert.audio: new media and a clip named by shape count; no rect: a 48 pt box centred on
+    r("chart.insert", r##"{"type": "line"}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
+    r("chart.insert", r##"{"type": "column", "rect": [10, 10, 200, 150], "onSlide": 3}"##, "", &[("$S3", "~shapeCount", "*")]),
+    // audio.insert: new media and a clip named by shape count; no rect: a 48 pt box centred on
     // the slide size.
-    r("insert.audio", r##"{"name": "a.mp3", "data": "SUQzAwAAAAAAAA==", "rect": [10, 10, 48, 48]}"##, "part", &[("$S2", "~shapeCount", "-")]),
-    r("insert.audio", r##"{"name": "a.mp3", "data": "SUQzAwAAAAAAAA=="}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
+    r("audio.insert", r##"{"name": "a.mp3", "data": "SUQzAwAAAAAAAA==", "rect": [10, 10, 48, 48]}"##, "part", &[("$S2", "~shapeCount", "-")]),
+    r("audio.insert", r##"{"name": "a.mp3", "data": "SUQzAwAAAAAAAA=="}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
     r(
-        "insert.audio",
+        "audio.insert",
         r##"{"name": "a.mp3", "data": "SUQzAwAAAAAAAA==", "rect": [10, 10, 48, 48], "onSlide": 3}"##,
         "",
         &[("$S3", "~shapeCount", "*")],
     ),
-    // insert.video: new media (and poster) and a clip named by shape count; no rect: its natural
+    // video.insert: new media (and poster) and a clip named by shape count; no rect: its natural
     // size fitted into the slide size.
     r(
-        "insert.video",
+        "video.insert",
         r##"{"name": "v.mp4", "data": "AAAAEGZ0eXBpc29tAAACAA==", "rect": [10, 10, 160, 90]}"##,
         "part",
         &[("$S2", "~shapeCount", "-")],
     ),
     r(
-        "insert.video",
+        "video.insert",
         r##"{"name": "v.mp4", "data": "AAAAEGZ0eXBpc29tAAACAA=="}"##,
         "part",
         &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")],
     ),
     r(
-        "insert.video",
+        "video.insert",
         r##"{"name": "v.mp4", "data": "AAAAEGZ0eXBpc29tAAACAA==", "rect": [10, 10, 160, 90], "onSlide": 3}"##,
         "",
         &[("$S3", "~shapeCount", "*")],
     ),
-    // insert.artText: its box always comes from the slide size; named by shape count; fitted to
+    // artText.insert: its box always comes from the slide size; named by shape count; fitted to
     // its text (layout -> master theme fonts, default text style).
     r(
-        "insert.artText",
+        "artText.insert",
         r##"{"text": "Wow", "style": 2}"##,
         "part",
         &[("$S2", "layout,~shapeCount", "-"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle,props.slideSize", "-")],
     ),
     r(
-        "insert.artText",
+        "artText.insert",
         r##"{"text": "Wow", "onSlide": 3}"##,
         "",
         &[("$S3", "layout,~shapeCount", "*"), ("$Master", "theme.fonts", "-"), ("root", "defaultTextStyle,props.slideSize", "-")],
@@ -244,26 +244,26 @@ pub const ROWS: &[Rest] = &[
     // normalized after review: a chart member is an entry of its Chart object's `parts` map, which the
     // change sets name `chart.parts.<member>` on the shape (kdm-model src/charts.rs:56).
     pinned(r("chart.options", r##"{"id": 270, "title": null}"##, "part", &[("$Chart", "chart.parts.title", "address")])),
-    // insert.smartGraphic: appends link and node shapes named by shape count, groups them (a new
+    // smartGraphic.insert: appends link and node shapes named by shape count, groups them (a new
     // group named by count, then renamed) and sets the group's frame to the area; no rect: from
     // the slide size.
     r(
-        "insert.smartGraphic",
+        "smartGraphic.insert",
         r##"{"kind": "process", "items": ["A", "B", "C"], "rect": [10, 10, 400, 200]}"##,
         "part",
         &[("$S2", "~shapeCount", "-")],
     ),
-    r("insert.smartGraphic", r##"{"kind": "cycle", "items": ["A", "B"]}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
+    r("smartGraphic.insert", r##"{"kind": "cycle", "items": ["A", "B"]}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
     r(
-        "insert.smartGraphic",
+        "smartGraphic.insert",
         r##"{"kind": "list", "items": ["A", "B"], "rect": [10, 10, 400, 200], "onSlide": 3}"##,
         "",
         &[("$S3", "~shapeCount", "*")],
     ),
-    // insert.actionButton: a preset button with its relative-slide action, named by shape count;
+    // actionButton.insert: a preset button with its relative-slide action, named by shape count;
     // no rect: a 48 pt box centred on the slide size.
-    r("insert.actionButton", r##"{"kind": "forward", "rect": [10, 10, 48, 48]}"##, "part", &[("$S2", "~shapeCount", "-")]),
-    r("insert.actionButton", r##"{"kind": "home"}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
+    r("actionButton.insert", r##"{"kind": "forward", "rect": [10, 10, 48, 48]}"##, "part", &[("$S2", "~shapeCount", "-")]),
+    r("actionButton.insert", r##"{"kind": "home"}"##, "part", &[("$S2", "~shapeCount", "-"), ("root", "props.slideSize", "-")]),
     // shape.connect: the ends' sites (their geometry and box; a placeholder's inherited box);
     // without id a new connector named by shape count; with id it rewrites that line's box and
     // glue, then reroutes it.

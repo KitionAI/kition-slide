@@ -1015,7 +1015,7 @@ fn served_by_host() -> bool {
 /// The commands whose file parameters a headless kit may offer agents (`kition_headless`'s
 /// `sandboxed`): they read the picture or media file they name through the host
 /// ([`lent_file`]), a path in the workspace, and write nothing.
-pub const SANDBOXED: &[&str] = &["insert.picture", "picture.change", "insert.audio", "insert.video"];
+pub const SANDBOXED: &[&str] = &["image.insert", "image.change", "audio.insert", "video.insert"];
 
 /// The largest picture or media file a command reads through the host, in bytes (1 GiB).
 const MAX_LENT: u64 = 1 << 30;

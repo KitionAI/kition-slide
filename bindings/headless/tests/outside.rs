@@ -43,11 +43,11 @@ fn deck() -> Vec<u8> {
         if n > 1 {
             doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
         }
-        let made = doc.execute("insert.textBox", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
+        let made = doc.execute("textBox.insert", json!({ "rect": [60, 60, 400, 80], "text": format!("Title {n}") })).unwrap();
         titles.push(made["id"].as_u64().unwrap());
-        doc.execute("insert.textBox", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
+        doc.execute("textBox.insert", json!({ "rect": [60, 300, 400, 80], "text": format!("Body {n}") })).unwrap();
     }
-    doc.execute("insert.picture", json!({ "name": "red.png", "data": RED })).unwrap();
+    doc.execute("image.insert", json!({ "name": "red.png", "data": RED })).unwrap();
     let mut file = kition_slide_engine::cmd::file::open_slide_file("Deck.pptx", &doc.save(Some("Deck.pptx")).unwrap()).unwrap();
     let ninth = std::sync::Arc::make_mut(&mut file.slides[8]);
     for shape in &mut ninth.shapes {
@@ -451,7 +451,7 @@ async fn i_a_layout_or_media_change_lets_writes_on_untouched_slides_and_the_pict
         let picture = picture(&tenth);
         match change {
             "layout" => f.colleague(&[("slide.layout", json!({ "layout": "titleOnly", "index": 2 }))]),
-            "media" => f.colleague(&[("picture.change", json!({ "ids": [picture], "name": "blue.png", "data": BLUE }))]),
+            "media" => f.colleague(&[("image.change", json!({ "ids": [picture], "name": "blue.png", "data": BLUE }))]),
             _ => f.colleague(&[("text.set", json!({ "id": tool_id(&ninth, "Body 9"), "text": "Elsewhere" }))]),
         }
         let ran = f
@@ -478,7 +478,7 @@ async fn i_a_layout_or_media_change_lets_writes_on_untouched_slides_and_the_pict
         }
         // The picture whose image the colleague replaced is not refused either: the media object is
         // another object, shared, and the picture's own fields did not change.
-        let ran = f.ok("run", json!({ "basis": basis, "steps": [{ "command": "picture.reset", "on": [picture], "params": {} }] })).await;
+        let ran = f.ok("run", json!({ "basis": basis, "steps": [{ "command": "image.reset", "on": [picture], "params": {} }] })).await;
         assert!(ran["changes"].is_object(), "{change}: {ran}");
         if change == "layout" {
             // The part's own fields are premises too (SDK C8-fix-6): the colleague changed
@@ -623,7 +623,7 @@ async fn j_a_slide_duplicated_by_another_program_relocates_slide_numbers_and_is_
 async fn k_a_colleagues_cell_edit_is_one_edit_under_the_table_and_refuses_a_step_on_the_table() {
     let f = Fixture::new();
     let table = json!({ "rows": 2, "cols": 2, "rect": [500, 60, 300, 120], "data": [["a", "b"], ["c", "d"]] });
-    f.ok("run", json!({ "target": { "slide": 4 }, "steps": [{ "command": "insert.table", "params": table }] })).await;
+    f.ok("run", json!({ "target": { "slide": 4 }, "steps": [{ "command": "table.insert", "params": table }] })).await;
     let (fourth, basis) = f.inspect(4).await;
     let table = fourth["shapes"].as_array().unwrap().iter().find(|shape| shape["kind"] == "table").unwrap()["toolId"].as_str().unwrap().to_owned();
     f.colleague(&[("text.set", json!({ "id": table, "cell": [0, 1], "text": "B!" }))]);

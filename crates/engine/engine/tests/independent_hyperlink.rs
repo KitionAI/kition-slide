@@ -8,9 +8,9 @@ use serde_json::json;
 fn explicit_hyperlink_target_works_with_an_empty_selection() {
     let mut session = Session::with_new();
     let id = session.execute("shape.insert", &json!({"preset": "rect", "text": "Named shape"})).unwrap()["id"].as_u64().unwrap();
-    session.execute("edit.deselect", &json!({})).unwrap();
+    session.execute("edit.deselectAll", &json!({})).unwrap();
     assert!(session.doc().unwrap().selection.shapes.is_empty());
-    session.execute("insert.hyperlink", &json!({"ids": [id], "url": "https://example.org/target"})).unwrap();
+    session.execute("link.insert", &json!({"ids": [id], "url": "https://example.org/target"})).unwrap();
     let state = session.doc().unwrap();
     let shape = state.shape(ShapeId(id as u32)).unwrap();
     assert_eq!(shape.click.as_ref().unwrap().action, Action::Url { url: "https://example.org/target".into() });
@@ -27,7 +27,7 @@ fn explicit_hyperlink_target_takes_priority_over_another_shapes_text() {
         let before = session.doc().unwrap().shape(ShapeId(edited as u32)).unwrap().clone();
         let mut params = json!({"url": "https://example.org/named"});
         params[if single { "id" } else { "ids" }] = if single { json!(named) } else { json!([named]) };
-        session.execute("insert.hyperlink", &params).unwrap();
+        session.execute("link.insert", &params).unwrap();
         let state = session.doc().unwrap();
         assert_eq!(state.shape(ShapeId(edited as u32)).unwrap(), &before, "the text being edited belongs to another shape");
         assert_eq!(

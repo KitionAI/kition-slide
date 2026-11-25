@@ -728,13 +728,13 @@ fn format_range(st: &DocState, t: &TextSel) -> (Pos, Pos) {
 /// caret as linked text in the surrounding formatting, as PowerPoint's Insert Hyperlink does.
 pub(crate) fn link_text(s: &mut Session, link: Hyperlink, display: &str) -> Result<Value> {
     let st = s.doc()?;
-    let Some(t) = st.selection.text.clone() else { return Err(bad("insert.hyperlink", "not editing text")) };
+    let Some(t) = st.selection.text.clone() else { return Err(bad("link.insert", "not editing text")) };
     let (a, b) = format_range(st, &t);
     if a != b {
         return format_run(s, &move |rp| rp.link = Some(link.clone()));
     }
     if display.is_empty() {
-        return Err(bad("insert.hyperlink", "nothing to link: select text or give `text`"));
+        return Err(bad("link.insert", "nothing to link: select text or give `text`"));
     }
     let pos = edit_text(s, |body, t| {
         let mut props = ed::props_at(body, a);

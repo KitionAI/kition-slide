@@ -13,7 +13,7 @@ fn state(doc: &mut SlideDocument) -> Value {
 
 fn fixture(name: &str) -> SlideDocument {
     let mut doc = SlideDocument::create(name, 960, 540).unwrap();
-    doc.execute("insert.textBox", json!({"text": "Held", "rect": [10, 10, 100, 50]})).unwrap();
+    doc.execute("textBox.insert", json!({"text": "Held", "rect": [10, 10, 100, 50]})).unwrap();
     doc.execute("slide.new", json!({"layout": "blank"})).unwrap();
     SlideDocument::open(name, &doc.save(Some(name)).unwrap()).unwrap()
 }
@@ -114,7 +114,7 @@ fn grouping_and_ungrouping_keep_child_identities() {
     let mut doc = fixture("Identity.pptx");
     let first = held(&mut doc, 0)["toolId"].clone();
     doc.execute("slide.go", json!({"index": 0})).unwrap();
-    doc.execute("insert.textBox", json!({"text": "Second", "rect": [150, 10, 100, 50]})).unwrap();
+    doc.execute("textBox.insert", json!({"text": "Second", "rect": [150, 10, 100, 50]})).unwrap();
     let part = doc.execute("slide.inspect", json!({"index": 0})).unwrap();
     let second = part["shapes"].as_array().unwrap().iter().find(|s| s["text"] == "Second").unwrap()["toolId"].clone();
     let group = doc.execute("arrange.group", json!({"ids": [first, second]})).unwrap();
@@ -131,7 +131,7 @@ fn group_moves_keep_endpoint_animation_and_comment_targets() {
         let mut doc = fixture(name);
         doc.execute("slide.go", json!({"index": 0})).unwrap();
         let a = held(&mut doc, 0);
-        let b = doc.execute("insert.textBox", json!({"text": "Second", "rect": [150, 10, 100, 50]})).unwrap()["id"].clone();
+        let b = doc.execute("textBox.insert", json!({"text": "Second", "rect": [150, 10, 100, 50]})).unwrap()["id"].clone();
         let line = doc.execute("shape.connect", json!({"from": a["id"], "to": b, "onSlide": 1})).unwrap()["id"].clone();
         let group = doc.execute("arrange.group", json!({"ids": [a["id"], b, line], "onSlide": 1})).unwrap()["id"].clone();
         let mut file = kition_slide_engine::cmd::file::open_slide_file(name, &doc.save(Some(name)).unwrap()).unwrap();

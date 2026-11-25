@@ -27,15 +27,15 @@ export function InsertTab() {
         <CommandButton command="slide.new" primary icon={SquarePlus} label={t('newSlide')} size="large" params={{}} />
       </RibbonGroup>
       <RibbonGroup label={t('group.tables')} icon={Table}>
-        <RibbonMenu icon={Table} label={t('table')} size="large" disabled={!enabled('insert.table')} testId="slides-table" primary>
+        <RibbonMenu icon={Table} label={t('table')} size="large" disabled={!enabled('table.insert')} testId="slides-table" primary>
           {TABLE_SIZES.map(([cols, rows]) => (
-            <MenuItem key={`${cols}x${rows}`} label={t('insertTable', { cols, rows })} onSelect={() => void run('insert.table', { rows, cols })} />
+            <MenuItem key={`${cols}x${rows}`} label={t('insertTable', { cols, rows })} onSelect={() => void run('table.insert', { rows, cols })} />
           ))}
-          <CommandItem command="insert.table" ask />
+          <CommandItem command="table.insert" ask />
         </RibbonMenu>
       </RibbonGroup>
       <RibbonGroup label={t('group.images')} icon={Image}>
-        <RibbonButton icon={Image} label={t('picture')} size="large" disabled={!picture.can || !enabled('insert.picture')} onClick={() => void picture.insert()} primary />
+        <RibbonButton icon={Image} label={t('picture')} size="large" disabled={!picture.can || !enabled('image.insert')} onClick={() => void picture.insert()} primary />
         <RibbonButton icon={Camera} label={t('screenshot')} size="large" disabled />
       </RibbonGroup>
       <RibbonGroup label={t('group.illustrations')} icon={Shapes}>
@@ -43,21 +43,21 @@ export function InsertTab() {
         <RibbonMenu icon={Smile} label={t('icons')} size="large">
           {['star5', 'heart', 'lightningBolt', 'sun', 'moon', 'cloud', 'smileyFace', 'chevron', 'rightArrow', 'flowChartDecision', 'flowChartMagneticDisk', 'flowChartDocument'].map((preset) => <MenuItem key={preset} label={preset} onSelect={() => void run('shape.insert', { preset, rect: [400, 200, 96, 96] })} />)}
         </RibbonMenu>
-        <CommandButton command="insert.smartGraphic" icon={Workflow} label={t('smartGraphic')} size="large" ask />
+        <CommandButton command="smartGraphic.insert" icon={Workflow} label={t('smartGraphic')} size="large" ask />
         <ChartInsertMenu testId="slides-chart" primary />
       </RibbonGroup>
-      <RibbonGroup label={t('group.links')} icon={Link}><CommandButton command="insert.hyperlink" primary icon={Link} label={t('link')} size="large" ask /><CommandButton command="insert.actionButton" icon={Link} label={t('action')} size="large" ask /></RibbonGroup>
+      <RibbonGroup label={t('group.links')} icon={Link}><CommandButton command="link.insert" primary icon={Link} label={t('link')} size="large" ask /><CommandButton command="actionButton.insert" icon={Link} label={t('action')} size="large" ask /></RibbonGroup>
       <RibbonGroup label={t('group.comments')} icon={MessageSquarePlus}><RibbonButton icon={MessageSquarePlus} label={t('comment')} size="large" disabled={!canNewComment} onClick={() => void newComment()} data-testid="slides-new-comment" primary /></RibbonGroup>
       <RibbonGroup label={t('group.text')} icon={TextCursorInput}>
         <RibbonButton icon={TextCursorInput} label={t('textBox')} size="large" pressed={tools.active === 'textBox'} onClick={() => tools.select('textBox')} primary />
-        <CommandButton command="design.headerFooter" icon={PanelTop} label={t('headerFooter')} size="large" ask />
-        <CommandButton command="insert.artText" icon={CaseSensitive} label={t('artText')} size="large" params={{}} />
-        <CommandButton command="insert.slideNumber" icon={Hash} label={t('slideNumber')} size="large" params={{}} />
-        <CommandButton command="insert.dateTime" icon={CalendarClock} label={t('dateTime')} size="large" params={{}} />
+        <CommandButton command="slide.headerFooter" icon={PanelTop} label={t('headerFooter')} size="large" ask />
+        <CommandButton command="artText.insert" icon={CaseSensitive} label={t('artText')} size="large" params={{}} />
+        <CommandButton command="field.insertSlideNumber" icon={Hash} label={t('slideNumber')} size="large" params={{}} />
+        <CommandButton command="field.insertDateTime" icon={CalendarClock} label={t('dateTime')} size="large" params={{}} />
       </RibbonGroup>
       <RibbonGroup label={t('group.symbols')} icon={Sigma}>
-        <RibbonButton icon={Sigma} label={t('equation')} size="large" onClick={() => { const command = byId.get('insert.textBox'); if (command) setDialog({ ...command, title: t('equation'), params: '{text}' }, { text: 'a² + b² = c²', rect: [330, 245, 300, 50] }) }} />
-        <CommandButton command="insert.symbol" icon={Sigma} label={t('symbol')} size="large" ask />
+        <RibbonButton icon={Sigma} label={t('equation')} size="large" onClick={() => { const command = byId.get('textBox.insert'); if (command) setDialog({ ...command, title: t('equation'), params: '{text}' }, { text: 'a² + b² = c²', rect: [330, 245, 300, 50] }) }} />
+        <CommandButton command="symbol.insert" icon={Sigma} label={t('symbol')} size="large" ask />
       </RibbonGroup>
       <RibbonGroup label={t('group.media')} icon={Video}>
         <RibbonButton icon={Video} label={t('video')} size="large" disabled={!video.can} onClick={() => void video.insert()} />

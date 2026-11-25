@@ -19,7 +19,7 @@ fn new_session() -> Session {
     s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 80], "text": "A"})).unwrap();
     s.execute("shape.insert", &json!({"preset": "ellipse", "rect": [300, 100, 100, 80], "text": "B"})).unwrap();
     s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
-    s.execute("insert.table", &json!({"rows": 2, "cols": 2, "rect": [100.0, 100.0, 300.0, 80.0]})).unwrap();
+    s.execute("table.insert", &json!({"rows": 2, "cols": 2, "rect": [100.0, 100.0, 300.0, 80.0]})).unwrap();
     s.execute("slide.go", &json!({"index": 1})).unwrap();
     s
 }
@@ -135,10 +135,10 @@ fn one_command_one_transaction_reproduces_in_a_peer() {
             s.execute("slide.layout", &json!({"layout": "twoContent"})).unwrap();
         }),
         ("theme change", |s| {
-            s.execute("design.theme", &json!({"name": "Ember"})).unwrap();
+            s.execute("theme.set", &json!({"name": "Ember"})).unwrap();
         }),
         ("paste with an image", |s| {
-            s.execute("insert.picture", &json!({"data": png(), "name": "red.png", "rect": [10, 10, 40, 40]})).unwrap();
+            s.execute("image.insert", &json!({"data": png(), "name": "red.png", "rect": [10, 10, 40, 40]})).unwrap();
             s.execute("edit.copy", &json!({})).unwrap();
             s.execute("slide.go", &json!({"index": 0})).unwrap();
             s.execute("edit.paste", &json!({})).unwrap();
@@ -153,7 +153,7 @@ fn one_command_one_transaction_reproduces_in_a_peer() {
             s.execute("arrange.ungroup", &json!({})).unwrap();
         }),
         ("fit_text_box", |s| {
-            s.execute("insert.textBox", &json!({"rect": [50, 300, 120, 20], "text": "short"})).unwrap();
+            s.execute("textBox.insert", &json!({"rect": [50, 300, 120, 20], "text": "short"})).unwrap();
             s.type_text(" and then a much longer line of text that wraps over several lines").unwrap();
         }),
     ];
@@ -688,7 +688,7 @@ fn random_command(s: &mut Session, rng: &mut Rng, picture: &str) -> String {
             let table = s.active().unwrap().shapes().iter().find(|x| matches!(x.kind, ShapeKind::Table(_))).map(|x| x.id.0);
             match table {
                 Some(id) => ("table.insertRowBelow", json!({"id": id, "row": 0})),
-                None => ("insert.table", json!({"rows": 2, "cols": 2, "rect": [50.0, 300.0, 200.0, 60.0]})),
+                None => ("table.insert", json!({"rows": 2, "cols": 2, "rect": [50.0, 300.0, 200.0, 60.0]})),
             }
         }
         4 => ("slide.move", json!({"from": rng.below(slides), "to": rng.below(slides)})),
@@ -698,10 +698,10 @@ fn random_command(s: &mut Session, rng: &mut Rng, picture: &str) -> String {
         }
         6 => {
             let name = themes[rng.below(themes.len() as u64) as usize].name.clone();
-            ("design.theme", json!({ "name": name }))
+            ("theme.set", json!({ "name": name }))
         }
         7 => {
-            let _ = s.execute("insert.picture", &json!({"data": picture, "name": "p.png", "rect": [rng.below(400), 20, 30, 30]}));
+            let _ = s.execute("image.insert", &json!({"data": picture, "name": "p.png", "rect": [rng.below(400), 20, 30, 30]}));
             let _ = s.execute("edit.copy", &json!({}));
             let _ = s.execute("slide.go", &json!({"index": rng.below(slides)}));
             ("edit.paste", json!({}))
@@ -717,7 +717,7 @@ fn random_command(s: &mut Session, rng: &mut Rng, picture: &str) -> String {
             }
             None => ("edit.undo", json!({})),
         },
-        10 => ("insert.textBox", json!({"rect": [rng.below(500), rng.below(300), 80, 20], "text": "Fit me to a few more words"})),
+        10 => ("textBox.insert", json!({"rect": [rng.below(500), rng.below(300), 80, 20], "text": "Fit me to a few more words"})),
         11 => ("shape.insert", json!({"preset": "rect", "rect": [rng.below(500), rng.below(300), 60, 40], "text": "S"})),
         12 => match pick(rng) {
             Some(id) => ("edit.delete", json!({"ids": [id]})),

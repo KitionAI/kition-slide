@@ -32,7 +32,7 @@ fn file_ids(doc: &mut SlideDocument) -> Vec<Value> {
 }
 
 fn slides(doc: &mut SlideDocument) -> usize {
-    KitDocument::execute(doc, "document.inspect", json!({})).unwrap()["slides"].as_array().unwrap().len()
+    KitDocument::execute(doc, "file.inspect", json!({})).unwrap()["slides"].as_array().unwrap().len()
 }
 
 /// A new deck's document and a draft of it: both open the file with the same stored replica, so
@@ -71,7 +71,7 @@ fn a_draft_and_the_document_adding_a_slide_at_once_keep_a_file_id_each() {
         // Settled: a read writes nothing, and the deck reopens with its replica as it is.
         let merged = state(doc);
         let version = doc.version().unwrap();
-        KitDocument::execute(doc, "document.inspect", json!({})).unwrap();
+        KitDocument::execute(doc, "file.inspect", json!({})).unwrap();
         assert_eq!(doc.version().unwrap(), version, "a read after the merge wrote a repair");
         let (file, snapshot, blobs) = (doc.save(None).unwrap(), doc.snapshot().unwrap(), doc.blobs().unwrap());
         let mut reopened = SlideDocument::open_with_replica(NAME, &file, &snapshot, &blobs).unwrap();

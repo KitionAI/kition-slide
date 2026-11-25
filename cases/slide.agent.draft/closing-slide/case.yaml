@@ -35,6 +35,6 @@ solution:
   - tool: slide_run
     args: { path: deck.kslide, draft: true, steps: [{ command: slide.new, params: {} }] }
   - tool: slide_run
-    args: { path: deck.kslide, draft: true, steps: [{ command: insert.textBox, params: { rect: [60, 200, 840, 80], text: "Thank you" } }] }
+    args: { path: deck.kslide, draft: true, steps: [{ command: textBox.insert, params: { rect: [60, 200, 840, 80], text: "Thank you" } }] }
 since: "2026-11-17"
 timeout_s: 600

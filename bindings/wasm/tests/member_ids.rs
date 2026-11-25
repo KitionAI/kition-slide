@@ -12,7 +12,7 @@ fn model(bytes: &[u8]) -> Value {
 #[test]
 fn equal_table_members_keep_identity_across_insert_delete_and_reopen() {
     let mut doc = SlideDocument::create("Ids.pptx", 960, 540).unwrap();
-    let table = doc.execute("insert.table", json!({"rows": 5, "cols": 5})).unwrap();
+    let table = doc.execute("table.insert", json!({"rows": 5, "cols": 5})).unwrap();
     let before = model(&doc.save(Some("Ids.pptx")).unwrap());
     let pick = |model: &Value| {
         let table = model["slides"][0]["shapes"].as_array().unwrap().iter().find(|shape| shape["kind"]["type"] == "table").unwrap();
@@ -78,7 +78,7 @@ fn missing_and_duplicate_member_ids_repair_deterministically_without_changing_su
 fn a_table_copy_owns_its_members_and_raw_creations_persist_their_ids() {
     use kition_kit::session::model::Exchange;
     let mut doc = SlideDocument::create("Ids.pptx", 960, 540).unwrap();
-    let source = doc.execute("insert.table", json!({"rows": 3, "cols": 3})).unwrap();
+    let source = doc.execute("table.insert", json!({"rows": 3, "cols": 3})).unwrap();
     doc.execute("edit.duplicate", json!({})).unwrap();
     doc.version().unwrap();
     doc.execute("table.rowHeight", json!({"id": source["id"], "row": 0, "height": 47})).unwrap();

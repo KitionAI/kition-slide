@@ -36,7 +36,7 @@ features:
     dimension: [function]
     priority: P1
     status: has
-    commands: [picture.change, picture.reset, shape.fill, insert.smartGraphic, comment.add]
+    commands: [image.change, image.reset, shape.fill, smartGraphic.insert, comment.add]
     paths: [crates/engine/engine/src/cmd/shape.rs, crates/engine/engine/src/cmd/insert.rs, crates/engine/engine/src/cmd/review.rs, crates/engine/engine/tests/independent_checks_first.rs]
     cases: [regressions/issue-c8-slide-read-3-checks-first]
     since: "2026-11-17"
@@ -55,7 +55,7 @@ features:
     dimension: [ai]
     priority: P0
     status: has
-    commands: [drawing.describe, text.get, animation.get, table.state, document.inspect, slide.inspect, shape.inspect, commands.list]
+    commands: [drawing.describe, text.get, animation.get, table.state, file.inspect, slide.inspect, shape.inspect, command.list]
     requirements: [AX13]
     cases: [slide.agent.observe/echo-title, regressions/issue-4]
     since: "2026-11-17"
@@ -107,7 +107,7 @@ features:
     dimension: [ai]
     priority: P0
     status: partial
-    commands: [slide.inspect, document.inspect]
+    commands: [slide.inspect, file.inspect]
     paths: [bindings/wasm/tests/layout_ids.rs, bindings/wasm/tests/member_ids.rs, crates/engine/model/src/identity.rs, crates/engine/model/src/table.rs, crates/engine/model/src/table/edit.rs, crates/engine/engine/src/kdm_bridge.rs, crates/formats/pptx/src/layout_id.rs, crates/formats/pptx/src/member_ids.rs, crates/kdm/kdm-model/model/schema.json, crates/kdm/kdm-model/src/write.rs, crates/kdm/kdm-model/src/read.rs, crates/kdm/kdm-model/src/patch.rs, crates/engine/engine/src/context.rs, crates/engine/engine/src/cmd/inspect.rs, crates/engine/engine/src/cmd/file.rs, crates/engine/model/src/lib.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/described.rs, bindings/wasm/tests/tool_ids.rs, bindings/wasm/tests/id_params.rs, bindings/headless/tests/premise.rs, bindings/headless/tests/outside.rs, crates/engine/engine/src/stored.rs, crates/support/geom/src/stored.rs, crates/formats/pptx/src/autofit_ext.rs, crates/kdm/kdm-model/src/validate.rs, bindings/wasm/tests/saved.rs, bindings/headless/tests/real_decks.rs]
     requirements: [AX13]
     gap: "Layout references use persisted immutable tool identities; table rows/columns retain identities within their table and sections retain standard GUIDs. Creates assign stored ids/defaults before their receipt; an omitted Shape.kind defaults to shape. A shape's tool id is its persistent identity: a cross-slide move keeps it and changes only address; a scoped positional address whose shape moved away is refused by the command, not as relocated (the SDK checks a place only with a place parameter)."
@@ -206,7 +206,7 @@ features:
     dimension: [function, data-safety]
     priority: P1
     status: partial
-    commands: [edit.undo, edit.redo, edit.cut, edit.copy, edit.paste, edit.pasteText, edit.duplicate, edit.delete, edit.selectAll, edit.deselect, edit.select]
+    commands: [edit.undo, edit.redo, edit.cut, edit.copy, edit.paste, edit.pasteText, edit.duplicate, edit.delete, edit.selectAll, edit.deselectAll, edit.select]
     paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/drawing.rs, crates/engine/engine/src/keys.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/kdm_bridge.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
@@ -250,7 +250,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [insert.textBox, insert.picture, insert.table, insert.chart, insert.audio, insert.video, insert.artText, insert.slideNumber, insert.dateTime, insert.symbol, insert.hyperlink, insert.smartGraphic, insert.actionButton]
+    commands: [textBox.insert, image.insert, table.insert, chart.insert, audio.insert, video.insert, artText.insert, field.insertSlideNumber, field.insertDateTime, symbol.insert, link.insert, smartGraphic.insert, actionButton.insert]
     paths: [crates/engine/engine/src/cmd/insert.rs, web/src/ribbon/InsertTab.tsx, bindings/wasm/src/files.rs, crates/engine/engine/src/sample.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
@@ -272,7 +272,7 @@ features:
     dimension: [function, fidelity]
     priority: P1
     status: partial
-    commands: [picture.crop, picture.adjust, picture.reset, picture.change]
+    commands: [image.crop, image.adjust, image.reset, image.change]
     paths: [crates/engine/engine/src/cmd/shape.rs, bindings/wasm/src/files.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
@@ -303,7 +303,7 @@ features:
     dimension: [function]
     priority: P2
     status: partial
-    commands: [draw.pen, draw.pencil, draw.highlighter, draw.eraser, draw.select, draw.state]
+    commands: [ink.pen, ink.pencil, ink.highlighter, ink.eraser, ink.select, ink.state]
     paths: [crates/engine/engine/src/cmd/ink.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
@@ -334,7 +334,7 @@ features:
     dimension: [function, fidelity]
     priority: P0
     status: has
-    commands: [format.bold, format.italic, format.underline, format.strikethrough, format.superscript, format.subscript, format.font, format.size, format.grow, format.shrink, format.color, format.highlight, format.case, format.caps, format.spacing, format.clear, format.textShadow, format.textOutline, format.transform, format.painter, format.painterApply, format.state]
+    commands: [format.bold, format.italic, format.underline, format.strikethrough, format.superscript, format.subscript, format.fontName, format.fontSize, format.increaseFontSize, format.decreaseFontSize, format.color, format.highlight, format.case, format.caps, format.spacing, format.clear, format.textShadow, format.textOutline, format.transform, format.painter, format.painterApply, format.state]
     paths: [crates/engine/engine/src/cmd/format.rs, web/src/ribbon/HomeTab.tsx, crates/engine/engine/src/sample.rs, crates/engine/engine/src/lib.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Save and reopen as .kslide and .pptx is proven by command for bold, size, italic, underline, colour and font; the feature's other commands are covered by engine tests only.
@@ -356,7 +356,7 @@ features:
     dimension: [function, fidelity]
     priority: P1
     status: partial
-    commands: [design.theme, design.themes, design.colors, design.fonts, design.background, design.hideBackgroundGraphics, design.slideSize, design.headerFooter]
+    commands: [theme.set, theme.list, theme.colors, theme.fonts, slide.background, slide.hideBackgroundGraphics, slide.size, slide.headerFooter]
     paths: [crates/engine/engine/src/cmd/design.rs, crates/engine/engine/src/cmd/insert.rs, crates/engine/engine/src/design.rs, crates/engine/engine/src/sample.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.
@@ -431,7 +431,7 @@ features:
     dimension: [function]
     priority: P2
     status: partial
-    commands: [review.accessibility, review.spelling]
+    commands: [accessibility.check, spelling.check]
     paths: [crates/engine/engine/src/cmd/review.rs]
     target: "PowerPoint 16.113.4 (Mac)"
     gap: Engine tests run these commands, but no case shows them working in the editor and surviving save and reopen.

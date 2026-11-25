@@ -19,7 +19,7 @@ fn a_media_item_that_only_matches_now_is_absent_from_the_historical_match_set() 
     let red = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4wcAAAAJcAMlDyBJGAAAAAElFTkSuQmCC";
     let mut doc = SlideDocument::create("History.pptx", 960, 540).unwrap();
     let shape = doc.execute("shape.insert", json!({"preset":"rect", "rect":[10,10,50,50]})).unwrap()["id"].clone();
-    doc.execute("insert.picture", json!({"name":"red.png", "data":red, "rect":[100,10,50,50]})).unwrap();
+    doc.execute("image.insert", json!({"name":"red.png", "data":red, "rect":[100,10,50,50]})).unwrap();
     let state = Exchange::new().replica(&mut doc).unwrap().state_json().unwrap();
     let media = state["objects"].as_object().unwrap().iter().find(|(_, object)| object["$type"] == "Media").unwrap().0.clone();
     let asked = CoveredAsk {

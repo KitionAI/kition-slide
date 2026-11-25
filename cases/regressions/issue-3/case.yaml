@@ -2,8 +2,8 @@ format: 1
 id: regressions/issue-3
 feature: slide.insert.objects
 intent: >-
-  Formatting a smart graphic group (shape.fill, shape.line, shape.effects, format.size, format.color
-  and the other text formatting) formats the shapes in it instead of nothing; insert.smartGraphic
+  Formatting a smart graphic group (shape.fill, shape.line, shape.effects, format.fontSize, format.color
+  and the other text formatting) formats the shapes in it instead of nothing; smartGraphic.insert
   takes `rect` and makes it the diagram's frame; a hierarchy joins the root to each child with
   elbow lines; a cycle sizes its nodes to the area, draws an arrow from each node to the next
   and sets its text small enough that the longest word fits across a node.

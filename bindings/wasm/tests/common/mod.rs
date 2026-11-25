@@ -54,7 +54,7 @@ fn attempt(doc: &mut SlideDocument, command: &str, params: Value) -> bool {
 }
 
 fn slides(doc: &mut SlideDocument) -> Result<Vec<Value>, String> {
-    Ok(run(doc, "document.inspect", json!({}))?["slides"].as_array().cloned().unwrap_or_default())
+    Ok(run(doc, "file.inspect", json!({}))?["slides"].as_array().cloned().unwrap_or_default())
 }
 
 /// The shapes of slide `index`, after making it the current slide (commands act on it).
@@ -321,8 +321,8 @@ impl KitAdapter for SlideKit {
             }
             (19, _) => ("slide.notes", attempt(doc, "slide.notes", json!({ "text": format!("note {value}"), "index": slide }))),
             (20, _) => (
-                "insert.picture",
-                attempt(doc, "insert.picture", json!({ "data": base64(&png(value)), "name": format!("p{value}.png"), "rect": [10, 10, 40, 40] })),
+                "image.insert",
+                attempt(doc, "image.insert", json!({ "data": base64(&png(value)), "name": format!("p{value}.png"), "rect": [10, 10, 40, 40] })),
             ),
             (21, Some(id)) => ("text.set", attempt(doc, "text.set", json!({ "id": id, "text": format!("set {value}\nline") }))),
             _ => ("none", false),
@@ -365,7 +365,7 @@ impl KitAdapter for SlideKit {
             Script::MergeParagraph { at } => return delete_at(doc, *at, 1),
             Script::InsertBlob { seed } => {
                 shapes(doc, 0)?;
-                run(doc, "insert.picture", json!({ "data": base64(&png(*seed)), "name": format!("p{seed}.png"), "rect": [10, 10, 40, 40] }))?;
+                run(doc, "image.insert", json!({ "data": base64(&png(*seed)), "name": format!("p{seed}.png"), "rect": [10, 10, 40, 40] }))?;
             }
             // The schema has no tree: groups are a list of children.
             _ => return Ok(false),
@@ -414,7 +414,7 @@ impl KitAdapter for SlideKit {
                     run(doc, "slide.new", json!({}))?;
                 }
                 shapes(doc, 0)?;
-                run(doc, "insert.textBox", json!({ "rect": [100, 100, 300, 80], "text": "typing" }))?;
+                run(doc, "textBox.insert", json!({ "rect": [100, 100, 300, 80], "text": "typing" }))?;
                 text_probe(doc)?.ok_or("no text box")?
             }
         };

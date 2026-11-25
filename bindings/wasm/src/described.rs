@@ -5,7 +5,7 @@ use serde_json::Value;
 /// Read commands that answer nothing a model reads.
 pub const NO_OUTPUT: &[(&str, &str)] = &[
     ("window.next", "changes the editor's selection, mode or view and answers nothing to read"),
-    ("edit.deselect", "changes the editor's selection, mode or view and answers nothing to read"),
+    ("edit.deselectAll", "changes the editor's selection, mode or view and answers nothing to read"),
     ("text.exit", "changes the editor's selection, mode or view and answers nothing to read"),
     ("text.move", "changes the editor's selection, mode or view and answers nothing to read"),
     ("text.select", "changes the editor's selection, mode or view and answers nothing to read"),
@@ -66,7 +66,7 @@ pub fn describe(id: &str) -> &'static str {
             "Deletes shapes, or the selected slides with `scope: \"slides\"`. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
         "edit.selectAll" => "Selects every shape on the current slide and answers their ids.",
-        "edit.deselect" => "Clears the selection on the current slide.",
+        "edit.deselectAll" => "Clears the selection on the current slide.",
         "edit.select" => {
             "Selects the shapes in `ids` (on slide `onSlide`, from 1) for selection-based commands; `add`/`toggle` change the selection instead of replacing it. Answers the selection."
         }
@@ -101,21 +101,21 @@ pub fn describe(id: &str) -> &'static str {
             "Inserts a preset shape (rect, roundRect, ellipse, rightArrow, star5, …; see `shape.presets`) on the current slide at `rect` [x, y, w, h] in points, with optional text, and selects it."
         }
         "shape.presets" => "Lists the preset shapes `shape.insert` and `shape.change` take, with label and category.",
-        "insert.textBox" => "Inserts a text box at `rect` [x, y, w, h] points on the current slide with optional `text`, and selects it.",
-        "insert.picture" => "Inserts a picture from a workspace file or base64 `data` on the current slide, at `rect` or fitted to the slide.",
-        "insert.table" => "Inserts a table of `rows` × `cols` on the current slide, at `rect` or centered.",
-        "insert.chart" => {
-            "Inserts a chart (column, bar, line, pie, waterfall, funnel, treemap, combo, …) with categories and series (each with an optional color, combo type and waterfall totals) on the current slide; format.size, format.color, format.bold and format.font on it format its text."
+        "textBox.insert" => "Inserts a text box at `rect` [x, y, w, h] points on the current slide with optional `text`, and selects it.",
+        "image.insert" => "Inserts a picture from a workspace file or base64 `data` on the current slide, at `rect` or fitted to the slide.",
+        "table.insert" => "Inserts a table of `rows` × `cols` on the current slide, at `rect` or centered.",
+        "chart.insert" => {
+            "Inserts a chart (column, bar, line, pie, waterfall, funnel, treemap, combo, …) with categories and series (each with an optional color, combo type and waterfall totals) on the current slide; format.fontSize, format.color, format.bold and format.fontName on it format its text."
         }
-        "insert.audio" => "Inserts an audio clip from a workspace file or base64 `data` on the current slide.",
-        "insert.video" => "Inserts a video from a workspace file or base64 `data` on the current slide.",
-        "insert.artText" => "Inserts art text in one of the gallery styles on the current slide.",
-        "insert.slideNumber" => {
+        "audio.insert" => "Inserts an audio clip from a workspace file or base64 `data` on the current slide.",
+        "video.insert" => "Inserts a video from a workspace file or base64 `data` on the current slide.",
+        "artText.insert" => "Inserts art text in one of the gallery styles on the current slide.",
+        "field.insertSlideNumber" => {
             "Turns on the slide number placeholder on the current slide, or inserts a slide-number field in the text being edited."
         }
-        "insert.dateTime" => "Inserts the date and time as a field in the text being edited (or the date placeholder), in a `format`.",
-        "insert.symbol" => "Inserts `text` (special characters) at the text insertion point.",
-        "insert.hyperlink" => {
+        "field.insertDateTime" => "Inserts the date and time as a field in the text being edited (or the date placeholder), in a `format`.",
+        "symbol.insert" => "Inserts `text` (special characters) at the text insertion point.",
+        "link.insert" => {
             "Adds a link to a URL or to slide `slide` (from 0) on the selected text or on the shapes in `ids`; with nothing selected inserts `text` as a link."
         }
         "chart.type" => "Changes the chart `id` (else the selected chart) to another chart type, keeping its data; an unknown type is refused.",
@@ -125,10 +125,10 @@ pub fn describe(id: &str) -> &'static str {
         "chart.options" => {
             "Sets which chart elements show (title, legend position, data labels, gridlines), the colour palette (colorful1–4, monochrome1–13; others are refused), series colours, gap width and overlap of the selected or named chart."
         }
-        "insert.smartGraphic" => {
+        "smartGraphic.insert" => {
             "Inserts a smart graphic (list, process, cycle with arrows, hierarchy with connecting lines, pyramid, matrix) built from `items` in `rect` (else the lower slide) on the current slide, as a group: shape.fill, shape.line, shape.effects and format.* on the group format all its shapes."
         }
-        "insert.actionButton" => "Inserts an action button (back, forward, home, …) that moves through the slide show when clicked.",
+        "actionButton.insert" => "Inserts an action button (back, forward, home, …) that moves through the slide show when clicked.",
         "shape.connect" => {
             "Draws a connector between shapes `from` and `to` (at given connection sites or the closest pair) that follows them when they move."
         }
@@ -175,16 +175,16 @@ pub fn describe(id: &str) -> &'static str {
             "Locks shapes against moving and editing, or unlocks them. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
         "shape.setDefault" => "Makes the selected shape's formatting the default for new shapes.",
-        "picture.crop" => {
+        "image.crop" => {
             "Crops pictures by fractions (0..1) of each edge. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
-        "picture.adjust" => {
+        "image.adjust" => {
             "Sets picture brightness, contrast, saturation, grayscale, transparency or recolor. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
-        "picture.reset" => {
+        "image.reset" => {
             "Removes the crop and corrections from pictures. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
-        "picture.change" => {
+        "image.change" => {
             "Replaces the picture with another file or base64 data, keeping size and position. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
         "media.options" => {
@@ -208,12 +208,12 @@ pub fn describe(id: &str) -> &'static str {
         "drawing.chart" => "Changes a chart drawing object's kind, title, legend, data labels or data.",
         "drawing.ink" => "Draws ink strokes (pen, pencil or highlighter) through `points` on the current slide.",
         "drawing.erase" => "Deletes the ink strokes a path, or a circle at `x`, `y`, touches.",
-        "draw.pen" => "Selects the pen ink tool in the editor with a color and width; answers the tool state.",
-        "draw.pencil" => "Selects the pencil ink tool in the editor; answers the tool state.",
-        "draw.highlighter" => "Selects the highlighter ink tool in the editor; answers the tool state.",
-        "draw.eraser" => "Selects the ink eraser in the editor; answers the tool state.",
-        "draw.select" => "Leaves inking in the editor and goes back to selecting; answers the tool state.",
-        "draw.state" => "Answers the editor's current ink tool, color and width.",
+        "ink.pen" => "Selects the pen ink tool in the editor with a color and width; answers the tool state.",
+        "ink.pencil" => "Selects the pencil ink tool in the editor; answers the tool state.",
+        "ink.highlighter" => "Selects the highlighter ink tool in the editor; answers the tool state.",
+        "ink.eraser" => "Selects the ink eraser in the editor; answers the tool state.",
+        "ink.select" => "Leaves inking in the editor and goes back to selecting; answers the tool state.",
+        "ink.state" => "Answers the editor's current ink tool, color and width.",
         "arrange.bringToFront" => {
             "Brings shapes to the front of the stacking order. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
@@ -275,12 +275,12 @@ pub fn describe(id: &str) -> &'static str {
         "format.strikethrough" => "Turns single or double strikethrough on or off for the selected text or shapes in `ids`.",
         "format.superscript" => "Turns superscript on or off for the selected text or shapes in `ids`.",
         "format.subscript" => "Turns subscript on or off for the selected text or shapes in `ids`.",
-        "format.font" => {
+        "format.fontName" => {
             "Sets the font family of the selected text or the whole text of shapes in `ids`; the answer says when this machine lacks the font and what draws it."
         }
-        "format.size" => "Sets the font size in points of the selected text or shapes in `ids`.",
-        "format.grow" => "Increases the font size one step of the size list for the selected text or shapes in `ids`.",
-        "format.shrink" => "Decreases the font size one step of the size list for the selected text or shapes in `ids`.",
+        "format.fontSize" => "Sets the font size in points of the selected text or shapes in `ids`.",
+        "format.increaseFontSize" => "Increases the font size one step of the size list for the selected text or shapes in `ids`.",
+        "format.decreaseFontSize" => "Decreases the font size one step of the size list for the selected text or shapes in `ids`.",
         "format.color" => {
             "Sets the font color (hex, a theme color such as accent1, or a scheme color with modifiers) of the selected text or the whole text of shapes in `ids`."
         }
@@ -317,20 +317,18 @@ pub fn describe(id: &str) -> &'static str {
         "format.state" => {
             "Answers the effective formatting at the selection (font, size, bold, italic, alignment, bullets, …), as the ribbon shows it."
         }
-        "design.theme" => "Applies a theme by name (see `design.themes`) to the whole presentation.",
-        "design.themes" => "Lists the themes, color schemes and font schemes the design commands take.",
-        "design.colors" => {
+        "theme.set" => "Applies a theme by name (see `theme.list`) to the whole presentation.",
+        "theme.list" => "Lists the themes, color schemes and font schemes the design commands take.",
+        "theme.colors" => {
             "Applies a color scheme by name, or sets theme colors (accent1..6, dk1, lt1, …) directly, and answers the theme's scheme as {name, colors}; with no parameters it only reads it."
         }
-        "design.fonts" => {
-            "Applies a font scheme by name, or sets the major (heading) and minor (body) fonts; the answer says when a font is missing."
-        }
-        "design.background" => {
+        "theme.fonts" => "Applies a font scheme by name, or sets the major (heading) and minor (body) fonts; the answer says when a font is missing.",
+        "slide.background" => {
             "Sets the background of the current slide to a color, gradient, picture or style, or resets it to the layout's; with `all` it is applied to all, as PowerPoint's Apply to All: the slide masters and layouts take it and the slides drop their own, so slides added later have it too."
         }
-        "design.hideBackgroundGraphics" => "Hides or shows the master's background graphics on the current slide.",
-        "design.slideSize" => "Sets the slide size by preset or width/height in points, scaling content to maximize or ensure fit.",
-        "design.headerFooter" => "Turns date, slide number and footer placeholders on or off (and sets their text) on the current or all slides.",
+        "slide.hideBackgroundGraphics" => "Hides or shows the master's background graphics on the current slide.",
+        "slide.size" => "Sets the slide size by preset or width/height in points, scaling content to maximize or ensure fit.",
+        "slide.headerFooter" => "Turns date, slide number and footer placeholders on or off (and sets their text) on the current or all slides.",
         "view.slideMaster" => "Opens slide master view on a master or layout, so edits apply to it.",
         "view.closeMaster" => "Leaves slide master view and goes back to the slides.",
         "master.insertLayout" => "Adds a new layout to the current master in slide master view.",
@@ -395,20 +393,20 @@ pub fn describe(id: &str) -> &'static str {
         "comment.place" => {
             "Answers where each comment anchor in `anchors` is now: whether its object is found, its slide, and its shape's box or point (in points)."
         }
-        "review.accessibility" => "Lists accessibility issues (missing slide titles, missing alt text, reading order) by slide and shape.",
-        "review.spelling" => "Lists the words not in the built-in word list, by slide and shape.",
+        "accessibility.check" => "Lists accessibility issues (missing slide titles, missing alt text, reading order) by slide and shape.",
+        "spelling.check" => "Lists the words not in the built-in word list, by slide and shape.",
         "show.fromStart" => "Starts the slide show from the first slide.",
         "show.fromCurrent" => "Starts the slide show from the current slide.",
         "show.setup" => "Sets slide show options: presenter or kiosk mode, looping, narration, animations, timings and slide range.",
         "show.customShow" => "Creates or replaces a custom show named `name` from slide indexes (from 0), or deletes it.",
-        "document.inspect" => {
+        "file.inspect" => {
             "Answers the presentation: slides with ids, titles, layouts and shape counts, the current slide and selection, slide size, theme and fonts. Start here."
         }
         "slide.inspect" => {
             "Answers one slide (`index` from 0, else the current one): its shapes with ids, kinds, boxes, text and fills (a group's children with their boxes on the slide), plus animations, transition, notes and comments. An agent's read leaves the current slide and the selection as they were: name the slide in later calls (`onSlide`, or the run's `target` or a step's `at.part`)."
         }
         "shape.inspect" => "Answers the full properties of shape `id` (on slide `onSlide`, from 1) with its effective formatting.",
-        "commands.list" => "Lists the kit's commands with labels, parameters and whether they are enabled, filtered by a substring.",
+        "command.list" => "Lists the kit's commands with labels, parameters and whether they are enabled, filtered by a substring.",
         "media.play" => "Plays the audio or video `id` (else the one on the slide) in the editor, from `from` milliseconds.",
         "media.pause" => "Pauses the audio or video `id` (else the one on the slide) in the editor.",
         "media.toggle" => "Plays or pauses the audio or video `id` (else the one on the slide) in the editor.",
@@ -449,22 +447,22 @@ pub fn output(id: &str) -> Option<Value> {
         "drawing.describe" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"objects":{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"frame":{"type":"json"},"geometry":{"type":"json"},"id":{"type":"string"},"kind":{"type":"string"},"placement":{"type":"json"},"text":{"type":"json"}}}},"selection":{"type":"object","additionalProperties":true,"properties":{"frame":{"type":"object","additionalProperties":true,"properties":{"mixed":{"type":"boolean"}}},"geometry":{"type":"object","additionalProperties":true,"properties":{"adjust":{"type":"json"},"preset":{"type":"string"}}},"ids":{"type":"array","items":{"type":"string"}},"kind":{"type":"object","additionalProperties":true,"properties":{"mixed":{"type":"boolean"}}},"placement":{"type":"object","additionalProperties":true,"properties":{"kind":{"type":"string"}}},"text":{"type":"object","additionalProperties":true,"properties":{"mixed":{"type":"boolean"}}}}}}}"#
         }
-        "draw.pen" => {
+        "ink.pen" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
-        "draw.pencil" => {
+        "ink.pencil" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
-        "draw.highlighter" => {
+        "ink.highlighter" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
-        "draw.eraser" => {
+        "ink.eraser" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
-        "draw.select" => {
+        "ink.select" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
-        "draw.state" => {
+        "ink.state" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"color":{"type":"string"},"tool":{"type":"string"},"width":{"type":"number"}}}"#
         }
         "text.edit" => {
@@ -477,7 +475,7 @@ pub fn output(id: &str) -> Option<Value> {
         "format.state" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"align":{"type":"string"},"bold":{"type":"boolean"},"bullets":{"type":"boolean"},"font":{"type":"string"},"fontRef":{"type":"string"},"italic":{"type":"boolean"},"lineSpacing":{"type":"json"},"numbering":{"type":"boolean"},"painter":{"type":"boolean"},"size":{"type":"number"},"strike":{"type":"boolean"},"subscript":{"type":"boolean"},"superscript":{"type":"boolean"},"underline":{"type":"boolean"}}}"#
         }
-        "design.themes" => {
+        "theme.list" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"colorSchemes":{"type":"array","items":{"type":"string"}},"fontSchemes":{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"major":{"type":"string"},"minor":{"type":"string"},"name":{"type":"string"}}}},"themes":{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"colors":{"type":"json"},"major":{"type":"string"},"minor":{"type":"string"},"name":{"type":"string"}}}}}}"#
         }
         "view.slideMaster" => {
@@ -494,13 +492,13 @@ pub fn output(id: &str) -> Option<Value> {
         "comment.threads" => r#"{"type":"array"}"#,
         "comment.anchor" => r#"{"type":"json"}"#,
         "comment.place" => r#"{"type":"array"}"#,
-        "review.accessibility" => {
+        "accessibility.check" => {
             r#"{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"issue":{"type":"string"},"slide":{"type":"integer"}}}}"#
         }
-        "review.spelling" => r#"{"type":"array"}"#,
+        "spelling.check" => r#"{"type":"array"}"#,
         "show.fromStart" => r#"{"type":"object","additionalProperties":true,"properties":{"from":{"type":"integer"}}}"#,
         "show.fromCurrent" => r#"{"type":"object","additionalProperties":true,"properties":{"from":{"type":"integer"}}}"#,
-        "document.inspect" => {
+        "file.inspect" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"dirty":{"type":"boolean"},"fonts":{"type":"object","additionalProperties":true,"properties":{"major":{"type":"string"},"minor":{"type":"string"}}},"layouts":{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"id":{"type":"integer"},"name":{"type":"string"}}}},"media":{"type":"array"},"path":{"type":"json"},"redo":{"type":"json"},"sections":{"type":"array"},"selection":{"type":"object","additionalProperties":true,"properties":{"cells":{"type":"json"},"shapes":{"type":"array"},"slide":{"type":"integer"},"slides":{"type":"array"},"target":{"type":"object","additionalProperties":true,"properties":{"kind":{"type":"string"}}},"text":{"type":"json"}}},"slideSize":{"type":"array","items":{"type":"number"}},"slides":{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"animations":{"type":"integer"},"hidden":{"type":"boolean"},"id":{"type":"integer"},"index":{"type":"integer"},"layout":{"type":"string"},"notes":{"type":"string"},"shapes":{"type":"integer"},"title":{"type":"string"},"transition":{"type":"json"}}}},"theme":{"type":"string"},"title":{"type":"string"},"undo":{"type":"json"}}}"#
         }
         "slide.inspect" => {
@@ -509,7 +507,7 @@ pub fn output(id: &str) -> Option<Value> {
         "shape.inspect" => {
             r#"{"type":"object","additionalProperties":true,"properties":{"box":{"type":"object","additionalProperties":true,"properties":{"h":{"type":"number"},"w":{"type":"number"},"x":{"type":"number"},"y":{"type":"number"}}},"shape":{"type":"object","additionalProperties":true,"properties":{"click":{"type":"json"},"decorative":{"type":"boolean"},"descr":{"type":"string"},"effects":{"type":"json"},"fill":{"type":"json"},"geom":{"type":"object","additionalProperties":true,"properties":{"kind":{"type":"string"},"name":{"type":"string"}}},"hidden":{"type":"boolean"},"hover":{"type":"json"},"id":{"type":"integer"},"kind":{"type":"object","additionalProperties":true,"properties":{"type":{"type":"string"}}},"line":{"type":"json"},"locked":{"type":"boolean"},"name":{"type":"string"},"ph":{"type":"json"},"style":{"type":"json"},"text":{"type":"object","additionalProperties":true,"properties":{"body":{"type":"json"},"paragraphs":{"type":"json"}}},"textBox":{"type":"boolean"},"title":{"type":"string"},"xfrm":{"type":"object","additionalProperties":true,"properties":{"h":{"type":"number"},"w":{"type":"number"},"x":{"type":"number"},"y":{"type":"number"}}}}}}}"#
         }
-        "commands.list" => {
+        "command.list" => {
             r#"{"type":"array","items":{"type":"object","additionalProperties":true,"properties":{"enabled":{"type":"boolean"},"id":{"type":"string"},"label":{"type":"string"},"menu":{"type":"array","items":{"type":"string"}},"params":{"type":"string"},"shortcut":{"type":"json"},"disabled_reason":{"type":"string"}}}}"#
         }
         "presence.selection" => r#"{"type":"object","additionalProperties":true,"properties":{"objects":{"type":"array"},"slide":{"type":"json"}}}"#,
@@ -570,24 +568,24 @@ fn key_type(id: &str, key: &str) -> Option<Value> {
         ("slide.layout", "layout") => r#"{"type":"string","description":"a layout name or kind"}"#,
         ("section.add", "at") => r#"{"type":"integer","description":"the slide the section starts at (from 0)"}"#,
         ("section.move", "to") => r#"{"type":"integer","description":"the section position (from 0)"}"#,
-        ("insert.picture", "data") => r#"{"type":"string","description":"the picture as base64, instead of path"}"#,
-        ("insert.audio", "data") => r#"{"type":"string","description":"the audio as base64, instead of path"}"#,
-        ("insert.video", "data") => r#"{"type":"string","description":"the video as base64, instead of path"}"#,
-        ("picture.change", "data") => r#"{"type":"string","description":"the picture as base64, instead of path"}"#,
-        ("insert.table", "cols") => r#"{"type":"integer","description":"number of columns"}"#,
-        ("insert.table", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
-        ("insert.chart", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
-        ("insert.audio", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
-        ("insert.video", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
-        ("insert.actionButton", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
-        ("insert.chart", "type") => {
+        ("image.insert", "data") => r#"{"type":"string","description":"the picture as base64, instead of path"}"#,
+        ("audio.insert", "data") => r#"{"type":"string","description":"the audio as base64, instead of path"}"#,
+        ("video.insert", "data") => r#"{"type":"string","description":"the video as base64, instead of path"}"#,
+        ("image.change", "data") => r#"{"type":"string","description":"the picture as base64, instead of path"}"#,
+        ("table.insert", "cols") => r#"{"type":"integer","description":"number of columns"}"#,
+        ("table.insert", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
+        ("chart.insert", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
+        ("audio.insert", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
+        ("video.insert", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
+        ("actionButton.insert", "rect") => r#"{"type":"array","items":{"type":"number"},"description":"[x, y, w, h] in points"}"#,
+        ("chart.insert", "type") => {
             r#"{"type":"string","description":"a chart type; an unknown one is refused","enum":["column","stackedColumn","percentColumn","bar","stackedBar","percentBar","line","lineMarkers","stackedLine","area","stackedArea","pie","doughnut","scatter","bubble","radar","filledRadar","waterfall","funnel","histogram","pareto","treemap","sunburst","boxWhisker","stock","surface","combo"]}"#
         }
-        ("insert.artText", "style") => r#"{"type":"integer","description":"the art text gallery style, from 0"}"#,
-        ("insert.dateTime", "format") => r#"{"type":"string","description":"datetime1 to datetime13, as PowerPoint numbers them"}"#,
-        ("insert.symbol", "text") => r#"{"type":"string","description":"the character(s) to insert"}"#,
-        ("insert.hyperlink", "text") => r#"{"type":"string","description":"the link text, used when nothing is selected"}"#,
-        ("insert.hyperlink", "tooltip") => r#"{"type":"string","description":"the tooltip shown on hover"}"#,
+        ("artText.insert", "style") => r#"{"type":"integer","description":"the art text gallery style, from 0"}"#,
+        ("field.insertDateTime", "format") => r#"{"type":"string","description":"datetime1 to datetime13, as PowerPoint numbers them"}"#,
+        ("symbol.insert", "text") => r#"{"type":"string","description":"the character(s) to insert"}"#,
+        ("link.insert", "text") => r#"{"type":"string","description":"the link text, used when nothing is selected"}"#,
+        ("link.insert", "tooltip") => r#"{"type":"string","description":"the tooltip shown on hover"}"#,
         ("chart.type", "type") => r#"{"type":"string","description":"the chart type: column, bar, line, pie, doughnut, area, scatter, …"}"#,
         ("chart.options", "legend") => {
             r#"{"oneOf":[{"type":"string","enum":["b","t","l","r"]},{"type":"null"}],"description":"legend position, null for none"}"#
@@ -626,7 +624,7 @@ fn key_type(id: &str, key: &str) -> Option<Value> {
         ("shape.effects", "softEdges") => {
             r#"{"type":"number","minimum":0,"maximum":100,"description":"soft edge radius in points; zero removes it"}"#
         }
-        ("picture.crop", "bottom") => r#"{"type":"number","description":"fraction 0..1 cropped from the bottom"}"#,
+        ("image.crop", "bottom") => r#"{"type":"number","description":"fraction 0..1 cropped from the bottom"}"#,
         ("media.options", "acrossSlides") => r#"{"type":"boolean"}"#,
         ("media.options", "autoplay") => r#"{"type":"boolean"}"#,
         ("media.options", "fullScreen") => r#"{"type":"boolean"}"#,
@@ -673,8 +671,8 @@ fn key_type(id: &str, key: &str) -> Option<Value> {
             r#"{"type":"string","description":"left, center, right, justify, justifyLow or distributed","enum":["left","center","right","justify","justifyLow","distributed"]}"#
         }
         ("format.paragraph", "lineSpacing") => r#"{"type":"number","description":"line spacing in lines"}"#,
-        ("design.slideSize", "preset") => r#"{"type":"string","description":"widescreen, standard, a4, letter, …"}"#,
-        ("design.headerFooter", "dateText") => r#"{"type":"string","description":"fixed date text"}"#,
+        ("slide.size", "preset") => r#"{"type":"string","description":"widescreen, standard, a4, letter, …"}"#,
+        ("slide.headerFooter", "dateText") => r#"{"type":"string","description":"fixed date text"}"#,
         ("view.slideMaster", "layout") => {
             r#"{"oneOf":[{"type":"integer"},{"type":"null"}],"description":"the layout index from 0, or null for the master itself"}"#
         }
@@ -735,7 +733,7 @@ fn key_type(id: &str, key: &str) -> Option<Value> {
         ("show.setup", "to") => r#"{"type":"integer","description":"last slide (from 1)"}"#,
         ("show.setup", "noAnimation") => r#"{"type":"boolean"}"#,
         ("show.setup", "noNarration") => r#"{"type":"boolean"}"#,
-        ("commands.list", "filter") => r#"{"type":"string","description":"a substring of the ids and labels"}"#,
+        ("command.list", "filter") => r#"{"type":"string","description":"a substring of the ids and labels"}"#,
         ("media.seek", "ms") => r#"{"type":"number","description":"milliseconds from the start"}"#,
         ("media.posterFrame", "ms") => r#"{"type":"number","description":"frame time in milliseconds; default: the current position"}"#,
         _ => return None,
@@ -769,28 +767,28 @@ pub fn type_keys(id: &str, schema: &mut Value) {
     }
     // These are the command handlers' clamps, not limits inferred from example decks.
     let limits: &[(&str, f64, f64)] = match id {
-        "format.size" => &[("size", 1.0, 4000.0)],
+        "format.fontSize" => &[("size", 1.0, 4000.0)],
         "format.spacing" => &[("pt", -100.0, 400.0)],
         "format.lineSpacing" => &[("pt", 0.0, 1584.0), ("lines", 0.0, 9.99)],
         "format.columns" => &[("count", 1.0, 16.0)],
         "format.numbering" => &[("start", 1.0, 32767.0)],
         "format.paragraph" => &[("lineSpacing", 0.0, 9.99)],
-        "draw.pen" | "draw.pencil" | "draw.highlighter" => &[("width", 0.25, 72.0)],
-        "design.background" => &[("style", 1.0, 12.0)],
+        "ink.pen" | "ink.pencil" | "ink.highlighter" => &[("width", 0.25, 72.0)],
+        "slide.background" => &[("style", 1.0, 12.0)],
         "file.export" | "file.exportBytes" => &[("dpi", 36.0, 600.0), ("scale", 0.01, 16.0)],
         "table.columnWidth" => &[("width", 4.0, 4000.0)],
         "table.rowHeight" => &[("height", 4.0, 4000.0)],
-        "insert.table" => &[("rows", 1.0, 75.0), ("cols", 1.0, 75.0)],
+        "table.insert" => &[("rows", 1.0, 75.0), ("cols", 1.0, 75.0)],
         "shape.line" => &[("width", 0.0, 1584.0)],
-        "picture.adjust" => &[("brightness", -1.0, 1.0), ("contrast", -1.0, 1.0), ("saturation", 0.0, 4.0), ("transparency", 0.0, 1.0)],
-        "picture.crop" => &[("left", -10.0, 0.95), ("top", -10.0, 0.95), ("right", -10.0, 0.95), ("bottom", -10.0, 0.95)],
+        "image.adjust" => &[("brightness", -1.0, 1.0), ("contrast", -1.0, 1.0), ("saturation", 0.0, 4.0), ("transparency", 0.0, 1.0)],
+        "image.crop" => &[("left", -10.0, 0.95), ("top", -10.0, 0.95), ("right", -10.0, 0.95), ("bottom", -10.0, 0.95)],
         "media.options" => &[("volume", 0.0, 1.0)],
         "animation.set" | "animation.add" | "animation.timing" => {
             &[("duration", 0.0, 600_000.0), ("delay", 0.0, 600_000.0), ("repeat", 0.0, u32::MAX as f64)]
         }
         "transition.set" => &[("duration", 0.0, 59_000.0)],
         "transition.timing" => &[("duration", 0.0, 59_000.0)],
-        "design.slideSize" => &[("w", 72.0, 4032.0), ("h", 72.0, 4032.0)],
+        "slide.size" => &[("w", 72.0, 4032.0), ("h", 72.0, 4032.0)],
         _ => &[],
     };
     for (field, minimum, maximum) in limits {

@@ -24,7 +24,7 @@ impl Fixture {
             if n > 1 {
                 doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
             }
-            doc.execute("insert.textBox", json!({ "text": format!("Body {n}"), "rect": [60, 60, 240, 80] })).unwrap();
+            doc.execute("textBox.insert", json!({ "text": format!("Body {n}"), "rect": [60, 60, 240, 80] })).unwrap();
         }
         doc.execute("transition.set", json!({ "index": 0, "kind": "fade", "duration": 600 })).unwrap();
         doc.execute("transition.set", json!({ "index": 1, "kind": "fade", "duration": 600 })).unwrap();

@@ -59,9 +59,9 @@ try {
   await visible('slides-master-list')
   await visible('ribbon-tab-slideMaster')
   await kit.locator('.slides-layout-item').first().click()
-  await until(async () => (await run('document.inspect')).selection.target.kind === 'master')
+  await until(async () => (await run('file.inspect')).selection.target.kind === 'master')
   await kit.locator('.slides-layout-item').nth(1).click()
-  await until(async () => (await run('document.inspect')).selection.target.kind === 'layout')
+  await until(async () => (await run('file.inspect')).selection.target.kind === 'layout')
   await tab('slideMaster')
   const layouts = await kit.locator('.slides-layout-item').count()
   await kit.getByTestId('slides-cmd-master.insertLayout').click()
@@ -72,8 +72,8 @@ try {
 
   for (const [command, params, context] of [
     ['shape.insert', { preset: 'rect', rect: [100, 100, 150, 100] }, 'shapeFormat'],
-    ['insert.table', { rows: 2, cols: 2 }, 'tableDesign'],
-    ['insert.chart', { type: 'line' }, 'chartDesign'],
+    ['table.insert', { rows: 2, cols: 2 }, 'tableDesign'],
+    ['chart.insert', { type: 'line' }, 'chartDesign'],
   ]) {
     await run(command, params)
     // The person clicks the new object (the topmost): an agent's insertion selects it only in the
@@ -155,7 +155,7 @@ try {
   await kit.getByTestId('slides-comments-new-input').fill('Typed by a commenter')
   await kit.getByTestId('slides-comments-new-send').click()
   await until(async () => (await run('comment.threads')).some((thread) => thread.comments[0].body === 'Typed by a commenter'))
-  assert.equal((await run('document.inspect')).slides.length, 2, 'a commenter adds no slide')
+  assert.equal((await run('file.inspect')).slides.length, 2, 'a commenter adds no slide')
   assert.deepEqual(errors, [])
   console.log('PASS a commenter writes comments in a read-only document and nothing else')
 } finally { await browser.close(); await server.close() }

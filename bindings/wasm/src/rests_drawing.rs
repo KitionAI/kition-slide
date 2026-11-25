@@ -15,10 +15,10 @@ use super::*;
 use kition_slide_model::{Shape, ShapeId, ShapeKind, resolve};
 
 const MINE: &[&str] = &[
-    "picture.crop",
-    "picture.adjust",
-    "picture.reset",
-    "picture.change",
+    "image.crop",
+    "image.adjust",
+    "image.reset",
+    "image.change",
     "media.options",
     "drawing.delete",
     "drawing.transform",
@@ -297,7 +297,7 @@ pub(super) fn add(doc: &SlideDocument, command: &str, params: &Value, found: &mu
     let target_ids: Vec<ShapeId> = targets.iter().map(|shape| shape.id).collect();
     let flag = |name: &str| local.get(name).is_some_and(|value| !value.is_null());
     match command {
-        "picture.crop" | "picture.adjust" | "picture.reset" | "picture.change" | "media.options" => {
+        "image.crop" | "image.adjust" | "image.reset" | "image.change" | "media.options" => {
             for shape in &targets {
                 let Some(id) = part.public(shape) else { continue };
                 holds.entry(&id);
@@ -307,14 +307,14 @@ pub(super) fn add(doc: &SlideDocument, command: &str, params: &Value, found: &mu
                 let picture = matches!(shape.kind, ShapeKind::Picture { .. });
                 match command {
                     "media.options" if matches!(shape.kind, ShapeKind::Media(_)) => holds.fields(&id, ["look.kind"]),
-                    "picture.reset" if picture => holds.fields(&id, ["look.kind", "look.line", "look.effects"]),
-                    "picture.change" if picture => holds.fields(&id, ["look.kind", "media"]),
-                    "picture.crop" | "picture.adjust" if picture => holds.fields(&id, ["look.kind"]),
+                    "image.reset" if picture => holds.fields(&id, ["look.kind", "look.line", "look.effects"]),
+                    "image.change" if picture => holds.fields(&id, ["look.kind", "media"]),
+                    "image.crop" | "image.adjust" if picture => holds.fields(&id, ["look.kind"]),
                     _ => {}
                 }
             }
             // The bytes are stored as a media item unless one already holds the same bytes.
-            if command == "picture.change"
+            if command == "image.change"
                 && let Some(bytes) = local.get("data").and_then(Value::as_str).and_then(cmd::base64_decode)
                 && let Some(item) = deck.media.iter().find(|item| *item.data == bytes)
                 && let Some(media) = ids.media.object(item.id)

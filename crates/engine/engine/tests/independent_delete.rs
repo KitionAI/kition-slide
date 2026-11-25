@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 fn editing_first_of_two() -> (Session, ShapeId, ShapeId) {
     let mut session = Session::with_new();
     let mut insert = |text: &str| {
-        ShapeId(session.execute("insert.textBox", &json!({"text": text, "rect": [40, 40, 180, 30]})).unwrap()["id"].as_u64().unwrap() as u32)
+        ShapeId(session.execute("textBox.insert", &json!({"text": text, "rect": [40, 40, 180, 30]})).unwrap()["id"].as_u64().unwrap() as u32)
     };
     let first = insert("First text");
     let second = insert("Second text");

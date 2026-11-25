@@ -49,7 +49,7 @@ fn an_east_asian_font_is_the_runs_east_asian_font_too() {
     let mut s = Session::with_new();
     let id =
         s.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 300, 60], "text": "2026 年第三季度"})).unwrap()["id"].as_u64().unwrap();
-    s.execute("format.font", &json!({"family": "PingFang SC"})).unwrap();
+    s.execute("format.fontName", &json!({"family": "PingFang SC"})).unwrap();
     let props = |s: &Session| {
         let st = s.doc().unwrap();
         let sh = st.shape(kition_slide_model::ShapeId(id as u32)).unwrap();
@@ -57,7 +57,7 @@ fn an_east_asian_font_is_the_runs_east_asian_font_too() {
         (run.font, run.font_ea)
     };
     assert_eq!(props(&s), (Some("PingFang SC".into()), Some("PingFang SC".into())));
-    s.execute("format.font", &json!({"family": "Inter"})).unwrap();
+    s.execute("format.fontName", &json!({"family": "Inter"})).unwrap();
     assert_eq!(props(&s), (Some("Inter".into()), Some("PingFang SC".into())), "a Latin family leaves the East Asian font");
 }
 
@@ -65,10 +65,10 @@ fn an_east_asian_font_is_the_runs_east_asian_font_too() {
 fn theme_fonts_in_an_east_asian_family_are_the_east_asian_fonts_too() {
     let mut s = Session::with_new();
     let before = s.doc().unwrap().doc.masters[0].theme.fonts.clone();
-    s.execute("design.fonts", &json!({"major": "Microsoft YaHei", "minor": "Microsoft YaHei"})).unwrap();
+    s.execute("theme.fonts", &json!({"major": "Microsoft YaHei", "minor": "Microsoft YaHei"})).unwrap();
     let fonts = s.doc().unwrap().doc.masters[0].theme.fonts.clone();
     assert_eq!((fonts.minor.latin.as_str(), fonts.minor.ea.as_str()), ("Microsoft YaHei", "Microsoft YaHei"));
-    s.execute("design.fonts", &json!({"major": "Inter", "minor": "Inter"})).unwrap();
+    s.execute("theme.fonts", &json!({"major": "Inter", "minor": "Inter"})).unwrap();
     let fonts = s.doc().unwrap().doc.masters[0].theme.fonts.clone();
     assert_eq!((fonts.minor.latin.as_str(), fonts.minor.ea.as_str()), ("Inter", "Microsoft YaHei"), "a Latin family keeps the East Asian font");
     assert_eq!(fonts.minor.cs, before.minor.cs, "the complex-script font stays");
@@ -78,12 +78,12 @@ fn theme_fonts_in_an_east_asian_family_are_the_east_asian_fonts_too() {
 fn a_font_this_machine_lacks_is_said() {
     let mut s = Session::with_new();
     s.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 300, 60], "text": "Hello"})).unwrap();
-    let answer = s.execute("format.font", &json!({"family": "No Such Family 123"})).unwrap();
+    let answer = s.execute("format.fontName", &json!({"family": "No Such Family 123"})).unwrap();
     assert_eq!(answer["available"], false, "{answer}");
     assert!(answer["note"].as_str().unwrap().contains("is not installed here"), "{answer}");
-    let answer = s.execute("format.font", &json!({"family": "Inter"})).unwrap();
+    let answer = s.execute("format.fontName", &json!({"family": "Inter"})).unwrap();
     assert!(answer.get("available").is_none(), "a bundled family needs no note: {answer}");
-    let answer = s.execute("design.fonts", &json!({"major": "No Such Family 123", "minor": "Inter"})).unwrap();
+    let answer = s.execute("theme.fonts", &json!({"major": "No Such Family 123", "minor": "Inter"})).unwrap();
     assert_eq!(answer["fonts"].as_array().unwrap().len(), 1, "{answer}");
 }
 
@@ -92,12 +92,12 @@ fn formatting_takes_the_same_ids_as_shape_commands() {
     // format.* select the named shapes through edit.select, which read numbers only.
     let mut s = Session::with_new();
     let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [10, 10, 300, 60], "text": "Hello"})).unwrap()["id"].as_u64().unwrap();
-    s.execute("edit.deselect", &json!({})).ok();
-    s.execute("format.size", &json!({"ids": [id.to_string()], "size": 30})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).ok();
+    s.execute("format.fontSize", &json!({"ids": [id.to_string()], "size": 30})).unwrap();
     let st = s.doc().unwrap();
     let size = st.shape(kition_slide_model::ShapeId(id as u32)).unwrap().text.as_ref().unwrap().paragraphs[0].runs[0].props.size;
     assert_eq!(size, Some(30.0));
-    let error = s.execute("format.size", &json!({"ids": ["9999"], "size": 30})).unwrap_err().to_string();
+    let error = s.execute("format.fontSize", &json!({"ids": ["9999"], "size": 30})).unwrap_err().to_string();
     assert!(error.contains("go to their slide first"), "{error}");
 }
 
@@ -130,6 +130,6 @@ fn shape_delete_deletes_the_named_shapes_only() {
 #[test]
 fn a_font_family_given_as_a_scheme_name_says_how_to_set_it() {
     let mut s = Session::with_new();
-    let error = s.execute("design.fonts", &json!({"name": "Arial"})).unwrap_err().to_string();
+    let error = s.execute("theme.fonts", &json!({"name": "Arial"})).unwrap_err().to_string();
     assert!(error.contains("pass `major` and `minor`"), "{error}");
 }

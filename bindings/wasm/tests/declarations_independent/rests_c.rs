@@ -4,53 +4,53 @@ use super::{Rest, pinned, r, rs};
 use pinned as _;
 
 pub const ROWS: &[Rest] = &[
-    // picture.crop: edit_shapes on ids/id (local_id on the slide) else the selection; edits the crop
+    // image.crop: edit_shapes on ids/id (local_id on the slide) else the selection; edits the crop
     // entries of a picture's fill (look.kind) from their current values; a non-picture is left
     // alone, but a placeholder without a frame gets its layout placeholder's frame written first.
-    r("picture.crop", r##"{"ids": ["$Pic"], "left": 0.1}"##, "", &[("$Pic", "look.kind", "-")]),
-    r("picture.crop", r##"{"ids": [273], "onSlide": 2, "top": 0.2}"##, "", &[("$Pic", "look.kind", "address"), ("$S2", "-", "*")]),
-    r("picture.crop", r##"{"ids": [273], "right": 0.2}"##, "part", &[("$Pic", "look.kind", "address")]),
-    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "picture.crop", r##"{"bottom": 0.1}"##, "part,selection", &[("$Pic", "look.kind", "-")]),
-    r("picture.crop", r##"{"left": 0.1}"##, "part,selection", &[("$Rect", "-", "-")]),
+    r("image.crop", r##"{"ids": ["$Pic"], "left": 0.1}"##, "", &[("$Pic", "look.kind", "-")]),
+    r("image.crop", r##"{"ids": [273], "onSlide": 2, "top": 0.2}"##, "", &[("$Pic", "look.kind", "address"), ("$S2", "-", "*")]),
+    r("image.crop", r##"{"ids": [273], "right": 0.2}"##, "part", &[("$Pic", "look.kind", "address")]),
+    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "image.crop", r##"{"bottom": 0.1}"##, "part,selection", &[("$Pic", "look.kind", "-")]),
+    r("image.crop", r##"{"left": 0.1}"##, "part,selection", &[("$Rect", "-", "-")]),
     r(
-        "picture.crop",
+        "image.crop",
         r##"{"ids": ["$Title"], "left": 0.1}"##,
         "",
         &[("$Title", "look.ph,xfrm", "-"), ("$Layout:Title and Content/Title 1", "look.ph,xfrm", "-"), ("$S2", "layout", "-")],
     ),
-    // picture.adjust: as picture.crop; edits fill.adjust and fill.alpha (look.kind) from their values.
-    r("picture.adjust", r##"{"ids": ["$Pic"], "brightness": 0.2, "transparency": 0.5}"##, "", &[("$Pic", "look.kind", "-")]),
-    r("picture.adjust", r##"{"ids": ["$Pic"], "reset": true, "grayscale": true}"##, "", &[("$Pic", "look.kind", "-")]),
-    r("picture.adjust", r##"{"ids": [273], "onSlide": 2, "contrast": 0.3}"##, "", &[("$Pic", "look.kind", "address"), ("$S2", "-", "*")]),
-    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "picture.adjust", r##"{"saturation": 2}"##, "part,selection", &[("$Pic", "look.kind", "-")]),
-    r("picture.adjust", r##"{"brightness": 0.2}"##, "part,selection", &[("$Rect", "-", "-")]),
-    // picture.reset: as picture.crop; resets a picture's adjust/crop/alpha (look.kind, fill.media
+    // image.adjust: as image.crop; edits fill.adjust and fill.alpha (look.kind) from their values.
+    r("image.adjust", r##"{"ids": ["$Pic"], "brightness": 0.2, "transparency": 0.5}"##, "", &[("$Pic", "look.kind", "-")]),
+    r("image.adjust", r##"{"ids": ["$Pic"], "reset": true, "grayscale": true}"##, "", &[("$Pic", "look.kind", "-")]),
+    r("image.adjust", r##"{"ids": [273], "onSlide": 2, "contrast": 0.3}"##, "", &[("$Pic", "look.kind", "address"), ("$S2", "-", "*")]),
+    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "image.adjust", r##"{"saturation": 2}"##, "part,selection", &[("$Pic", "look.kind", "-")]),
+    r("image.adjust", r##"{"brightness": 0.2}"##, "part,selection", &[("$Rect", "-", "-")]),
+    // image.reset: as image.crop; resets a picture's adjust/crop/alpha (look.kind, fill.media
     // kept) and, for ANY target, replaces its effects and outline with none.
-    r("picture.reset", r##"{"ids": ["$Pic"]}"##, "", &[("$Pic", "look.effects,look.kind,look.line", "-")]),
-    r("picture.reset", r##"{"ids": [273], "onSlide": 2}"##, "", &[("$Pic", "look.effects,look.kind,look.line", "address"), ("$S2", "-", "*")]),
-    // normalized after review: engine fix 1ad182d, picture.reset writes a non-picture's outline
+    r("image.reset", r##"{"ids": ["$Pic"]}"##, "", &[("$Pic", "look.effects,look.kind,look.line", "-")]),
+    r("image.reset", r##"{"ids": [273], "onSlide": 2}"##, "", &[("$Pic", "look.effects,look.kind,look.line", "address"), ("$S2", "-", "*")]),
+    // normalized after review: engine fix 1ad182d, image.reset writes a non-picture's outline
     // and effects no more (crates/engine/engine/src/cmd/shape.rs picture_reset).
-    pinned(r("picture.reset", r##"{}"##, "part,selection", &[("$Rect", "-", "-")])),
+    pinned(r("image.reset", r##"{}"##, "part,selection", &[("$Rect", "-", "-")])),
     // normalized after review: engine fix 1ad182d, as above; edit_shapes still stores the
     // placeholder's inherited frame (crates/engine/engine/src/cmd/mod.rs edit_shapes).
     pinned(r(
-        "picture.reset",
+        "image.reset",
         r##"{"ids": ["$Title"]}"##,
         "",
         &[("$Title", "look.ph,xfrm", "-"), ("$Layout:Title and Content/Title 1", "look.ph,xfrm", "-"), ("$S2", "layout", "-")],
     )),
-    // picture.change: adds the bytes as a media item (reusing one with the same bytes), then on the
+    // image.change: adds the bytes as a media item (reusing one with the same bytes), then on the
     // targets sets fill.media and clears the crop (look.kind, keeping adjust/alpha) and the media ref.
-    r("picture.change", r##"{"ids": ["$Pic"], "data": "AAAA", "name": "x.png"}"##, "", &[("$Pic", "look.kind,media", "-")]),
+    r("image.change", r##"{"ids": ["$Pic"], "data": "AAAA", "name": "x.png"}"##, "", &[("$Pic", "look.kind,media", "-")]),
     r(
-        "picture.change",
+        "image.change",
         r##"{"ids": ["$Pic"], "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4wcAAAAJcAMlDyBJGAAAAAElFTkSuQmCC", "name": "red.png"}"##,
         "",
         &[("$Pic", "look.kind,media", "-"), ("$Media:red.png", "blob", "-")],
     ),
-    r("picture.change", r##"{"ids": [273], "onSlide": 2, "data": "AAAA"}"##, "", &[("$Pic", "look.kind,media", "address"), ("$S2", "-", "*")]),
-    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "picture.change", r##"{"data": "AAAA"}"##, "part,selection", &[("$Pic", "look.kind,media", "-")]),
-    r("picture.change", r##"{"data": "AAAA"}"##, "part,selection", &[("$Rect", "-", "-")]),
+    r("image.change", r##"{"ids": [273], "onSlide": 2, "data": "AAAA"}"##, "", &[("$Pic", "look.kind,media", "address"), ("$S2", "-", "*")]),
+    rs(r##"[["edit.select", {"ids": ["$Pic"]}]]"##, "image.change", r##"{"data": "AAAA"}"##, "part,selection", &[("$Pic", "look.kind,media", "-")]),
+    r("image.change", r##"{"data": "AAAA"}"##, "part,selection", &[("$Rect", "-", "-")]),
     // media.options: edit_shapes; edits the given playback members of a media clip (look.kind) from
     // its current options; other kinds are left alone.
     r("media.options", r##"{"ids": ["$Video"], "loop": true, "volume": 0.5}"##, "", &[("$Video", "look.kind", "-")]),

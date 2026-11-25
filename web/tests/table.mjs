@@ -40,13 +40,13 @@ try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/dev.html?modes=classic&locale=en-US`)
   await page.waitForFunction(() => document.getElementById('status')?.textContent?.includes(' open in '), null, { timeout: 60000 })
   await run('slide.new', { layout: 'blank' })
-  const tableSlide = (await run('document.inspect')).selection.slide
+  const tableSlide = (await run('file.inspect')).selection.slide
   await tab('insert')
   await kit.getByTestId('slides-table').click()
   await kit.getByRole('menuitem', { name: 'Insert Table 3 × 3', exact: true }).click()
   await until(async () => (await tables()).length === 1, 'table insertion')
   await clickCell(0, 0)
-  await until(async () => (await run('document.inspect')).selection.text?.cell?.join() === '0,0', 'pointer enters cell text')
+  await until(async () => (await run('file.inspect')).selection.text?.cell?.join() === '0,0', 'pointer enters cell text')
   if (which === 'chromium') {
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Input.imeSetComposition', { text: 'rev', selectionStart: 3, selectionEnd: 3 })
@@ -107,7 +107,7 @@ try {
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
     await window.devHost.open('Editable-table.pptx', bytes.buffer)
   }, data)
-  await until(async () => (await run('document.inspect')).slides.length === 3, 'PPTX reopened')
+  await until(async () => (await run('file.inspect')).slides.length === 3, 'PPTX reopened')
   await run('slide.go', { index: tableSlide })
   // The person clicks into the cell: an agent's edit.select and text.edit move only the agent's
   // own editor state, for that run (KHP C3b).
@@ -151,7 +151,7 @@ try {
   await page.keyboard.press('Shift+ArrowLeft')
   await page.keyboard.press('Shift+ArrowLeft')
   await page.keyboard.press('Shift+ArrowLeft')
-  await until(async () => (await run('document.inspect')).selection.cells != null, 'Shift+Arrow past the cell edge selects cells')
+  await until(async () => (await run('file.inspect')).selection.cells != null, 'Shift+Arrow past the cell edge selects cells')
   await page.keyboard.press('Delete')
   await until(async () => (await cellText(2, 0)) === '' && (await cellText(2, 1)) === '', 'Delete clears the selected cells')
   assert.equal((await tables()).length, 1, 'the table itself stays')

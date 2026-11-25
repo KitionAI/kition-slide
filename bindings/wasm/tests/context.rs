@@ -147,9 +147,9 @@ fn commands_given_their_targets_leave_the_current_slide_and_the_selection_as_the
     unchanged(&mut doc, "file.render {target}");
     // Inserting on a slide, as a host runs a step with `at.part`: set the context, run, put back.
     doc.set_context(&context(json!({ "part": { "slide": 2 } }))).unwrap();
-    let inserted = doc.execute_as("insert.textBox", json!({ "rect": [500, 300, 200, 60], "text": "New" }), &agent).unwrap()["id"].as_u64().unwrap();
+    let inserted = doc.execute_as("textBox.insert", json!({ "rect": [500, 300, 200, 60], "text": "New" }), &agent).unwrap()["id"].as_u64().unwrap();
     doc.restore_editor_state(&saved).unwrap();
-    unchanged(&mut doc, "insert.textBox at slide 2");
+    unchanged(&mut doc, "textBox.insert at slide 2");
     assert!(shape_ids(&mut doc, 1).contains(&inserted), "the text box is on slide 2");
     // The person's own read still makes the slide current (`select: false` reads only).
     doc.execute("slide.inspect", json!({ "index": 1, "select": false })).unwrap();
@@ -300,7 +300,7 @@ fn commands_declare_the_parameter_that_names_what_they_act_on() {
 #[test]
 fn scoped_shape_coverage_excludes_private_text_objects_but_keeps_unknown_shape_addresses() {
     let mut doc = SlideDocument::create("Coverage.pptx", 960, 540).unwrap();
-    let made = doc.execute("insert.textBox", serde_json::json!({"text":"Body", "rect":[10,10,100,50]})).unwrap();
+    let made = doc.execute("textBox.insert", serde_json::json!({"text":"Body", "rect":[10,10,100,50]})).unwrap();
     doc.version().unwrap();
     let asks: Vec<kition_kit::CoveredAsk> = serde_json::from_value(serde_json::json!([
         {"id":"01234567-89ab-7123-8123-0123456789ab", "deleted":true, "unknown":["address"], "before":{"text":"Other"}},

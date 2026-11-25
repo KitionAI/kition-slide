@@ -27,7 +27,7 @@ pub fn specs() -> Vec<CommandSpec> {
             delete
         ),
         cmd!(noundo "edit.selectAll", "Select All", ["Edit"], Some("Cmd+A"), "{}", has_slide, select_all),
-        cmd!(noundo "edit.deselect", "Deselect", [], Some("Escape"), "{}", has_doc, deselect),
+        cmd!(noundo "edit.deselectAll", "Deselect", [], Some("Escape"), "{}", has_doc, deselect),
         cmd!(noundo "edit.select", "Select Objects", [], None, "{ids?: [id], id? (one shape instead of ids), add?: bool, toggle?: bool, onSlide?: int (the slide the ids are on, from 1)}", has_slide, select),
     ]
 }
@@ -316,7 +316,7 @@ fn paste_plain(s: &mut Session, text: &str) -> Result<Value> {
     let st = s.doc()?;
     let size = st.doc.slide_size;
     let rect = [size.width * 0.25, size.height * 0.4, size.width * 0.5, 40.0];
-    s.execute("insert.textBox", &json!({"rect": rect, "text": text}))
+    s.execute("textBox.insert", &json!({"rect": rect, "text": text}))
 }
 
 fn paste_text(s: &mut Session, p: &Value) -> Result<Value> {

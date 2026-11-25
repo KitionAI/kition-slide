@@ -46,7 +46,7 @@ fn a_fresh_document_is_what_its_first_save_opens_as() {
         let mut doc = SlideDocument::create(name, 960, 540).unwrap();
         let found = differences(&mut doc, name);
         assert!(found.is_empty(), "{name}: {} differences:\n{}", found.len(), found.join("\n"));
-        doc.execute("insert.textBox", json!({"text": "Fresh", "rect": [10, 10, 200, 50]})).unwrap();
+        doc.execute("textBox.insert", json!({"text": "Fresh", "rect": [10, 10, 200, 50]})).unwrap();
         doc.execute("slide.new", json!({"layout": "titleAndContent", "title": "Second", "body": "Body"})).unwrap();
         let found = differences(&mut doc, name);
         assert!(found.is_empty(), "{name} after edits: {} differences:\n{}", found.len(), found.join("\n"));

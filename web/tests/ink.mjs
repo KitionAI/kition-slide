@@ -45,13 +45,13 @@ const drag = async (from, to) => {
 try {
   await open()
   await run('slide.new', { layout: 'blank' })
-  const slide = (await run('document.inspect')).selection.slide
+  const slide = (await run('file.inspect')).selection.slide
   await kit.getByTestId('ribbon-tab-draw').click()
   await kit.getByTestId('slides-ink-pen').click()
-  await until(async () => (await run('draw.state')).tool === 'pen', 'the pen is in hand')
+  await until(async () => (await run('ink.state')).tool === 'pen', 'the pen is in hand')
   await kit.getByTestId('slides-ink-weight').click()
   await kit.getByTestId('slides-ink-weight-3').click()
-  await until(async () => (await run('draw.state')).width === 3, 'the pen is 3 pt')
+  await until(async () => (await run('ink.state')).width === 3, 'the pen is 3 pt')
   await drag([300, 200], [500, 240])
   await until(async () => (await strokes()).length === 1, 'one stroke on release')
   const [stroke] = await strokes()
@@ -64,11 +64,11 @@ try {
   console.log('PASS draw a stroke with the shared pen, with undo')
 
   await kit.getByTestId('slides-ink-highlighter').click()
-  await until(async () => (await run('draw.state')).tool === 'highlighter', 'the highlighter is in hand')
+  await until(async () => (await run('ink.state')).tool === 'highlighter', 'the highlighter is in hand')
   await drag([300, 350], [500, 350])
   await until(async () => (await strokes()).some((s) => s.tool === 'highlighter'), 'a highlighter stroke')
   await kit.getByTestId('slides-ink-eraser').click()
-  await until(async () => (await run('draw.state')).tool === 'eraser', 'the eraser is in hand')
+  await until(async () => (await run('ink.state')).tool === 'eraser', 'the eraser is in hand')
   await drag([400, 170], [400, 260])
   await until(async () => (await strokes()).length === 1 && (await strokes())[0].tool === 'highlighter', 'the eraser takes the pen stroke it crosses')
   // The whole drag was one step: one undo brings the stroke back.
@@ -84,7 +84,7 @@ try {
     await window.devHost.open(name, bytes.buffer)
   }, { data, name })
   await reopen('Ink.pptx')
-  await until(async () => (await run('document.inspect')).slides.length > slide, 'the presentation reopens')
+  await until(async () => (await run('file.inspect')).slides.length > slide, 'the presentation reopens')
   await run('slide.go', { index: slide })
   await until(async () => (await strokes()).length === 1 && (await strokes())[0].tool === 'highlighter', 'the stroke reopens as ink')
   console.log('PASS save as .pptx and reopen')

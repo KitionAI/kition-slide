@@ -97,9 +97,9 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("shape.visible", "Show/Hide", ["Selection Pane"], None, "{visible?: bool, ids?}", has_selection, visible),
         cmd!("shape.lock", "Lock", [], None, "{locked?: bool, ids?}", has_selection, lock),
         cmd!("shape.setDefault", "Set as Default Shape", [], None, "{}", has_selection, set_default),
-        cmd!("picture.crop", "Crop", ["Picture Format", "Size"], None, "{left?, top?, right?, bottom?: fraction 0..1, ids?}", has_selection, crop),
+        cmd!("image.crop", "Crop", ["Picture Format", "Size"], None, "{left?, top?, right?, bottom?: fraction 0..1, ids?}", has_selection, crop),
         cmd!(
-            "picture.adjust",
+            "image.adjust",
             "Corrections",
             ["Picture Format", "Adjust"],
             None,
@@ -107,9 +107,9 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection,
             picture_adjust
         ),
-        cmd!("picture.reset", "Reset Picture", ["Picture Format", "Adjust"], None, "{ids?}", has_selection, picture_reset),
+        cmd!("image.reset", "Reset Picture", ["Picture Format", "Adjust"], None, "{ids?}", has_selection, picture_reset),
         cmd!(
-            "picture.change",
+            "image.change",
             "Change Picture",
             ["Picture Format", "Adjust"],
             None,
@@ -753,7 +753,7 @@ fn set_default(s: &mut Session, _p: &Value) -> Result<Value> {
 
 fn crop(s: &mut Session, p: &Value) -> Result<Value> {
     let c = [f64_param(p, "left"), f64_param(p, "top"), f64_param(p, "right"), f64_param(p, "bottom")];
-    edit_shapes(s, p, "picture.crop", |sh| {
+    edit_shapes(s, p, "image.crop", |sh| {
         if let kition_slide_model::ShapeKind::Picture { fill } = &mut sh.kind {
             for (i, v) in c.iter().enumerate() {
                 if let (Some(v), Some(slot)) = (v, fill.crop.get_mut(i)) {
@@ -766,7 +766,7 @@ fn crop(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn picture_adjust(s: &mut Session, p: &Value) -> Result<Value> {
-    edit_shapes(s, p, "picture.adjust", |sh| {
+    edit_shapes(s, p, "image.adjust", |sh| {
         if let kition_slide_model::ShapeKind::Picture { fill } = &mut sh.kind {
             let a = &mut fill.adjust;
             if bool_or(p, "reset", false) {
@@ -793,7 +793,7 @@ fn picture_adjust(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn picture_reset(s: &mut Session, p: &Value) -> Result<Value> {
-    edit_shapes(s, p, "picture.reset", |sh| {
+    edit_shapes(s, p, "image.reset", |sh| {
         // A picture's own adjustments, crop, outline and effects; a selected shape that is not a
         // picture keeps its outline and effects (C8-slide-read-3).
         if let kition_slide_model::ShapeKind::Picture { fill } = &mut sh.kind {
@@ -809,13 +809,13 @@ fn picture_reset(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn picture_change(s: &mut Session, p: &Value) -> Result<Value> {
     // What it changes is checked before the picture is stored: a missing target adds no media.
-    if super::targets_for(s, p, "picture.change")?.is_empty() {
-        return Err(bad("picture.change", "no shapes selected"));
+    if super::targets_for(s, p, "image.change")?.is_empty() {
+        return Err(bad("image.change", "no shapes selected"));
     }
-    let (name, bytes) = super::insert::media_bytes(s, p, "picture.change")?;
+    let (name, bytes) = super::insert::media_bytes(s, p, "image.change")?;
     let ct = super::insert::content_type(&name, &bytes);
     let media = s.edit(|doc, _| Ok(doc.add_media(&name, ct, bytes)))?;
-    edit_shapes(s, p, "picture.change", |sh| {
+    edit_shapes(s, p, "image.change", |sh| {
         if let kition_slide_model::ShapeKind::Picture { fill } = &mut sh.kind {
             fill.media = media;
             fill.crop = [0.0; 4];

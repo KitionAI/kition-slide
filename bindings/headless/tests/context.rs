@@ -87,7 +87,7 @@ fn a_run_sets_each_steps_slide_and_selection_and_puts_the_editor_back() {
     run(&mut kit, &id, "format.bold", json!({ "on": true }), Origin::Agent);
     // Step 2: a text box on slide 3 (`at.part`).
     kit.context_set(&id, &params(json!({ "part": { "slide": 3 } }))).unwrap();
-    let boxed = run(&mut kit, &id, "insert.textBox", json!({ "rect": [40, 40, 200, 50], "text": "Added" }), Origin::Agent)["id"].clone();
+    let boxed = run(&mut kit, &id, "textBox.insert", json!({ "rect": [40, 40, 200, 50], "text": "Added" }), Origin::Agent)["id"].clone();
     kit.context_restore(&id, &saved).unwrap();
     assert_eq!(kit.context_get(&id).unwrap(), saved, "the editor is where the person left it");
     assert!(shapes(&mut kit, &id, 3).iter().any(|shape| shape["id"] == boxed && shape["text"] == "Added"), "the text box is on slide 3");
@@ -125,7 +125,7 @@ fn the_agents_commands_say_what_they_read_and_the_view_the_render_takes() {
     let commands = kit.agent_commands(Some(&id)).unwrap();
     let params = |command: &str| commands.iter().find(|listed| listed.id == command).map(|listed| listed.params.clone()).unwrap();
     assert_eq!(params("shape.fill")["x-khp-reads"], json!(["selection", "part"]));
-    assert_eq!(params("insert.textBox")["x-khp-reads"], json!(["part"]));
+    assert_eq!(params("textBox.insert")["x-khp-reads"], json!(["part"]));
     assert!(params("file.render").get("x-khp-reads").is_none());
     assert_eq!(params("edit.select")["properties"]["ids"]["x-khp-role"], "targets");
     let view = params("file.render")["properties"]["target"]["properties"].as_object().unwrap().keys().cloned().collect::<Vec<_>>();

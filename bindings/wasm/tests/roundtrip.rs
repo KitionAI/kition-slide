@@ -2,7 +2,7 @@
 //! (as the editor and the agent do), checks the edit took, saves it as .kslide and as .pptx, opens
 //! each saved file again and compares the deck before and after.
 //!
-//! The comparison is `document.inspect` plus, for every slide, `slide.inspect` and `shape.inspect`
+//! The comparison is `file.inspect` plus, for every slide, `slide.inspect` and `shape.inspect`
 //! of each of its shapes (geometry, text, paragraph and run properties, tables, fills). Left out:
 //! object ids and refs (a .pptx gives every object a new one), the selection and undo state, and
 //! the slide's design advice (derived from the content and naming shapes by id), the deck's title
@@ -84,7 +84,7 @@ fn equivalent(value: &mut Value) {
 }
 
 fn state(doc: &mut SlideDocument) -> Value {
-    let mut deck = exec(doc, "document.inspect", json!({}));
+    let mut deck = exec(doc, "file.inspect", json!({}));
     let count = deck["slides"].as_array().map_or(0, Vec::len);
     let mut slides = Vec::new();
     for index in 0..count {
@@ -156,7 +156,7 @@ fn slides_and_layouts_survive_save_and_reopen() {
     exec(&mut doc, "slide.duplicate", json!({ "index": 1 }));
     exec(&mut doc, "slide.move", json!({ "from": 3, "to": 1 }));
     exec(&mut doc, "slide.layout", json!({ "index": 3, "layout": "Section Header" }));
-    let deck = exec(&mut doc, "document.inspect", json!({}));
+    let deck = exec(&mut doc, "file.inspect", json!({}));
     let layouts: Vec<Value> = deck["slides"].as_array().unwrap().iter().map(|slide| slide["layout"].clone()).collect();
     // Title, Agenda, Timeline; the duplicate of Agenda goes after it; Timeline moves to second.
     assert_eq!(layouts, [json!("Title Slide"), json!("Title Only"), json!("Title and Content"), json!("Section Header")], "{deck}");
@@ -166,15 +166,15 @@ fn slides_and_layouts_survive_save_and_reopen() {
 #[test]
 fn text_and_character_formatting_survive_save_and_reopen() {
     let mut doc = new_deck();
-    let bold = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [60, 60, 400, 60], "text": "Bold and large" })));
-    let italic = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [60, 140, 400, 60], "text": "Italic, underlined, red" })));
-    let font = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [60, 220, 400, 60], "text": "A serif font" })));
+    let bold = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [60, 60, 400, 60], "text": "Bold and large" })));
+    let italic = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [60, 140, 400, 60], "text": "Italic, underlined, red" })));
+    let font = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [60, 220, 400, 60], "text": "A serif font" })));
     exec(&mut doc, "format.bold", json!({ "ids": [bold], "on": true }));
-    exec(&mut doc, "format.size", json!({ "ids": [bold], "size": 36 }));
+    exec(&mut doc, "format.fontSize", json!({ "ids": [bold], "size": 36 }));
     exec(&mut doc, "format.italic", json!({ "ids": [italic], "on": true }));
     exec(&mut doc, "format.underline", json!({ "ids": [italic], "on": true, "style": "sng" }));
     exec(&mut doc, "format.color", json!({ "ids": [italic], "color": "#C00000" }));
-    exec(&mut doc, "format.font", json!({ "ids": [font], "family": "Georgia" }));
+    exec(&mut doc, "format.fontName", json!({ "ids": [font], "family": "Georgia" }));
     exec(&mut doc, "text.set", json!({ "id": font, "text": "A serif font, retyped" }));
     let text = shape_text(&mut doc, &bold, 1).to_string();
     assert!(text.contains("\"bold\":true") && text.contains("36"), "{text}");
@@ -188,8 +188,8 @@ fn text_and_character_formatting_survive_save_and_reopen() {
 #[test]
 fn paragraph_formatting_survives_save_and_reopen() {
     let mut doc = new_deck();
-    let centred = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [60, 60, 600, 60], "text": "A centred line" })));
-    let list = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [60, 160, 600, 160], "text": "First\nSecond\nThird" })));
+    let centred = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [60, 60, 600, 60], "text": "A centred line" })));
+    let list = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [60, 160, 600, 160], "text": "First\nSecond\nThird" })));
     exec(&mut doc, "format.alignCenter", json!({ "ids": [centred] }));
     exec(&mut doc, "format.bullets", json!({ "ids": [list], "on": true }));
     exec(&mut doc, "format.indent", json!({ "ids": [list] }));
@@ -218,7 +218,7 @@ fn shapes_survive_save_and_reopen() {
 #[test]
 fn tables_survive_save_and_reopen() {
     let mut doc = new_deck();
-    let table = id_of(&exec(&mut doc, "insert.table", json!({ "rows": 2, "cols": 2, "rect": [100, 100, 500, 120] })));
+    let table = id_of(&exec(&mut doc, "table.insert", json!({ "rows": 2, "cols": 2, "rect": [100, 100, 500, 120] })));
     for (row, col, text) in [(0, 0, "Item"), (0, 1, "Price"), (1, 0, "Tea"), (1, 1, "3.50")] {
         exec(&mut doc, "text.set", json!({ "id": table, "cell": [row, col], "text": text }));
     }
@@ -237,12 +237,12 @@ fn tables_survive_save_and_reopen() {
 fn transitions_and_animations_survive_save_and_reopen() {
     let mut doc = new_deck();
     exec(&mut doc, "slide.new", json!({ "title": "Moving parts", "body": "Fades in" }));
-    let box_id = id_of(&exec(&mut doc, "insert.textBox", json!({ "rect": [100, 400, 300, 60], "text": "Appears" })));
+    let box_id = id_of(&exec(&mut doc, "textBox.insert", json!({ "rect": [100, 400, 300, 60], "text": "Appears" })));
     exec(&mut doc, "transition.set", json!({ "index": 1, "kind": "fade", "duration": 700 }));
     exec(&mut doc, "animation.add", json!({ "ids": [box_id], "onSlide": 2, "class": "entrance", "effect": "fade" }));
     let slide = exec(&mut doc, "slide.inspect", json!({ "index": 1 }));
     assert!(slide["animations"].as_array().is_some_and(|items| !items.is_empty()), "{slide}");
-    let deck = exec(&mut doc, "document.inspect", json!({}));
+    let deck = exec(&mut doc, "file.inspect", json!({}));
     assert!(!deck["slides"][1]["transition"].is_null(), "{deck}");
     assert_survives_save_and_reopen(&mut doc);
 }

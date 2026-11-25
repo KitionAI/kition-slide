@@ -33,7 +33,7 @@ const open = async (query = '') => {
 try {
   await open()
   await run('slide.new', { layout: 'blank' })
-  const slide = (await run('document.inspect')).selection.slide
+  const slide = (await run('file.inspect')).selection.slide
   await tab('insert')
   await kit.getByTestId('slides-chart-insert').click()
   await kit.getByTestId('slides-chart-insert-line').click()
@@ -113,7 +113,7 @@ try {
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
     await window.devHost.open('Chart.pptx', bytes.buffer)
   }, data)
-  await until(async () => (await run('document.inspect')).slides.length >= 2, 'the presentation reopens')
+  await until(async () => (await run('file.inspect')).slides.length >= 2, 'the presentation reopens')
   await run('slide.go', { index: slide })
   await until(async () => (await charts()).length === 1, 'the chart reopens')
   const reopened = await chart()

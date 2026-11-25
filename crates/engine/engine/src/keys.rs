@@ -102,7 +102,7 @@ impl Session {
                     return Ok(json!({"handled": true}));
                 }
                 "escape" | "esc" => {
-                    self.execute("edit.deselect", &json!({}))?;
+                    self.execute("edit.deselectAll", &json!({}))?;
                     return Ok(json!({"handled": true}));
                 }
                 "tab" => {

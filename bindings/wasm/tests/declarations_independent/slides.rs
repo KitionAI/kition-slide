@@ -241,7 +241,7 @@ pub(super) const ROWS: &[Row] = &[
     },
     Row {
         // C8-slide-read-4 RIGHT: cmd/design.rs:78-94 chooses a master through the current part; no shape selection.
-        id: "design.theme",
+        id: "theme.set",
         targets: None,
         objects: &[],
         places: &[],
@@ -254,7 +254,7 @@ pub(super) const ROWS: &[Row] = &[
         ],
     },
     Row {
-        id: "design.colors",
+        id: "theme.colors",
         targets: None,
         objects: &[],
         places: &[],
@@ -268,7 +268,7 @@ pub(super) const ROWS: &[Row] = &[
     },
     Row {
         // C8-slide-read-4 RIGHT: cmd/design.rs:169-184 chooses a master through the current part; no shape selection.
-        id: "design.fonts",
+        id: "theme.fonts",
         targets: None,
         objects: &[],
         places: &[],
@@ -281,7 +281,7 @@ pub(super) const ROWS: &[Row] = &[
         ],
     },
     Row {
-        id: "design.background",
+        id: "slide.background",
         targets: None,
         objects: &[],
         places: &["index"],
@@ -294,7 +294,7 @@ pub(super) const ROWS: &[Row] = &[
         ],
     },
     Row {
-        id: "design.hideBackgroundGraphics",
+        id: "slide.hideBackgroundGraphics",
         targets: None,
         objects: &[],
         places: &[],
@@ -306,7 +306,7 @@ pub(super) const ROWS: &[Row] = &[
         ],
     },
     Row {
-        id: "design.slideSize",
+        id: "slide.size",
         targets: None,
         objects: &[],
         places: &[],
@@ -318,7 +318,7 @@ pub(super) const ROWS: &[Row] = &[
         ],
     },
     Row {
-        id: "design.headerFooter",
+        id: "slide.headerFooter",
         targets: None,
         objects: &[],
         places: &[],
