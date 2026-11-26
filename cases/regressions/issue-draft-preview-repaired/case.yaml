@@ -5,9 +5,11 @@ intent: >-
   A draft's preview (compareChanges) runs the replica's repair of the merged state as the merge
   does (SlideSession::merged_state, Replica::merged_state_repaired on a copy), so it is what
   accepting the draft gives. Before, it was the merge without the repair: a draft animating a
-  shape the document deleted meanwhile previewed the animation the merge's repair deletes. Now the
-  preview's merged state equals the state after merging, its comparison the merge's summary, and
-  the document does not change.
+  shape the document deleted meanwhile previewed the animation the merge's repair deletes, and the
+  slide's kept timing tree naming that shape, which only the engine dropped after the merge (the
+  replica's repair now drops a kept timing naming a deleted shape). Now the preview's merged state
+  equals the state after merging, its comparison the merge's summary, and the document does not
+  change.
 layer: gate
 source:
   kind: issue

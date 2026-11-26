@@ -9,6 +9,9 @@
 //!   dropped; a shape's `table` or `media` ref to a deleted object is cleared (the reader shows an
 //!   empty table, or a picture without its image, rather than dropping the shape); so is a shape's
 //!   `body` or a slide's `notesBody` naming a deleted text body (the reader then shows no text).
+//! - A slide's kept timing tree (`props.timing`) that names a deleted shape is dropped: the reader
+//!   would drop that target and the engine the tree, writing the timing from the animations, so a
+//!   draft's preview holds what the merge gives.
 //! - List entries naming deleted objects are removed, and so is every entry after the first of an
 //!   object listed twice in one list (a replica stored that way): the reader reads it once, at its
 //!   first place, so the view does not change.
@@ -48,7 +51,10 @@ pub(crate) fn validate(tx: &mut Tx<'_>, changed: &BTreeSet<ObjectId>) -> KdmResu
             "Layout" => lists(tx, object, &["shapes"])?,
             "Slide" => {
                 let masters = live_masters(tx)?;
-                slide_layout(tx, object, &masters)? | slide_notes(tx, object)? | lists(tx, object, &["shapes", "animations"])?
+                slide_layout(tx, object, &masters)?
+                    | slide_notes(tx, object)?
+                    | slide_timing(tx, object)?
+                    | lists(tx, object, &["shapes", "animations"])?
             }
             "Animation" => animation(tx, object)?,
             "Shape" => shape(tx, object)? | lists(tx, object, &["children"])?,
@@ -193,7 +199,7 @@ fn targeted(tx: &mut Tx<'_>, root: &ObjectId, candidates: BTreeSet<ObjectId>, id
     }
 
     for slide in of(&by_type, "Slide") {
-        wrote |= slide_notes(tx, &slide)?;
+        wrote |= slide_notes(tx, &slide)? | slide_timing(tx, &slide)?;
     }
 
     wrote |= root_fields(tx, root)?;
@@ -304,6 +310,24 @@ fn slide_notes(tx: &mut Tx<'_>, slide: &ObjectId) -> KdmResult<bool> {
     Ok(false)
 }
 
+/// Drops a slide's kept timing tree when one of its targets names a deleted shape.
+fn slide_timing(tx: &mut Tx<'_>, slide: &ObjectId) -> KdmResult<bool> {
+    let mut props = tx.get(slide, "props")?;
+    let dangling = props
+        .get("timing")
+        .and_then(|timing| timing.get("targets"))
+        .and_then(Value::as_array)
+        .is_some_and(|targets| targets.iter().any(|target| gone(tx, target.get("shape"))));
+    if !dangling {
+        return Ok(false);
+    }
+    if let Some(map) = props.as_object_mut() {
+        map.remove("timing");
+    }
+    tx.set(slide, "props", props)?;
+    Ok(true)
+}
+
 /// Section and custom show members (`crate::members::repair`), embedded fonts naming deleted
 /// media, and the root's dangling list entries.
 fn root_fields(tx: &mut Tx<'_>, root: &ObjectId) -> KdmResult<bool> {
@@ -355,7 +379,7 @@ pub(crate) fn validate_all(tx: &mut Tx<'_>) -> KdmResult<bool> {
     }
 
     for slide in tx.objects_of_type("Slide") {
-        wrote |= slide_notes(tx, &slide)?;
+        wrote |= slide_notes(tx, &slide)? | slide_timing(tx, &slide)?;
     }
 
     // Section and custom show members, and embedded fonts; dangling list entries.
