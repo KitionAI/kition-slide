@@ -160,7 +160,7 @@ features:
     paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/kdm/kdm-model/src/session.rs, web/tests/drafts.mjs]
     target: "Kit UI protocol sections 7d and 7m (draft/merge, replica/restore); engine contract members mergeChanges, compareChanges, restoreState, modelReply"
     gap: A draft is merged, undone and restored in the editor only through the dev host; Kition's own draft and version panels are not driven by a case.
-    cases: [regressions/issue-merged-draft-person-undo, regressions/issue-merged-reflow-undo, slide.collab.drafts/editor]
+    cases: [regressions/issue-merged-draft-person-undo, regressions/issue-merged-reflow-undo, regressions/issue-draft-preview-repaired, slide.collab.drafts/editor]
     since: "2026-11-25"
   - id: slide.collab.replica-merges-file
     title: "A presentation changed outside Kition keeps its history: the stored replica opens and the newer .kslide or .pptx is recorded onto it as one import change"

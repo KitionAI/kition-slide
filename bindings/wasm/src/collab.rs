@@ -206,12 +206,14 @@ impl SlideDocument {
         )
     }
 
-    /// What merging a draft's changes would change in the slide now, as `StateDiff` JSON; nothing
-    /// changes. Refuses what [`SlideDocument::merge_changes`] refuses.
+    /// What merging a draft's changes would change in the slide now, as `StateDiff` JSON, the
+    /// replica's repair of the merged state included as the merge runs it
+    /// (`SlideSession::merged_state`), so the preview is what accepting gives; nothing changes.
+    /// Refuses what [`SlideDocument::merge_changes`] refuses.
     pub fn compare_changes(&self, bytes: &[u8]) -> Result<Value, String> {
         let kdm = self.session.kdm().ok_or("the slide has no replica, so no draft of it")?;
         let before = kdm.replica().state_json().map_err(engine_error)?;
-        let after = kdm.replica().merged_state(bytes).map_err(engine_error)?;
+        let after = kdm.merged_state(bytes).map_err(engine_error)?;
         Ok(kition_kit::kdm::diff::diff_states(&before, &after).to_json())
     }
 
@@ -550,6 +552,41 @@ mod tests {
         let at = doc.version().unwrap();
         assert!(doc.merge_changes(b"not changes", &origin).is_err());
         assert_eq!(doc.version().unwrap(), at, "a refused merge changes nothing");
+    }
+
+    /// The Animation objects of a replicated state.
+    fn animations(state: &Value) -> usize {
+        state["objects"].as_object().map_or(0, |objects| objects.values().filter(|object| object["$type"] == "Animation").count())
+    }
+
+    /// A draft's preview runs the replica's repair as the merge does: a draft animates the shape
+    /// the document deleted meanwhile, the merge's repair deletes that animation (it names a
+    /// deleted shape), and the preview's merged state is the state after actually merging (the
+    /// unrepaired merge still holds the animation), its comparison the merge's summary.
+    #[test]
+    fn a_drafts_preview_is_what_merging_it_gives_its_repair_included() {
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        let shape = doc.execute("shape.insert", json!({ "preset": "ellipse", "rect": [300, 300, 60, 60] })).unwrap()["id"].clone();
+        let base = doc.version().unwrap();
+        let mut draft = SlideDocument::open_with_replica("Slide.kslide", &[], &doc.snapshot().unwrap(), &doc.blobs().unwrap()).unwrap();
+        draft.execute("animation.add", json!({ "ids": [shape.clone()], "effect": "fade" })).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        doc.execute("shape.delete", json!({ "ids": [shape] })).unwrap();
+        let before = doc.replicated_state().unwrap();
+        let exactly_before = exact(&mut doc);
+        let version = doc.version().unwrap();
+        let kdm = doc.session.kdm().unwrap();
+        let unrepaired = kdm.replica().merged_state(&changes).unwrap();
+        let preview = kdm.merged_state(&changes).unwrap();
+        assert_eq!(animations(&unrepaired), animations(&before) + 1, "the merge alone keeps the drafted animation");
+        assert_eq!(animations(&preview), animations(&before), "the preview has the repair: the animation of the deleted shape goes");
+        let compared = doc.compare_changes(&changes).unwrap();
+        assert_eq!(doc.version().unwrap(), version, "a preview changes nothing");
+        let answer = doc.merge_changes(&changes, &Origin::person("person:local")).unwrap();
+        assert_eq!(doc.replicated_state().unwrap(), preview, "the preview's merged state is the merge's");
+        assert_eq!(answer["summary"], compared, "the comparison named what the merge did: {answer}");
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(exact(&mut doc), exactly_before, "one undo gives back the exact state before the merge");
     }
 
     /// An earlier state (a checkpoint's snapshot) is written over the slide by object id as one

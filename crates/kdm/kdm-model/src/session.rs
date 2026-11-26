@@ -294,6 +294,21 @@ impl SlideSession {
         self.took_in(before, merged.scope)
     }
 
+    /// The replicated state merging a draft's changes would give, the repair of the merged state
+    /// ([`crate::validate`]) included as [`SlideSession::merge_changes`] runs it
+    /// (`Replica::merged_state_repaired`, on a copy): a draft's preview (`compareChanges`) is what
+    /// accepting it gives, a drafted animation of a shape deleted meanwhile gone. Nothing changes.
+    /// Refuses what the merge refuses.
+    pub fn merged_state(&self, bytes: &[u8]) -> Result<serde_json::Value> {
+        let (ids, local) = (self.model.ids(), &self.local);
+        self.replica
+            .merged_state_repaired(bytes, |tx, changed| {
+                crate::validate::validate_with_view(tx, changed, ids, local)?;
+                Ok(())
+            })
+            .map_err(kit_err)
+    }
+
     /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
     /// checkpoint keeps it) over the replica as one transaction of `origin`, keyed by object id
     /// (`kition_kit::session::write_state`), so every object the two share keeps its id, with the
