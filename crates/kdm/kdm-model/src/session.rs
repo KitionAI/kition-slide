@@ -270,23 +270,38 @@ impl SlideSession {
     }
 
     /// Takes a draft's changes (made on a fork of this replica) in as one transaction of `origin`
-    /// (`Replica::merge_changes`): one undo step of the **person** who accepts it (data model
-    /// rule M12a), even when `origin` is an agent's (the host records the draft's author as the
-    /// origin), unless `origin` is a `system` or `import` one. Repairs the result and patches the
-    /// view as an import does; add the draft's blobs first ([`SlideSession::add_blobs`]). Answers
-    /// the undo steps it made (1 or 0) and the damage. A refused merge changes nothing.
-    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+    /// (`Replica::merge_changes_repaired`), the repair of the merged state ([`crate::validate`])
+    /// in the same change and undo step, so one undo gives back the exact state before. The step
+    /// is the **person's** who accepts it (data model rule M12a), even when `origin` is an agent's
+    /// (the host records the draft's author as the origin); none for a `system` or `import`
+    /// origin. Patches the view as an import does; add the draft's blobs first
+    /// ([`SlideSession::add_blobs`]). Answers the undo scope of the step it made (`None`: none)
+    /// and the damage. A refused merge, or one whose repair fails, changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         let before = self.replica.version();
-        self.replica.merge_changes(bytes, origin).map_err(kit_err)?;
-        self.took_in(before, merge_scope(origin))
+        let (ids, local) = (self.model.ids(), &self.local);
+        let mut settled = false;
+        let merged = self
+            .replica
+            .merge_changes_repaired(bytes, origin, |tx, changed| {
+                settled = crate::validate::validate_with_view(tx, changed, ids, local)?.1;
+                Ok(())
+            })
+            .map_err(kit_err)?;
+        if settled {
+            self.local = LocalRepair::settled();
+        }
+        self.took_in(before, merged.scope)
     }
 
     /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
     /// checkpoint keeps it) over the replica as one transaction of `origin`, keyed by object id
-    /// (`kition_kit::session::write_state`), so every object the two share keeps its id: one undo
-    /// step of its scope unless `origin` is a `system` or `import` one. Nothing changes when the
-    /// states are equal. Refuses another document's snapshot. Add the blobs it references first.
-    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+    /// (`kition_kit::session::write_state`), so every object the two share keeps its id, with the
+    /// repair of the restored state ([`crate::validate`]) in the same change: one undo step of
+    /// its scope (the exact state before on undo) unless `origin` is a `system` or `import` one.
+    /// Nothing changes when the states are equal. Refuses another document's snapshot. Add the
+    /// blobs it references first. Answers the undo scope of the step it made and the damage.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         let schema = SlideModel::schema();
         let loaded = Replica::load(Arc::clone(&schema), snapshot, ActorId::random()).map_err(kit_err)?;
         if loaded.doc_id() != self.replica.doc_id() {
@@ -294,25 +309,36 @@ impl SlideSession {
         }
         let (now, then) = (kition_kit::session::state(&self.replica)?, kition_kit::session::state(&loaded)?);
         if now == then {
-            return Ok((0, Damage::None));
+            return Ok((None, Damage::None));
         }
         let before = self.replica.version();
-        let result = self.replica.transact(origin, |tx| kition_kit::session::write_state(tx, &schema, &now, &then).map_err(kdm_err));
+        let changed: BTreeSet<ObjectId> =
+            now.keys().chain(then.keys()).filter(|id| now.get(*id) != then.get(*id)).map(ObjectId::from_string).collect();
+        let (ids, local) = (self.model.ids(), &self.local);
+        let mut settled = false;
+        let result = self.replica.transact(origin, |tx| {
+            kition_kit::session::write_state(tx, &schema, &now, &then).map_err(kdm_err)?;
+            settled = crate::validate::validate_with_view(tx, &changed, ids, local)?.1;
+            Ok(())
+        });
         if let Err(error) = result {
             self.replica.take_changed();
             return Err(kit_err(error));
         }
+        if settled {
+            self.local = LocalRepair::settled();
+        }
         self.took_in(before, UndoScope::of(origin.kind))
     }
 
-    /// After a merge or a restore wrote one transaction since `before`: repairs and patches the
-    /// view as an import does, and counts the transaction as an undo step of `scope` (`None`: a
-    /// `system` or `import` one, no undo step).
-    /// A failed repair or view load is the error, as an import's is: the transaction stays
-    /// ([`SlideSession::view_loaded`] tells whether the view followed).
-    fn took_in(&mut self, before: Version, scope: Option<UndoScope>) -> Result<(u32, Damage)> {
+    /// After a merge or a restore wrote one transaction since `before`, repaired in it: patches
+    /// the view as an import does (the read repair after it), and counts the transaction as an
+    /// undo step of `scope` (`None`: a `system` or `import` one, no undo step). A failed view
+    /// load is the error, as an import's is: the transaction stays ([`SlideSession::view_loaded`]
+    /// tells whether the view followed).
+    fn took_in(&mut self, before: Version, scope: Option<UndoScope>) -> Result<(Option<UndoScope>, Damage)> {
         let wrote = self.replica.version() != before;
-        let (damage, moved) = self.settle();
+        let (damage, moved) = self.settle_with(false);
         self.log_added(moved.added.iter().cloned());
         let undoable = wrote && scope.is_some();
         if let Some(scope) = scope.filter(|_| undoable) {
@@ -320,7 +346,7 @@ impl SlideSession {
         }
         self.index.imported();
         self.index.collect_garbage(&mut self.blobs);
-        damage.map(|damage| (u32::from(undoable), damage))
+        damage.map(|damage| (scope.filter(|_| undoable), damage))
     }
 
     /// Whether the view matches the replica as it is now (its own read succeeds).
@@ -426,11 +452,18 @@ impl SlideSession {
     /// patches the view with both; the view follows the replica even if the repair fails. Also
     /// answers which blobs moved (the index is updated either way).
     fn settle(&mut self) -> (Result<Damage>, Moved) {
+        self.settle_with(true)
+    }
+
+    /// [`SlideSession::settle`]; without `repair` when the change was repaired in itself (a merged
+    /// draft, a restore).
+    fn settle_with(&mut self, repair: bool) -> (Result<Damage>, Moved) {
         let mut changed = self.replica.take_changed();
-        // The full check's result on a copy, for the property test of the targeted repair.
+        // The full check's result on a copy, for the property test of the targeted repair (after a
+        // change repaired in itself, the full check must find nothing more to write).
         #[cfg(test)]
         let full = crate::validate::tests::full_repair(&self.replica, &changed);
-        let repaired = if changed.is_empty() {
+        let repaired = if changed.is_empty() || !repair {
             Ok(())
         } else {
             let mut kit_error = None;
@@ -491,10 +524,4 @@ impl SlideSession {
         let blobs: &dyn BlobSource = &self.blobs;
         self.model.apply(&self.replica, changed, blobs)
     }
-}
-
-/// The undo scope a merged draft takes (data model rule M12a, `Replica::merge_changes`): the
-/// person's who accepts it, whoever made the draft; none for a `system` or `import` origin.
-pub fn merge_scope(origin: &Origin) -> Option<UndoScope> {
-    UndoScope::of(origin.kind).map(|_| UndoScope::Person)
 }

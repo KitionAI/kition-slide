@@ -684,29 +684,26 @@ impl Session {
     /// local edits not written yet are written first, the document and its selection follow the
     /// replica, and the step undoes the whole draft. Add the draft's blobs first
     /// ([`Session::add_blobs`]). A refused merge changes nothing.
-    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Damage> {
-        let agent = kdm_model::merge_scope(origin) == Some(UndoScope::Agent);
-        self.take_in(agent, "Merge Draft", |kdm| kdm.merge_changes(bytes, origin))
+    /// Answers the undo scope the step went to (the replica's, `DraftMerge::scope`) and the damage.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
+        self.take_in("Merge Draft", |kdm| kdm.merge_changes(bytes, origin))
     }
 
     /// Writes the state a snapshot holds (a checkpoint of this document, `replica/restore`) over
     /// the active document by object id, as one undo step of `origin`'s scope, taken in as a merged
     /// draft is ([`Session::merge_changes`]). Nothing changes when the states are equal.
     pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage> {
-        let agent = UndoScope::of(origin.kind) == Some(UndoScope::Agent);
-        self.take_in(agent, "Restore Version", |kdm| kdm.restore_state(snapshot, origin))
+        self.take_in("Restore Version", |kdm| kdm.restore_state(snapshot, origin)).map(|(_, damage)| damage)
     }
 
-    /// One transaction `write` makes on the active document's replica, taken into the document as
-    /// a command's step: the view follows the replica, and the history gets the step (its undo
-    /// steps the replica's, in the agent's scope when `agent`, else the person's) when the
-    /// transaction is one.
+    /// One transaction `write` makes on the active document's replica (the kit's repair in it),
+    /// taken into the document as a command's step: the view follows the replica, and the history
+    /// gets the step in the undo scope the replica recorded it in, when it recorded one.
     fn take_in(
         &mut self,
-        agent: bool,
         label: &str,
-        write: impl FnOnce(&mut SlideSession) -> kdm_model::kition_kit::session::Result<(u32, Damage)>,
-    ) -> Result<Damage> {
+        write: impl FnOnce(&mut SlideSession) -> kdm_model::kition_kit::session::Result<(Option<UndoScope>, Damage)>,
+    ) -> Result<(Option<UndoScope>, Damage)> {
         if self.comment_only.is_some() {
             return Err(EngineError::Other("a commenter can only comment: a draft or an earlier version is not theirs to take in".into()));
         }
@@ -722,10 +719,14 @@ impl Session {
         let follow = changed && (result.is_ok() || kdm.view_loaded());
         let st = self.doc_mut()?;
         let (before, selection) = (st.doc.clone(), st.selection.clone());
-        let mut steps = result.as_ref().map_or(0, |(steps, _)| *steps);
+        let scope = result.as_ref().ok().and_then(|(scope, _)| *scope);
+        let agent = scope == Some(UndoScope::Agent);
+        let mut steps = u32::from(scope.is_some());
         if follow {
-            // The repair after it (text reflowed, a repeated slide file id renumbered) is part of
-            // the step: its undo takes both back, to the exact state before.
+            // The engine's own repair after it (text reflowed, a repeated slide file id
+            // renumbered: what only the engine's view can see; the replica's repair is in the
+            // change already) is part of the step: its undo takes both back, to the exact state
+            // before.
             let repair =
                 if steps > 0 { Origin::new(if agent { OriginKind::Agent } else { OriginKind::Person }, "repair") } else { Origin::system("autofit") };
             steps = steps.saturating_add(st.follow_kdm_as(&repair));
@@ -741,7 +742,7 @@ impl Session {
             st.link.mark = st.history.pushed;
         }
         st.trim_kdm();
-        result.map(|(_, damage)| damage).map_err(kdm_error)
+        result.map_err(kdm_error)
     }
 
     /// Reads the saved file again into the active document (kition-sdk session continuity on

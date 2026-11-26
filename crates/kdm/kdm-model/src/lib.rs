@@ -95,7 +95,7 @@ pub use compare::normalize;
 pub use ids::{BodyIds, BodyOwner, Ids, Known, TableIds};
 pub use read::{read_document, read_document_known};
 pub use refs::renumber_media;
-pub use session::{SlideSession, merge_scope};
+pub use session::SlideSession;
 pub use stored::{settle_batch, settle_premise_batch, stored_objects};
 pub use write::{write_changes, write_comment_changes, write_document};
 

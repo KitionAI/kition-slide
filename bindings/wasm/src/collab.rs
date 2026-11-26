@@ -193,14 +193,17 @@ impl SlideDocument {
     /// Takes a draft's changes (from a replica forked from this one) in as one undo step of
     /// `origin`'s scope (`mergeChanges`, as `kition-sdk`'s `export_kit_session!` answers it): the
     /// engine's slide follows, and Undo takes the whole draft back. Add the draft's blobs first.
-    /// Answers `{"damage", "summary"}`, `summary` the `StateDiff` of the replicated state before
+    /// Answers `{"damage", "scope", "summary"}`: `scope` the undo scope the step went to
+    /// (`"person"`, or `null` when none), `summary` the `StateDiff` of the replicated state before
     /// and after. A refused merge changes nothing and fails with the KDM's message.
     pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Value, String> {
         let before = self.replicated_state()?;
-        let damage = self.session.merge_changes(bytes, origin).map_err(engine_error)?;
+        let (scope, damage) = self.session.merge_changes(bytes, origin).map_err(engine_error)?;
         let after = self.replicated_state()?;
         self.take_requests();
-        Ok(json!({ "damage": damage, "summary": kition_kit::kdm::diff::diff_states(&before, &after).to_json() }))
+        Ok(
+            json!({ "damage": damage, "scope": scope.map(|scope| scope.as_str()), "summary": kition_kit::kdm::diff::diff_states(&before, &after).to_json() }),
+        )
     }
 
     /// What merging a draft's changes would change in the slide now, as `StateDiff` JSON; nothing
@@ -622,7 +625,8 @@ mod tests {
         assert_eq!(last_lefts(&doc, 2), vec![100.0, 20.0]);
         let before = exact(&mut doc);
         let agent = Origin::agent("agent:drafter");
-        doc.merge_changes(&changes, &agent).unwrap();
+        let answer = doc.merge_changes(&changes, &agent).unwrap();
+        assert_eq!(answer["scope"], "person", "the replica recorded the step as the person's: {answer}");
         assert_eq!(last_lefts(&doc, 3), vec![100.0, 20.0, 300.0], "both inserts are kept, the document's first");
         let merged = exact(&mut doc);
         let top = doc.session.doc().unwrap().history.undo.last().unwrap();
@@ -698,11 +702,11 @@ mod tests {
             keyed.insert(id.clone(), json!(1));
             let reply = json!({ "target": id, "list": [id, "text"], "keyed": keyed, "note": format!("about {id}") });
             let shown: Value = serde_json::from_str(&doc.model_reply(&reply.to_string()).unwrap()).unwrap();
-            assert_eq!(shown, full.show_json(&reply), "{id}");
+            assert_eq!(shown, full.show_reply_json(&reply), "{id}");
         }
         let every = json!({ "objects": objects });
         let shown: Value = serde_json::from_str(&doc.model_reply(&every.to_string()).unwrap()).unwrap();
-        assert_eq!(shown, full.show_json(&every), "every object named at once");
+        assert_eq!(shown, full.show_reply_json(&every), "every object named at once");
         let none = json!({ "text": "nothing here", "n": 3, "list": ["a", "slide:1"], "keyed": { "b": [null, true] } });
         assert_eq!(doc.model_reply(&none.to_string()).unwrap(), none.to_string(), "a reply naming no object comes back as it is");
     }
