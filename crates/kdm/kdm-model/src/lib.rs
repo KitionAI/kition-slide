@@ -49,10 +49,11 @@
 //! and translated back on read (`refs`). One that names nothing (a file's dangling reference) is
 //! kept as the number it was.
 //!
-//! **Read repair.** What only a read can see (a transaction cannot read text fields): a paragraph
-//! or a comment listed twice, is written back by
+//! **Read repair.** What only a read can see (it is planned from the view's ids, which a
+//! transaction does not hold): a paragraph or a comment listed twice, is written back by
 //! [`SlideSession`] in a `system` transaction after each import, undo or redo and when it opens a
-//! replica (`src/siblings.rs`).
+//! replica, and inside the undo step of a merged draft or a restore after them
+//! (`src/siblings.rs`).
 //!
 //! **Repair (S4).** [`KitModel::validate`] clears what a merged draft, an undo or a redo left
 //! dangling (a draft is checked against the document's changes since it was made, not against

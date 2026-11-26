@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-merge-follow-up-in-step
+feature: slide.collab.drafts
+intent: >-
+  Every write the kit makes because of a merged draft is in the merge's one undo step
+  (kition-sdk 6a57d68, Replica::transact_in_step): a draft and the document each add a slide, so
+  both new slides carry the same file id, and the engine renumbers the draft's after the merge
+  (stored::merged_file_ids). The renumbering joins the merge's replica undo step instead of being
+  a step of its own (the read repair and the text reflow join it too): the person's undo depth
+  grows by one, the engine's history holds one "Merge Draft" step of one replica step, one Undo
+  gives back the exact state hash from before the merge and the Redo the merged one.
+layer: gate
+source:
+  kind: issue
+  from: kition-sdk 6a57d68 alignment (follow-up writes in the merge's step, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      filter: collab::tests::a_merged_drafts_renumbered_slide_ids_are_in_the_merges_one_undo_step
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-26"
+timeout_s: 180

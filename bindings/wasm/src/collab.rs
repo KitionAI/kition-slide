@@ -591,6 +591,105 @@ mod tests {
         assert_eq!(exact(&mut doc), exactly_before, "one undo gives back the exact state before the merge");
     }
 
+    /// The person's own records of the document: the engine's undo and redo labels (with each
+    /// step's replica steps and scope), the selection, and the step index of the replica's blobs.
+    fn records(doc: &SlideDocument) -> (Vec<(String, u32, bool)>, Vec<(String, u32, bool)>, String, (usize, usize)) {
+        let st = doc.session.doc().unwrap();
+        let entries = |steps: &[kition_slide_engine::HistoryEntry]| steps.iter().map(|e| (e.label.clone(), e.steps, e.agent)).collect::<Vec<_>>();
+        (entries(&st.history.undo), entries(&st.history.redo), format!("{:?}", st.selection), doc.session.kdm().unwrap().steps())
+    }
+
+    /// A draft whose merge the repair takes back entirely records nothing (kition-sdk 6a57d68,
+    /// data model 6.6): a draft animates a shape, and the person deletes the shape meanwhile (a
+    /// named step); the repair deletes the drafted animation (it names a deleted shape), so the
+    /// merge leaves the document as it was. The answer has no scope and an empty summary; the
+    /// state hash, the version, the replica's undo depth and the engine's history, labels and
+    /// selection stay; the next Undo is the person's deletion and takes exactly it back.
+    #[test]
+    fn a_draft_its_repair_takes_back_entirely_merges_as_no_step() {
+        use kition_kit::kdm::UndoScope;
+        let mut doc = SlideDocument::open("Slide.kslide", &fixture()).unwrap();
+        let shape = doc.execute("shape.insert", json!({ "preset": "ellipse", "rect": [300, 300, 60, 60] })).unwrap()["id"].clone();
+        let base = doc.version().unwrap();
+        let mut draft = SlideDocument::open_with_replica("Slide.kslide", &[], &doc.snapshot().unwrap(), &doc.blobs().unwrap()).unwrap();
+        draft.execute("animation.add", json!({ "ids": [shape.clone()], "effect": "fade" })).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        let before_delete = exact(&mut doc);
+        let hash_before_delete = doc.session.kdm().unwrap().state_hash().unwrap();
+        doc.execute("shape.delete", json!({ "ids": [shape] })).unwrap();
+        let deleted = doc.session.doc().unwrap().history.undo.last().unwrap().label.clone();
+        let state = doc.replicated_state().unwrap();
+        let (hash, version) = (doc.session.kdm().unwrap().state_hash().unwrap(), doc.version().unwrap());
+        let depth = doc.session.kdm().unwrap().replica().undo_depth(UndoScope::Person);
+        let records_before = records(&doc);
+        let answer = doc.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
+        assert!(answer["scope"].is_null(), "no step: {answer}");
+        assert_eq!(answer["damage"], json!("none"), "{answer}");
+        assert_eq!(answer["summary"], kition_kit::kdm::diff::diff_states(&state, &state).to_json(), "an empty summary: {answer}");
+        let kdm = doc.session.kdm().unwrap();
+        assert_eq!(kdm.state_hash().unwrap(), hash, "the state is as it was");
+        assert_eq!(doc.version().unwrap(), version, "the version stays");
+        assert_eq!(doc.session.kdm().unwrap().replica().undo_depth(UndoScope::Person), depth, "no undo step");
+        assert_eq!(records(&doc), records_before, "the history, its labels and the selection stay");
+        assert_eq!(doc.session.doc().unwrap().history.undo.last().unwrap().label, deleted, "the next Undo is named for the deletion");
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(doc.session.kdm().unwrap().state_hash().unwrap(), hash_before_delete, "the Undo takes back exactly the deletion");
+        assert_eq!(exact(&mut doc), before_delete);
+    }
+
+    /// The slides' file ids of the replicated state, sorted.
+    fn file_ids(doc: &mut SlideDocument) -> Vec<Value> {
+        let state = doc.replicated_state().unwrap();
+        let mut ids: Vec<Value> = state["objects"]
+            .as_object()
+            .map(|objects| objects.values().filter(|object| object["$type"] == "Slide").map(|slide| slide["props"]["fileId"].clone()).collect())
+            .unwrap_or_default();
+        ids.sort_by_key(Value::to_string);
+        ids
+    }
+
+    /// The engine's repair after a merge is in the merge's undo step (kition-sdk 6a57d68,
+    /// `Replica::transact_in_step`): a draft and the document each add a slide, both with the same
+    /// next file id; the merge renumbers the draft's (`stored::merged_file_ids`), as one replica
+    /// undo step with the merge; one Undo gives back the exact state hash before the merge, the
+    /// Redo the merged one.
+    #[test]
+    fn a_merged_drafts_renumbered_slide_ids_are_in_the_merges_one_undo_step() {
+        use kition_kit::kdm::UndoScope;
+        let file = SlideDocument::create("Slide.kslide", 960, 540).unwrap().save(None).unwrap();
+        let mut seed = SlideDocument::open("Slide.kslide", &file).unwrap();
+        let (snapshot, blobs) = (seed.snapshot().unwrap(), seed.blobs().unwrap());
+        let mut doc = SlideDocument::open_with_replica("Slide.kslide", &file, &snapshot, &blobs).unwrap();
+        let mut draft = SlideDocument::open_with_replica("Slide.kslide", &file, &snapshot, &blobs).unwrap();
+        let base = doc.version().unwrap();
+        draft.execute("slide.new", json!({})).unwrap();
+        doc.execute("slide.new", json!({})).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        let mine = file_ids(&mut doc);
+        let theirs = file_ids(&mut draft);
+        assert_eq!(mine, theirs, "both new slides took the same next file id");
+        let hash = doc.session.kdm().unwrap().state_hash().unwrap();
+        let depth = doc.session.kdm().unwrap().replica().undo_depth(UndoScope::Person);
+        let answer = doc.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
+        assert_eq!(answer["scope"], "person", "{answer}");
+        let ids = file_ids(&mut doc);
+        let mut distinct = ids.clone();
+        distinct.dedup();
+        assert_eq!((ids.len(), distinct.len()), (3, 3), "the repeat is renumbered: {ids:?}");
+        assert_eq!(doc.session.kdm().unwrap().replica().undo_depth(UndoScope::Person), depth + 1, "the renumbering joined the merge's step");
+        let top = doc.session.doc().unwrap().history.undo.last().unwrap();
+        assert_eq!((top.label.as_str(), top.steps, top.agent), ("Merge Draft", 1, false));
+        assert_histories_agree(&doc, "after the merge");
+        let merged = doc.session.kdm().unwrap().state_hash().unwrap();
+        assert!(doc.undo().unwrap().0);
+        assert_eq!(doc.session.kdm().unwrap().state_hash().unwrap(), hash, "one Undo gives back the exact state before the merge");
+        assert_eq!(doc.session.kdm().unwrap().replica().undo_depth(UndoScope::Person), depth);
+        assert!(doc.redo().unwrap().0);
+        assert_eq!(doc.session.kdm().unwrap().state_hash().unwrap(), merged, "the Redo gives back the merged state");
+        assert_eq!(file_ids(&mut doc), ids);
+        assert_histories_agree(&doc, "after the redo");
+    }
+
     /// An earlier state (a checkpoint's snapshot) is written over the slide by object id as one
     /// undo step: the replica holds that state again, with the same ids, and Undo takes it back.
     #[test]

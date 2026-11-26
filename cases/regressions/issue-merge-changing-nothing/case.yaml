@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-merge-changing-nothing
+feature: slide.collab.drafts
+intent: >-
+  A draft whose merge the repair takes back entirely records nothing (kition-sdk 6a57d68, data
+  model 6.6): a draft animates a shape the person deleted meanwhile (a named step), and the repair
+  deletes the drafted animation, so the merge leaves the document as it was. mergeChanges answers
+  no scope, no damage and an empty summary; the state hash, the version, the replica's undo depth,
+  the engine's undo and redo history with its labels, the selection and the blob step index stay;
+  the next Undo is named for the deletion and takes exactly it back. Before, such a merge was an
+  undo step that changed nothing, labelled "Merge Draft", which the person's Undo passed over.
+layer: gate
+source:
+  kind: issue
+  from: kition-sdk 6a57d68 alignment (a merge changing nothing records nothing, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-slide-kit
+      filter: collab::tests::a_draft_its_repair_takes_back_entirely_merges_as_no_step
+expected:
+  - actual: out:exit
+    compare: exit
+    value: 0
+since: "2026-11-26"
+timeout_s: 180

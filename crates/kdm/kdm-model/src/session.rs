@@ -69,7 +69,7 @@ impl SlideSession {
         let index = BlobIndex::build(&replica);
         let mut session = Self { replica, model, blobs, index, blob_log: Vec::new(), comment_only: false, local: LocalRepair::unknown() };
         // Best effort: a replica merged elsewhere may need the read repair; a failure leaves it.
-        let _ = session.repair_read();
+        let _ = session.repair_read(&mut None);
         session.index.collect_garbage(&mut session.blobs);
         Ok(session)
     }
@@ -116,6 +116,47 @@ impl SlideSession {
         }
         self.index.collect_garbage(&mut self.blobs);
         Ok(u32::from(undoable))
+    }
+
+    /// [`SlideSession::record`] as a transaction that joins the top undo step of `scope` instead
+    /// of being a step of its own (`Replica::transact_in_step`): for what the engine writes from
+    /// its view right after a merged draft or a restore that recorded that step (text reflowed,
+    /// a repeated slide file id renumbered), so one undo takes the merge and these writes back
+    /// together, to the exact state before it, and one redo brings both back. The step must hold
+    /// the replica's newest change (call it right after [`SlideSession::merge_changes`] or
+    /// [`SlideSession::restore_state`]), else it is refused and nothing is written. Answers the
+    /// scope the step is in: `None` when the step, with these writes, changes nothing anymore and
+    /// was dropped (no undo step is left of the merge). On failure the view is unchanged.
+    pub fn record_in_step(&mut self, scope: UndoScope, origin: &Origin, after: &SlideFile) -> Result<Option<UndoScope>> {
+        let comment_only = self.comment_only;
+        let mut ids = self.model.ids().clone();
+        let (model, blobs) = (&self.model, &mut self.blobs);
+        let result = self.replica.transact_in_step(scope, origin, |tx| {
+            if comment_only {
+                write_comment_changes(tx, &model.slide_file, after, &mut ids).map(|_| ())
+            } else {
+                write_changes(tx, &model.slide_file, after, &mut ids, blobs).map(|_| ())
+            }
+        });
+        let changed = self.replica.take_changed();
+        let kept = match result {
+            Ok(((), kept)) => kept,
+            Err(error) => {
+                self.index.collect_garbage(&mut self.blobs);
+                return Err(kit_err(error));
+            }
+        };
+        let moved = self.index.update(&self.replica, &changed);
+        let replica = &self.replica;
+        self.local.wrote(&changed, |object| replica.exists(object), self.model.ids());
+        self.model.adopt(after.clone(), ids);
+        self.log_added(moved.added.iter().cloned());
+        match kept {
+            Some(scope) => self.index.join_step(scope, moved),
+            None => self.index.drop_step(scope),
+        }
+        self.index.collect_garbage(&mut self.blobs);
+        Ok(kept)
     }
 
     /// Makes every later [`SlideSession::record`] write only what changed in the comment threads
@@ -314,8 +355,10 @@ impl SlideSession {
     /// (`kition_kit::session::write_state`), so every object the two share keeps its id, with the
     /// repair of the restored state ([`crate::validate`]) in the same change: one undo step of
     /// its scope (the exact state before on undo) unless `origin` is a `system` or `import` one.
-    /// Nothing changes when the states are equal. Refuses another document's snapshot. Add the
-    /// blobs it references first. Answers the undo scope of the step it made and the damage.
+    /// Nothing changes (no change, no step, the version stays) when the states are equal, nor
+    /// when the repair takes back all the restore wrote (`Replica::transact_unless_unchanged`).
+    /// Refuses another document's snapshot. Add the blobs it references first. Answers the undo
+    /// scope of the step it made and the damage.
     pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         let schema = SlideModel::schema();
         let loaded = Replica::load(Arc::clone(&schema), snapshot, ActorId::random()).map_err(kit_err)?;
@@ -331,7 +374,7 @@ impl SlideSession {
             now.keys().chain(then.keys()).filter(|id| now.get(*id) != then.get(*id)).map(ObjectId::from_string).collect();
         let (ids, local) = (self.model.ids(), &self.local);
         let mut settled = false;
-        let result = self.replica.transact(origin, |tx| {
+        let result = self.replica.transact_unless_unchanged(origin, |tx| {
             kition_kit::session::write_state(tx, &schema, &now, &then).map_err(kdm_err)?;
             settled = crate::validate::validate_with_view(tx, &changed, ids, local)?.1;
             Ok(())
@@ -347,21 +390,23 @@ impl SlideSession {
     }
 
     /// After a merge or a restore wrote one transaction since `before`, repaired in it: patches
-    /// the view as an import does (the read repair after it), and counts the transaction as an
-    /// undo step of `scope` (`None`: a `system` or `import` one, no undo step). A failed view
-    /// load is the error, as an import's is: the transaction stays ([`SlideSession::view_loaded`]
-    /// tells whether the view followed).
+    /// the view as an import does, the read repair after it joining the transaction's undo step,
+    /// and counts the transaction as an undo step of `scope` (`None`: a `system` or `import` one,
+    /// or one that changed nothing: no undo step). Answers the scope the step is in (`None` also
+    /// when the read repair took back all the merge did). A failed view load is the error, as an
+    /// import's is: the transaction stays ([`SlideSession::view_loaded`] tells whether the view
+    /// followed).
     fn took_in(&mut self, before: Version, scope: Option<UndoScope>) -> Result<(Option<UndoScope>, Damage)> {
         let wrote = self.replica.version() != before;
-        let (damage, moved) = self.settle_with(false);
+        let mut step = scope.filter(|_| wrote);
+        let (damage, moved) = self.settle_with(false, &mut step);
         self.log_added(moved.added.iter().cloned());
-        let undoable = wrote && scope.is_some();
-        if let Some(scope) = scope.filter(|_| undoable) {
+        if let Some(scope) = step {
             self.index.push_step(scope, moved);
         }
         self.index.imported();
         self.index.collect_garbage(&mut self.blobs);
-        damage.map(|damage| (scope.filter(|_| undoable), damage))
+        damage.map(|damage| (step, damage))
     }
 
     /// Whether the view matches the replica as it is now (its own read succeeds).
@@ -467,12 +512,13 @@ impl SlideSession {
     /// patches the view with both; the view follows the replica even if the repair fails. Also
     /// answers which blobs moved (the index is updated either way).
     fn settle(&mut self) -> (Result<Damage>, Moved) {
-        self.settle_with(true)
+        self.settle_with(true, &mut None)
     }
 
     /// [`SlideSession::settle`]; without `repair` when the change was repaired in itself (a merged
-    /// draft, a restore).
-    fn settle_with(&mut self, repair: bool) -> (Result<Damage>, Moved) {
+    /// draft, a restore). The read repair joins `step`'s undo step when there is one
+    /// ([`SlideSession::repair_read`]).
+    fn settle_with(&mut self, repair: bool, step: &mut Option<UndoScope>) -> (Result<Damage>, Moved) {
         let mut changed = self.replica.take_changed();
         // The full check's result on a copy, for the property test of the targeted repair (after a
         // change repaired in itself, the full check must find nothing more to write).
@@ -507,7 +553,7 @@ impl SlideSession {
         let moved = self.index.update(&self.replica, &changed);
         let damage = self.refresh(&changed).and_then(|damage| repaired.map(|()| damage));
         let damage = match damage {
-            Ok(damage) => self.repair_read().map(|repaired| if repaired { Damage::Full } else { damage }),
+            Ok(damage) => self.repair_read(step).map(|repaired| if repaired { Damage::Full } else { damage }),
             failed => failed,
         };
         (damage, moved)
@@ -515,15 +561,28 @@ impl SlideSession {
 
     /// The read repair (`crate::siblings`): what the view shows that the replica does not hold yet
     /// (a paragraph or a comment listed twice), written as a `system` transaction (not an undo
-    /// step), then the view refreshed. Answers whether it wrote.
-    fn repair_read(&mut self) -> Result<bool> {
+    /// step), then the view refreshed. After a merged draft or a restore (`step`: the undo step it
+    /// recorded, the replica's newest change) the write joins that step instead
+    /// (`Replica::transact_in_step`), so its undo takes both back; `step` becomes `None` when the
+    /// step, with the repair, changes nothing anymore and was dropped. Answers whether it wrote.
+    fn repair_read(&mut self, step: &mut Option<UndoScope>) -> Result<bool> {
         let fixes = siblings::plan(&self.replica, self.model.ids());
         // A commenter leaves them to an editor: the view shows them listed once either way.
         let threads = if self.comment_only { Vec::new() } else { self.model.ids().relist.clone() };
         if fixes.is_empty() && threads.is_empty() {
             return Ok(false);
         }
-        let result = self.replica.transact(&Origin::system("repair"), |tx| Ok(siblings::apply(tx, &fixes)? | crate::comments::repair(tx, &threads)?));
+        let origin = Origin::system("repair");
+        let result = match *step {
+            Some(scope) => self
+                .replica
+                .transact_in_step(scope, &origin, |tx| Ok(siblings::apply(tx, &fixes)? | crate::comments::repair(tx, &threads)?))
+                .map(|(wrote, kept)| {
+                    *step = kept;
+                    wrote
+                }),
+            None => self.replica.transact(&origin, |tx| Ok(siblings::apply(tx, &fixes)? | crate::comments::repair(tx, &threads)?)),
+        };
         let changed = self.replica.take_changed();
         let wrote = result.map_err(kit_err)?;
         let moved = self.index.update(&self.replica, &changed);

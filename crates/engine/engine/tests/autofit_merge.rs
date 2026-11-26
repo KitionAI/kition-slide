@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 
+use kdm_model::kition_kit::kdm::UndoScope;
 use kition_slide_engine::{Origin, Session, Version};
 use kition_slide_model::{
     Shape,
@@ -82,6 +83,7 @@ fn a_merged_draft_turning_shrink_on_for_text_resized_meanwhile_is_reflowed_in_it
     assert_eq!(scale(&last_shape(&a)), None);
     let (before_hash, before_text) = (a.state_hash().unwrap(), text(&a));
     let entries = a.active().unwrap().history.undo.len();
+    let depth = a.kdm().unwrap().replica().undo_depth(UndoScope::Person);
     a.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
     // The merged text is reflowed for the box it is in now.
     assert!(!layout(&a).overflow, "the merged fit is reflowed");
@@ -90,10 +92,12 @@ fn a_merged_draft_turning_shrink_on_for_text_resized_meanwhile_is_reflowed_in_it
     assert_eq!(last_shape(&a).xfrm.unwrap().h, 40.0, "the person's resize stays");
     assert_eq!(text(&a), before_text);
     assert_holds(&a, "after the merge");
-    // One step, the merge and its reflow: the replica's two undo steps.
+    // One step, the merge and its reflow: the reflow joined the merge's replica undo step
+    // (`Replica::transact_in_step`), so it is one step of the replica's too.
     let history = &a.active().unwrap().history;
     assert_eq!(history.undo.len(), entries + 1);
-    assert_eq!(history.undo.last().map(|e| (e.agent, e.steps)), Some((false, 2)));
+    assert_eq!(history.undo.last().map(|e| (e.agent, e.steps)), Some((false, 1)));
+    assert_eq!(a.kdm().unwrap().replica().undo_depth(UndoScope::Person), depth + 1, "the reflow is in the merge's replica step");
     let merged_hash = a.state_hash().unwrap();
     // Settled: reopening the replica writes nothing.
     let version = a.version().unwrap();

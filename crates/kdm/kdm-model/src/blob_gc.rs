@@ -149,6 +149,21 @@ impl BlobIndex {
         self.redo.retain(|(of, _)| *of != scope);
     }
 
+    /// A transaction that joined the top undo step of `scope` (`Replica::transact_in_step`): the
+    /// step keeps what it moved too.
+    pub fn join_step(&mut self, scope: UndoScope, moved: Moved) {
+        if let Some((_, blobs)) = self.undo.iter_mut().rev().find(|(of, _)| *of == scope) {
+            blobs.extend(moved.all());
+        }
+    }
+
+    /// The top undo step of `scope` was dropped: with what joined it, it changed nothing.
+    pub fn drop_step(&mut self, scope: UndoScope) {
+        if let Some(i) = self.undo.iter().rposition(|(of, _)| *of == scope) {
+            self.undo.remove(i);
+        }
+    }
+
     /// An undo (`undo`) or a redo of `scope` took `taken` steps off the replica's stack: the steps
     /// it passed over (their objects gone since) and, when `done`, the one it took back. They leave
     /// this stack too; with one taken back, they become that scope's one next step on the other

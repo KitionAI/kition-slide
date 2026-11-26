@@ -1,8 +1,12 @@
-//! The read repair: what a read shows that the replica should hold, written by the session in a
-//! `system` transaction (not an undo step) after an import, undo or redo and when it opens a
-//! replica. A transaction cannot read text fields, so these repairs cannot be part of
-//! [`kition_kit::session::KitModel::validate`]; each is deterministic (the same state plans the
-//! same writes) and idempotent (writing it again changes nothing).
+//! The read repair: what a read shows that the replica should hold, planned from what the read
+//! found (the view's [`Ids`]: the paragraphs a body lists, the comments a thread lists) and so
+//! written by the session after the read, not in [`kition_kit::session::KitModel::validate`],
+//! which sees only the transaction (a transaction reads text, `Tx::text` and `Tx::text_delta`,
+//! but not the view's ids). After an import, undo or redo and when the session opens a replica it
+//! is a `system` transaction (not an undo step); after a merged draft or a restore it joins that
+//! undo step (`Replica::transact_in_step`), so one undo takes the merge and the repair back
+//! together. Each is deterministic (the same state plans the same writes) and idempotent (writing
+//! it again changes nothing).
 //!
 //! - **Paragraphs listed twice** in one body (a replica stored that way) are listed once, at their
 //!   first place.

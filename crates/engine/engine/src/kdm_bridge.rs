@@ -180,6 +180,26 @@ impl DocState {
         }
     }
 
+    /// [`DocState::record_kdm`] joining the top undo step of `scope` (`SlideSession::record_in_step`),
+    /// right after the merge or restore that recorded it: answers the scope the step is in
+    /// (`None` when it now changes nothing and was dropped), or `None` when the replica refused
+    /// and was left.
+    fn record_kdm_in(&mut self, scope: UndoScope, origin: &Origin, after: &Arc<SlideFile>) -> Option<Option<UndoScope>> {
+        let kdm = self.link.kdm.as_mut()?;
+        kdm.set_comment_only(self.link.comment_only);
+        match kdm.record_in_step(scope, origin, after) {
+            Ok(kept) => {
+                self.link.synced = after.clone();
+                Some(kept)
+            }
+            Err(error) => {
+                log::warn!("the slide replica refused the repair after a merge: {error}");
+                self.detach_kdm();
+                None
+            }
+        }
+    }
+
     /// The replica, made now from the current document if there is none yet (anything not
     /// written yet is written first; a live interaction stays for its commit).
     pub(crate) fn ensure_kdm(&mut self, origin: &Origin, force: bool) -> Option<&mut SlideSession> {
@@ -299,52 +319,60 @@ impl DocState {
     /// Persist merged text reflow as a non-undoable replica transaction. Read-only replicas
     /// retain their state; the layout layer validates receipts for their derived rendering.
     fn repair_autofit(&mut self, before: Option<&SlideFile>) {
-        self.repair_autofit_as(before, &Origin::system("autofit"));
+        self.repair_autofit_as(before, &Origin::system("autofit"), None);
     }
 
-    /// [`DocState::repair_autofit`] written as `origin`'s: a step of its undo scope when it is a
-    /// person's or an agent's (the repair after a merged draft or a restored version, which the
-    /// step that took it in undoes with it, so its undo gives back the exact state before).
-    /// Answers the undo steps the repair took.
-    fn repair_autofit_as(&mut self, before: Option<&SlideFile>, origin: &Origin) -> u32 {
+    /// [`DocState::repair_autofit`] written as `origin`'s, joining the undo step of `step` when
+    /// there is one (the repair after a merged draft or a restored version: the replica's newest
+    /// change is that step, and its undo takes the repair back with it, to the exact state
+    /// before). Answers the scope the step is in afterwards: `step`, or `None` when the repair
+    /// took back all the merge did and the replica dropped the step.
+    fn repair_autofit_as(&mut self, before: Option<&SlideFile>, origin: &Origin, step: Option<UndoScope>) -> Option<UndoScope> {
         if self.link.comment_only {
-            return 0;
+            return step;
         }
         let mut repaired = (*self.doc).clone();
         // Values others wrote (an agent's object-model batch) as the file stores them (C8-slide-5),
         // for what changed since `before`, and the slides' file ids, a repeat renumbered (a merged
         // draft that added a slide while the document did: each took the same next number).
         let settled = before.is_some_and(|before| crate::stored::settle_merged(&mut repaired, before));
-        if (crate::autofit::repair(&mut repaired) | settled)
-            && let Some(steps) = self.record_kdm(origin, &Arc::new(repaired))
+        if !(crate::autofit::repair(&mut repaired) | settled) {
+            return step;
+        }
+        let repaired = Arc::new(repaired);
+        let kept = match step {
+            Some(scope) => self.record_kdm_in(scope, origin, &repaired),
+            None => self.record_kdm(origin, &repaired).map(|_| None),
+        };
+        if let Some(kept) = kept
             && let Some(kdm) = self.link.kdm.as_ref()
         {
             self.doc = view_of(kdm, self.doc.next_id);
             self.link.synced = self.doc.clone();
-            return steps;
+            return kept;
         }
-        0
+        step
     }
 
     /// After an import: the document follows the replica, and the selection follows it.
     fn follow_kdm(&mut self) {
-        self.follow_kdm_as(&Origin::system("autofit"));
+        self.follow_kdm_as(&Origin::system("autofit"), None);
     }
 
-    /// [`DocState::follow_kdm`] with the repair written as `origin`'s
-    /// ([`DocState::repair_autofit_as`]); answers the undo steps the repair took.
-    fn follow_kdm_as(&mut self, origin: &Origin) -> u32 {
-        let Some(kdm) = self.link.kdm.as_ref() else { return 0 };
+    /// [`DocState::follow_kdm`] with the repair written as `origin`'s, in the undo step of `step`
+    /// ([`DocState::repair_autofit_as`]); answers the scope the step is in afterwards.
+    fn follow_kdm_as(&mut self, origin: &Origin, step: Option<UndoScope>) -> Option<UndoScope> {
+        let Some(kdm) = self.link.kdm.as_ref() else { return step };
         let before = self.doc.clone();
         self.doc = view_of(kdm, before.next_id);
         self.link.synced = self.doc.clone();
-        let steps = self.repair_autofit_as(Some(&*before), origin);
+        let kept = self.repair_autofit_as(Some(&*before), origin, step);
         let mut selection = std::mem::take(&mut self.selection);
         follow_selection(&before, &mut selection, &self.doc);
         self.selection = selection;
         crate::clamp_selection(self);
         self.revision += 1;
-        steps
+        kept
     }
 }
 
@@ -719,30 +747,34 @@ impl Session {
         let follow = changed && (result.is_ok() || kdm.view_loaded());
         let st = self.doc_mut()?;
         let (before, selection) = (st.doc.clone(), st.selection.clone());
-        let scope = result.as_ref().ok().and_then(|(scope, _)| *scope);
+        let mut scope = result.as_ref().ok().and_then(|(scope, _)| *scope);
         let agent = scope == Some(UndoScope::Agent);
-        let mut steps = u32::from(scope.is_some());
         if follow {
             // The engine's own repair after it (text reflowed, a repeated slide file id
-            // renumbered: what only the engine's view can see; the replica's repair is in the
-            // change already) is part of the step: its undo takes both back, to the exact state
-            // before.
-            let repair =
-                if steps > 0 { Origin::new(if agent { OriginKind::Agent } else { OriginKind::Person }, "repair") } else { Origin::system("autofit") };
-            steps = steps.saturating_add(st.follow_kdm_as(&repair));
+            // renumbered: what only the engine's view can see; the replica's repair and its read
+            // repair are in the step already) joins the step (`Replica::transact_in_step`): one
+            // replica step, whose undo takes both back, to the exact state before.
+            let repair = if scope.is_some() {
+                Origin::new(if agent { OriginKind::Agent } else { OriginKind::Person }, "repair")
+            } else {
+                Origin::system("autofit")
+            };
+            scope = st.follow_kdm_as(&repair, scope);
             clamp_text_and_cells(st);
         } else if changed {
             st.detach_kdm();
         }
-        if follow && steps > 0 {
-            let scope = std::mem::replace(&mut st.history.agent, agent);
-            st.history.push(crate::HistoryEntry { label: label.to_owned(), doc: before, selection, steps, agent });
-            st.history.agent = scope;
+        // The history gets a step (and its label) only when the replica kept one: a merge that,
+        // with the repairs, changes nothing records none, and Undo stays the person's own.
+        if follow && scope.is_some() {
+            let previous = std::mem::replace(&mut st.history.agent, agent);
+            st.history.push(crate::HistoryEntry { label: label.to_owned(), doc: before, selection, steps: 1, agent });
+            st.history.agent = previous;
             // The step is written already: the bridge has nothing of it left to record.
             st.link.mark = st.history.pushed;
         }
         st.trim_kdm();
-        result.map_err(kdm_error)
+        result.map(|(_, damage)| (scope, damage)).map_err(kdm_error)
     }
 
     /// Reads the saved file again into the active document (kition-sdk session continuity on
