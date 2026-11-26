@@ -560,7 +560,7 @@ mod tests {
     }
 
     /// A draft's preview runs the replica's repair as the merge does: a draft animates the shape
-    /// the document deleted meanwhile, the merge's repair deletes that animation (it names a
+    /// the document deleted meanwhile (and adds a star), the merge's repair deletes that animation (it names a
     /// deleted shape), and the preview's merged state is the state after actually merging (the
     /// unrepaired merge still holds the animation), its comparison the merge's summary.
     #[test]
@@ -570,6 +570,8 @@ mod tests {
         let base = doc.version().unwrap();
         let mut draft = SlideDocument::open_with_replica("Slide.kslide", &[], &doc.snapshot().unwrap(), &doc.blobs().unwrap()).unwrap();
         draft.execute("animation.add", json!({ "ids": [shape.clone()], "effect": "fade" })).unwrap();
+        // Something the repair keeps, so the merge is an undo step of its own.
+        draft.execute("shape.insert", json!({ "preset": "star5", "rect": [500, 300, 50, 50] })).unwrap();
         let changes = draft.export_changes(&base).unwrap();
         doc.execute("shape.delete", json!({ "ids": [shape] })).unwrap();
         let before = doc.replicated_state().unwrap();
