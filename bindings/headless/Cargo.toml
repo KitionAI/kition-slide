@@ -20,7 +20,7 @@ serde_json = { workspace = true }
 kition-kits = { workspace = true }
 # document.identity and document.fork through the real process (tests/identity.rs).
 kition-kit-host = { workspace = true }
-kition-env = { git = "https://github.com/KitionAI/kition-sdk", rev = "6a57d68f3555f24c14def0ac57d14646bf95aa01" }
+kition-env = { git = "https://github.com/KitionAI/kition-sdk", rev = "d2b39aaf423d4082382781dd75a0e2a454a8d332" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 zip = { workspace = true }

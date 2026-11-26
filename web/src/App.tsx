@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Button,
   HAND_TOOL,
@@ -62,28 +62,7 @@ function Editor({ slides }: { slides: Slides }) {
   const [zoom, setZoom] = useState(1)
   const [tab, setTab] = useState('home')
   const [exporting, setExporting] = useState(false)
-  // Whether Escape has something for the engine to cancel, read when it is pressed: text being
-  // edited, a selection, a tool other than Select (which gives way to Select below), or a gesture
-  // under way (a button held on the canvas). Without it an Escape pressed while any tool event is
-  // on its way (the zoom Focus's new canvas size sends) waited for the answer, so leaving Focus
-  // came later than the key; an Escape with nothing to cancel is now decided when it is pressed.
-  const pressed = useRef(false)
-  useEffect(() => {
-    const down = () => { pressed.current = true }
-    const up = () => { pressed.current = false }
-    window.addEventListener('pointerdown', down, true)
-    window.addEventListener('pointerup', up, true)
-    window.addEventListener('pointercancel', up, true)
-    return () => {
-      window.removeEventListener('pointerdown', down, true)
-      window.removeEventListener('pointerup', up, true)
-      window.removeEventListener('pointercancel', up, true)
-    }
-  }, [])
-  const cancellable = useRef<() => boolean>(() => false)
-  const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS, escapable: () => cancellable.current() })
-  cancellable.current = () =>
-    pressed.current || engineTools.wantsText || engineTools.active !== 'select' || state?.editingText === true || (state?.selectedKinds.length ?? 0) > 0
+  const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS })
   // Escape cancels first (KitPointer 4.4): the engine's tool has it while text is edited, shapes
   // are selected or a gesture is under way; else a tool other than Select gives way to Select,
   // as PowerPoint puts a shape tool down. Only an Escape with nothing to cancel is left untaken,
