@@ -624,7 +624,7 @@ mod tests {
         let records_before = records(&doc);
         let answer = doc.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
         assert!(answer["scope"].is_null(), "no step: {answer}");
-        assert_eq!(answer["damage"], json!("none"), "{answer}");
+        assert_eq!(answer["damage"], json!({ "kind": "none" }), "{answer}");
         assert_eq!(answer["summary"], kition_kit::kdm::diff::diff_states(&state, &state).to_json(), "an empty summary: {answer}");
         let kdm = doc.session.kdm().unwrap();
         assert_eq!(kdm.state_hash().unwrap(), hash, "the state is as it was");
