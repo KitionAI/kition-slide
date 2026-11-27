@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-c2-handles-visible
+feature: slide.editor.keyboard-and-view
+intent: "A selected shape's eight resize handles are white circles 9 px across with a ring of another colour, the rotation handle a grey circle and the adjust handle a yellow diamond with a ring, so they show on a white slide (they were white squares with a white ring; walkthrough C2, WPS W-B1)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/handles.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/handles.mjs, chromium, c2-handles-visible]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

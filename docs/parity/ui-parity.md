@@ -1,6 +1,6 @@
 # UI parity with PowerPoint
 
-> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-17 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-27 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
 How Kition Slide looks and feels next to PowerPoint: the shell, the ribbon, menus, panes, dialogs,
 direct manipulation, keyboard and precision. Observations of PowerPoint are kept locally in
@@ -29,7 +29,7 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Menu-bar items with a Kition Slide equivalent | 217 app-specific items | 128 matched by name (59%, heuristic lower bound) | One parameterized command (`insert.chart {type}`) stands for many menu items, which a name match cannot see |
 | Ribbon tabs: Home, Insert, Draw, Design, Transitions, Animations, Slide Show, Record, Review, View | 10 | 10 | Record tab is a placeholder |
 | Contextual tabs: Shape Format, Picture Format, Table Design, Table Layout, Chart Design, Chart Format, Video/Audio Format and Playback | yes | most; checklist P0 row partial | Chart Format, media tabs thinner |
-| Status bar: slide counter, language, notes, comments, views, zoom slider | yes | yes | |
+| Status bar: slide counter, language, notes, comments, views, zoom slider | yes | yes | Zoom goes 10% at a time to multiples of 10 within 10%–400% (as WPS), the percentage takes a typed value, Fit fits the slide as it opens (`web/tests/hand/zoom.mjs`) |
 | Command search (Tell Me) | yes | no | |
 | Light / dark appearance | follows the system | follows the host's theme | |
 | Quick Access Toolbar customization | yes | no | P1 partial |
@@ -44,13 +44,13 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Animation Pane | list + advanced timeline | list, reorder, timing; no timeline |
 | Comments pane (threads) | yes | yes |
 | Design Ideas (Designer) | yes (cloud) | no |
-| Dialogs | ~60 (Font, Paragraph, Bullets and Numbering, Find, Replace, Replace Fonts, Hyperlink, Action Settings, Header and Footer, Slide Size, Set Up Show, Custom Shows, Print, Page Setup, Insert Object, Symbol, Equation, Chart data sheet, Smart graphic chooser, Preferences…) | The Export dialog (`web/src/ExportDialog.tsx`), the Spelling and Accessibility panes, and one generic parameters form (`editor.ask`, `web/src/slides.tsx`) for any command that needs values |
+| Dialogs | ~60 (Font, Paragraph, Bullets and Numbering, Find, Replace, Replace Fonts, Hyperlink, Action Settings, Header and Footer, Slide Size, Set Up Show, Custom Shows, Print, Page Setup, Insert Object, Symbol, Equation, Chart data sheet, Smart graphic chooser, Preferences…) | The Export dialog (`web/src/ExportDialog.tsx`), the Link dialog (address or slide, Cmd+K; `web/src/LinkDialog.tsx`), the Spelling and Accessibility panes, and one generic parameters form (`editor.ask`, `web/src/slides.tsx`) for any command that needs values |
 
 ## Direct manipulation
 
 | Behaviour | PowerPoint | Kition Slide |
 |---|---|---|
-| Selection handles, rotation handle, yellow adjustment handles | yes | yes |
+| Selection handles, rotation handle, yellow adjustment handles | yes | yes: white round handles with a dark ring, a grey rotation handle, yellow diamonds, visible on any slide (`web/tests/hand/handles.mjs`) |
 | Marquee, Shift/Cmd multi-select, Tab to cycle | yes | yes |
 | Smart guides (edges, centres, equal spacing) | yes | yes |
 | Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
@@ -72,7 +72,10 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 Every common PowerPoint for Mac shortcut is bound (checklist row done): new slide, duplicate,
 group/ungroup, bold/italic/underline, alignment, font size, list levels, Format Painter, show from
 start/current, view switching. Not yet: Cmd+F Find opening a find bar on the slide, Option+drag
-precision without snapping, F6 pane cycling, ribbon KeyTips (Windows).
+precision without snapping, F6 pane cycling, ribbon KeyTips (Windows). With nothing selected Home and
+End go to the first and last slide, the arrows change slides, Tab selects the first object and Delete
+deletes nothing (as WPS); Cmd+Shift+Z redoes as Cmd+Y does; F5 and Shift+F5 start the show, and
+Cmd+Enter does with an object selected too; Cmd+1 is 100% (`web/tests/hand/keys.mjs`).
 
 ## Visual fidelity
 

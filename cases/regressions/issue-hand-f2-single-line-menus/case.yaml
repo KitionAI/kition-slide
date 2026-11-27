@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-f2-single-line-menus
+feature: slide.editor.keyboard-and-view
+intent: "In the default Single line mode the menus a row button opens (Home: Shapes, Font Color; Insert: Table, Shapes, Chart; Chart Design: Change Chart Type; View: Zoom; Design: Colors) show their items, and choosing one does what it says (they opened as an empty box: the row's rule hiding controls not marked primary reached into them; walkthrough F2)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/menus.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/menus.mjs, chromium, f2-single-line-menus]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

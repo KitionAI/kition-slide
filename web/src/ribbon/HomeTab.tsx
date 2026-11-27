@@ -2,6 +2,7 @@ import { AArrowDownIcon as AArrowDown, AArrowUpIcon as AArrowUp, TextAlignCenter
 import { MenuItem, MenuSeparator, RibbonButton, RibbonGroup, RibbonItem, RibbonRow, RibbonStack, toast } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { useTools } from '../tools'
+import { releaseField } from '../focus'
 import { ColorGrid, CommandButton, RibbonMenu, ShapesMenu } from './common'
 
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
@@ -33,7 +34,7 @@ export function usePictureInsert() {
 }
 
 export function HomeTab() {
-  const { run, enabled, format, facts, t, view } = useSlides()
+  const { run, enabled, format, facts, t, view, session } = useSlides()
   const tools = useTools()
   const picture = usePictureInsert()
   const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.font, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
@@ -42,7 +43,7 @@ export function HomeTab() {
   return (
     <>
       <RibbonGroup label={t('group.clipboard')} icon={ClipboardPaste}>
-        <CommandButton command="edit.paste" primary icon={ClipboardPaste} label={t('paste')} size="large" />
+        <CommandButton command="edit.paste" primary icon={ClipboardPaste} label={t('paste')} size="large" params={{}} />
         <RibbonStack>
           <CommandButton command="edit.cut" icon={Scissors} label={t('cut')} />
           <CommandButton command="edit.copy" icon={Copy} label={t('copy')} />
@@ -70,7 +71,7 @@ export function HomeTab() {
         <RibbonStack>
           <RibbonRow>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.font ?? ''} onChange={(event) => void run('format.fontName', { family: event.target.value })} data-testid="slides-font">
+              <select className="kui-ribbon-field" style={{ width: 132 }} aria-label={t('font')} disabled={!textOn} value={format.font ?? ''} onChange={(event) => { void run('format.fontName', { family: event.target.value }); releaseField(event.currentTarget, session.state?.editingText) }} data-testid="slides-font">
                 {format.font ? null : <option value="" />}
                 {fonts.map((font) => (
                   <option key={font} value={font}>
@@ -80,7 +81,7 @@ export function HomeTab() {
               </select>
             </RibbonItem>
             <RibbonItem primary>
-              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.size ?? ''} onChange={(event) => void run('format.fontSize', { size: Number(event.target.value) })} data-testid="slides-font-size">
+              <select className="kui-ribbon-field" style={{ width: 62 }} aria-label={t('fontSize')} disabled={!textOn} value={format.size ?? ''} onChange={(event) => { void run('format.fontSize', { size: Number(event.target.value) }); releaseField(event.currentTarget, session.state?.editingText) }} data-testid="slides-font-size">
                 {format.size == null || SIZES.includes(format.size) ? null : <option value={format.size}>{format.size}</option>}
                 {format.size == null ? <option value="" /> : null}
                 {SIZES.map((size) => (

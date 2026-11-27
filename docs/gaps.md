@@ -1,6 +1,6 @@
 # Gaps
 
-> **Last updated:** 2026-11-17 · **Source:** `features.yaml` (updated 2026-11-17) and the engine's command list
+> **Last updated:** 2026-11-27 · **Source:** `features.yaml` (updated 2026-11-27) and the engine's command list
 
 Every known shortfall of Kition Slide, from the feature catalogue: features that are not yet `has`,
 then the differences recorded on features that work. Update the feature in `features.yaml` when you
@@ -42,7 +42,8 @@ land work, then this list. The comparison with the target application is in
 - `slide.text.edit`: Save and reopen as .kslide and .pptx is proven by command for setting a shape's text; the feature's other commands are covered by engine tests only.
 - `slide.animations.set`: Save and reopen as .kslide and .pptx is proven by command for adding an entrance animation; the feature's other commands are covered by engine tests only.
 - `slide.transitions.set`: Save and reopen as .kslide and .pptx is proven by command for setting a transition with a duration; the feature's other commands are covered by engine tests only.
+- `slide.editor.keyboard-and-view`: Checked in the development host only: whether Kition Desktop gives the editor the keyboard as a file opens is the host's part. A trackpad swipe turning one page and a real mouse notch's delta are checked with synthetic wheel events only. The rotation handle sits where the engine puts it (20 pt above the top edge), not WPS's 18 px; handles keep their 4 px reach (stage 0B).
 
 ## Catalogue
 
-The catalogue has 42 features: 21 `has`, 21 not yet.
+The catalogue has 48 features: 26 `has`, 22 not yet.

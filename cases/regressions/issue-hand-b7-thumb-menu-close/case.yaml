@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-b7-thumb-menu-close
+feature: slide.editor.keyboard-and-view
+intent: "A thumbnail's menu stays when the pointer leaves it and closes on Escape, a press elsewhere, the wheel or a choice; after Duplicate the slide list keeps the keyboard, so Delete removes the copy (the menu closed only when the pointer left it, and Duplicate left the keyboard on the body; walkthrough B7, K2)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/keys.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/keys.mjs, chromium, b7-thumb-menu-close]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

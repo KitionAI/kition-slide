@@ -1,13 +1,22 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { KitCanvasHandle, RasterRect, RasterView } from '@kition/sdk/editor'
 import type { Slides } from './slides'
+import { notchZoom, pinchZoom, wheelNotches, zoomAround } from './zoom'
 
 /** How far past the slide's edge an enlarged slide scrolls, in screen pixels. */
 export const CANVAS_MARGIN = 28
 const PAGE_DELAY_MS = 350
 const PAGE_THRESHOLD = 18
+/** How far a trackpad's fine scroll travels before it turns the page, in CSS pixels. */
+const SWIPE_DISTANCE = 60
+/** A pause this long ends a trackpad swipe, its momentum included. */
+const SWIPE_END_MS = 220
 
-/** The native slide canvas's wheel policy: page when fitted, bounded pan when enlarged. */
+/**
+ * The native slide canvas's wheel policy: page when fitted, bounded pan when enlarged. With Cmd or
+ * Ctrl the wheel zooms about the pointer: a mouse notch to the next multiple of 10% at least 10
+ * points away, a pinch continuously, within 10%–400% (`zoom.ts`).
+ */
 export function useSlideWheel(
   region: RefObject<HTMLDivElement | null>,
   canvas: RefObject<KitCanvasHandle | null>,
@@ -23,22 +32,33 @@ export function useSlideWheel(
     const pointers = new Set<number>()
     let lastPage = -Infinity
     let paging = false
+    // A trackpad swipe: its fine deltas add up until they turn one page; the swipe (with its
+    // momentum) turns no other page until it pauses.
+    let swipe = { distance: 0, turned: false, last: -Infinity }
     const down = (event: PointerEvent) => pointers.add(event.pointerId)
     const up = (event: PointerEvent) => pointers.delete(event.pointerId)
     const reset = () => pointers.clear()
     const wheel = (event: WheelEvent) => {
       const surface = event.target
       if (!(surface instanceof HTMLCanvasElement) || !surface.classList.contains('kui-canvas-surface')) return
-      // The shared canvas still owns cursor-anchored zoom and pinch gestures.
-      if (event.ctrlKey || event.metaKey) return
       const view = viewMemory.current
       const { session, run } = latest.current
       const area = session.state?.area
       if (!view || !area || !canvas.current) return
 
-      // Capture before KitCanvas's native wheel listener can freely pan the slide away.
+      // Capture before KitCanvas's native wheel listener can freely pan the slide away (or zoom
+      // 2.72 times a notch).
       event.preventDefault()
       event.stopPropagation()
+      if (event.ctrlKey || event.metaKey) {
+        const shown = canvas.current.view()?.zoom ?? view.zoom
+        const notches = wheelNotches(event)
+        let zoom = shown
+        if (notches) for (let index = 0; index < Math.min(notches, 5); index += 1) zoom = notchZoom(zoom, event.deltaY < 0 ? 1 : -1)
+        else zoom = pinchZoom(shown, event.deltaY)
+        zoomAround(canvas.current, zoom, surface, event.clientX, event.clientY)
+        return
+      }
       const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16
         : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? surface.clientHeight : 1
       const dx = event.deltaX * unit
@@ -58,6 +78,18 @@ export function useSlideWheel(
         )
       } else if (session.state?.target.kind !== 'slides') {
         return
+      } else if (!pointers.size && wheelNotches(event) === 0) {
+        // A trackpad: the swipe's distance, not each event's, turns the page; once.
+        const now = performance.now()
+        if (now - swipe.last > SWIPE_END_MS) swipe = { distance: 0, turned: false, last: now }
+        swipe.last = now
+        if (Math.abs(dy) < Math.abs(dx) || swipe.turned) return
+        swipe.distance += dy
+        if (Math.abs(swipe.distance) < SWIPE_DISTANCE || paging) return
+        swipe.turned = true
+        lastPage = now
+        paging = true
+        void run(swipe.distance > 0 ? 'slide.next' : 'slide.previous').finally(() => { paging = false })
       } else if (!pointers.size && !paging && Math.abs(dy) > PAGE_THRESHOLD && Math.abs(dy) >= Math.abs(dx)) {
         const now = performance.now()
         if (now - lastPage < PAGE_DELAY_MS) return

@@ -3,6 +3,7 @@ import { AlignVerticalJustifyCenterIcon as AlignVerticalJustifyCenter, BetweenHo
 import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { ColorGrid } from './common'
+import { releaseField } from '../focus'
 
 type Cell = [number, number]
 type TableState = {
@@ -101,7 +102,7 @@ export function TableTab({ design = false }: { design?: boolean }) {
     <RibbonGroup label={t('table.size')} icon={Ruler}><RibbonStack>
       {(['rowHeight', 'columnWidth'] as const).map((field) => <label key={field} className="slides-field-row">{t(`table.${field}`)}
         <input key={`${table.id}-${table.from.join('-')}-${table[field]}`} className="kui-field" type="number" min={4} max={4000} step={1} defaultValue={Math.round(table[field] * 100) / 100} disabled={!editable} data-testid={`slides-table-${field}`}
-          onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+          onKeyDown={(event) => { if (event.key === 'Enter') releaseField(event.currentTarget) }}
           onBlur={(event) => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value) && value >= 4 && value <= 4000 && value !== table[field]) act(`table.${field}`, { [field === 'rowHeight' ? 'height' : 'width']: value }) }} />
       </label>)}
     </RibbonStack><RibbonStack>

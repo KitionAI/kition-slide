@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { CopyIcon as Copy, EyeOffIcon as EyeOff, PlusIcon as Plus, TrashIcon as Trash2 } from '@kition/tessera/icons/react'
-import { MenuItem, MenuSeparator, useReadOnly } from '@kition/sdk/editor'
+import { MenuItem, MenuSeparator, menuKeyDown, useReadOnly } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { ThumbMarkers } from './HostComments'
 
@@ -65,6 +65,8 @@ export function SlidesPanel() {
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') go(Math.min(count - 1, current + 1))
     else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') go(Math.max(0, current - 1))
+    else if (event.key === 'Home') go(0)
+    else if (event.key === 'End') go(Math.max(0, count - 1))
     else if (!readOnly && (event.key === 'Delete' || event.key === 'Backspace')) void run('slide.delete', { index: current })
     else if (!readOnly && event.key === 'Enter') void run('slide.new', { at: current + 1 })
     else return
@@ -115,15 +117,64 @@ export function SlidesPanel() {
         ))}
       </div>
       {menu ? (
-        <div className="kui-popover" role="menu" style={{ left: menu.x, top: menu.y }} onPointerLeave={() => setMenu(null)}>
-          <MenuItem icon={Plus} label={t('newSlide')} disabled={readOnly} onSelect={() => { setMenu(null); void run('slide.new', { at: menu.index + 1 }) }} />
-          <MenuItem icon={Copy} label={t('duplicateSlide')} disabled={readOnly} onSelect={() => { setMenu(null); void run('slide.duplicate', { index: menu.index }) }} />
-          <MenuItem icon={EyeOff} label={t('hideSlide')} disabled={readOnly} onSelect={() => { setMenu(null); void run('slide.hide', { index: menu.index, hidden: !facts.slides[menu.index]?.hidden }) }} />
-          <MenuSeparator />
-          <MenuItem icon={Trash2} label={t('deleteSlide')} disabled={readOnly} onSelect={() => { setMenu(null); void run('slide.delete', { index: menu.index }) }} />
-        </div>
+        <SlideMenu menu={menu} onClose={() => { setMenu(null); list.current?.focus({ preventScroll: true }) }}>
+          {(close) => <>
+            <MenuItem icon={Plus} label={t('newSlide')} disabled={readOnly} onSelect={() => { close(); void run('slide.new', { at: menu.index + 1 }) }} testId="slides-menu-new" />
+            <MenuItem icon={Copy} label={t('duplicateSlide')} disabled={readOnly} onSelect={() => { close(); void run('slide.duplicate', { index: menu.index }) }} testId="slides-menu-duplicate" />
+            <MenuItem icon={EyeOff} label={t('hideSlide')} disabled={readOnly} onSelect={() => { close(); void run('slide.hide', { index: menu.index, hidden: !facts.slides[menu.index]?.hidden }) }} testId="slides-menu-hide" />
+            <MenuSeparator />
+            <MenuItem icon={Trash2} label={t('deleteSlide')} disabled={readOnly} onSelect={() => { close(); void run('slide.delete', { index: menu.index }) }} testId="slides-menu-delete" />
+          </>}
+        </SlideMenu>
       ) : null}
     </aside>
+  )
+}
+
+/**
+ * A thumbnail's menu (walkthrough B7): it stays while the pointer leaves it, and closes on Escape, a
+ * press outside it, a scroll, the window resizing, or a choice; it keeps inside the window. The
+ * slide list has the keyboard again once it closes (`onClose`).
+ */
+function SlideMenu({ menu, onClose, children }: { menu: Menu; onClose: () => void; children: (close: () => void) => ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [at, setAt] = useState({ left: menu.x, top: menu.y })
+  const latest = useRef(onClose)
+  latest.current = onClose
+  useLayoutEffect(() => {
+    const element = box.current
+    if (!element) return
+    const width = element.offsetWidth, height = element.offsetHeight
+    setAt({ left: Math.max(4, Math.min(menu.x, window.innerWidth - width - 4)), top: Math.max(4, Math.min(menu.y, window.innerHeight - height - 4)) })
+    element.querySelector<HTMLElement>('[role^="menuitem"]:not(:disabled)')?.focus({ preventScroll: true })
+  }, [menu])
+  useEffect(() => {
+    const close = () => latest.current()
+    const down = (event: PointerEvent) => { if (!box.current?.contains(event.target as Node)) close() }
+    const key = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      close()
+    }
+    const scroll = (event: Event) => { if (!box.current?.contains(event.target as Node)) close() }
+    window.addEventListener('pointerdown', down, true)
+    window.addEventListener('keydown', key, true)
+    window.addEventListener('wheel', scroll, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('blur', close)
+    return () => {
+      window.removeEventListener('pointerdown', down, true)
+      window.removeEventListener('keydown', key, true)
+      window.removeEventListener('wheel', scroll, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('blur', close)
+    }
+  }, [])
+  return (
+    <div ref={box} className="kui-popover" role="menu" style={{ left: at.left, top: at.top }} data-testid="slides-slide-menu" onKeyDown={(event) => menuKeyDown(event, () => latest.current())}>
+      {children(() => latest.current())}
+    </div>
   )
 }
 

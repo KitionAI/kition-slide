@@ -165,6 +165,8 @@ function useSlidesState(host: HostConnection, t: Strings) {
   const [format, setFormat] = useState<FormatState>({})
   const [facts, setFacts] = useState<DocumentFacts>({ layouts: [], slides: [], sections: [] })
   const [notes, setNotes] = useState('')
+  /** Whether the link dialog (Insert › Link, Cmd+K) is open. */
+  const [linking, setLinking] = useState(false)
 
   // After every change: the selection's formatting, the slides' facts, the slide's notes.
   const current = session.state?.current ?? 0
@@ -271,9 +273,14 @@ function useSlidesState(host: HostConnection, t: Strings) {
   const remoteSelections = useRemoteSelections(peers, locate)
 
   const run: typeof editor.run = async (id, params) => {
-    // With a host that keeps the threads, New Comment (its shortcut, More Commands) asks the host.
-    if (id === 'comment.add' && canHostComment && params === undefined) {
+    // New Comment from a menu asks for the text: the host when it keeps the threads, else the comments pane.
+    if (id === 'comment.add' && params === undefined) {
       await newComment()
+      return null
+    }
+    // Link takes an address or a slide in its own dialog, not the parameter form.
+    if (id === 'link.insert' && params === undefined) {
+      setLinking(true)
       return null
     }
     if (['media.play', 'media.pause', 'media.stop'].includes(id)) {
@@ -340,6 +347,8 @@ function useSlidesState(host: HostConnection, t: Strings) {
     facts,
     notes,
     view,
+    linking,
+    setLinking,
     threads,
     comment,
     access,

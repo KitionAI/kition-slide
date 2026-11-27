@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-a3-wheel-zoom-step
+feature: slide.editor.keyboard-and-view
+intent: "One mouse wheel notch with Ctrl or Cmd zooms from the fitted 132% to 150%, the next to 160%, one back to 150% (a notch was 2.72 times; walkthrough A3, WPS W-L4)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/zoom.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/zoom.mjs, chromium, a3-wheel-zoom-step]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

@@ -1,6 +1,6 @@
 format: 1
 kit: slide
-updated: "2026-11-20"
+updated: "2026-11-27"
 gate_budget_s: 600
 protected: []
 features:
@@ -462,6 +462,15 @@ features:
     gap: "The margin is 28 screen pixels on every side."
     cases: [regressions/issue-enlarged-slide-scrollbars]
     since: "2026-11-22"
+  - id: slide.editor.keyboard-and-view
+    title: "The editor by hand, as WPS works: the keyboard works from the first key and comes back after a show, a menu or a dialog; with nothing selected Home, End and the arrows change slides, Tab selects the first object and Delete deletes nothing; Cmd+Shift+Z redoes; Cmd+K opens a link dialog; F5 and Cmd+Enter start the show with or without a selection; the ribbon's menus show in Single line; handles show on any slide; zoom goes in 10% steps within 10%-400% and every Fit fits the slide alike"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/focus.ts, web/src/editorKeys.ts, web/src/zoom.ts, web/src/ZoomBox.tsx, web/src/useSlideWheel.ts, web/src/handles.ts, web/src/LinkDialog.tsx, web/src/SlidesPanel.tsx, web/src/App.tsx, web/src/app.css, web/tests/hand/harness.mjs, web/tests/hand/keys.mjs, web/tests/hand/zoom.mjs, web/tests/hand/menus.mjs, web/tests/hand/handles.mjs]
+    gap: "Checked in the development host only: whether Kition Desktop gives the editor the keyboard as a file opens is the host's part. A trackpad swipe turning one page and a real mouse notch's delta are checked with synthetic wheel events only. The rotation handle sits where the engine puts it (20 pt above the top edge), not WPS's 18 px; handles keep their 4 px reach (stage 0B)."
+    cases: [regressions/issue-hand-f2-single-line-menus, regressions/issue-hand-c2-handles-visible, regressions/issue-hand-k1-first-key, regressions/issue-hand-k2-focus-after-show, regressions/issue-hand-a3-wheel-zoom-step, regressions/issue-hand-a12-home-end, regressions/issue-hand-i3-redo-key, regressions/issue-hand-g6-link-url, regressions/issue-hand-b7-thumb-menu-close, regressions/issue-hand-q1-delete-nothing]
+    since: "2026-11-27"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

@@ -161,6 +161,13 @@ const enUS: Catalog = {
   'reload': 'Load the new version',
   'noHost': 'This editor runs inside a host such as Kition.',
   'endShow': 'Press Esc to end the slide show',
+  'zoomType': 'Type a zoom percentage',
+  'link.title': 'Link',
+  'link.apply': 'OK',
+  'link.url': 'Web address',
+  'link.slide': 'Slide in this file',
+  'link.slideItem': '{slide}. {title}',
+  'link.untitled': 'Untitled slide',
 }
 
 const zhCN: Catalog = {
@@ -321,6 +328,13 @@ const zhCN: Catalog = {
   'reload': '加载新版本',
   'noHost': '此编辑器需要在 Kition 等宿主中运行。',
   'endShow': '按 Esc 结束放映',
+  'zoomType': '输入缩放百分比',
+  'link.title': '超链接',
+  'link.apply': '确定',
+  'link.url': '网址',
+  'link.slide': '本文档中的幻灯片',
+  'link.slideItem': '{slide}. {title}',
+  'link.untitled': '无标题幻灯片',
 }
 
 export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN }, 'zh-CN': { ...zhCN, ...ribbonZH } }

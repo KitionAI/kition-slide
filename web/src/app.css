@@ -257,3 +257,24 @@
 .slides-scrollbars[data-both] > .kui-scrollbar[aria-orientation='horizontal'] {
   right: 14px;
 }
+
+/*
+ * Single line's row hides each control of a group not marked primary (Tessera's
+ * `.kui-line-inline :is(button, select, input, label):not([data-primary], …)`), and the rule reaches
+ * into the menus a row button opens, which render inside the row: Shapes, Table, Chart, Zoom, font
+ * colour and theme colours opened as an empty box (walkthrough F2). A menu shows whole.
+ */
+.slides-editor .kui-line-inline .kui-popover :is(button, select, input, label) { display: revert; }
+.slides-editor .kui-line-inline .kui-popover .kui-menu-item { display: flex; }
+.slides-editor .kui-line-inline .kui-popover .kui-gallery-item { display: flex; }
+.slides-editor .kui-line-inline .kui-popover .kui-ribbon-button { display: inline-flex; }
+.slides-editor .kui-line-inline .kui-popover .slides-field-row { display: flex; }
+.slides-editor .kui-line-inline .kui-popover .slides-layout-item { display: block; }
+
+/* The status bar's zoom percentage opens a field to type one in. */
+.slides-zoom-value { border: 0; background: transparent; color: inherit; font: inherit; padding: 0 4px; border-radius: var(--kit-radius-control); cursor: pointer; }
+.slides-zoom-value:hover { background: var(--kui-hover); }
+.slides-zoom-field { width: 48px; height: 22px; padding: 0 4px; border: 1px solid var(--kit-border); border-radius: var(--kit-radius-control); background: var(--kit-surface); color: var(--kit-text); font: inherit; }
+
+/* The link dialog. */
+.slides-link-form { display: grid; gap: 6px; min-width: 320px; }

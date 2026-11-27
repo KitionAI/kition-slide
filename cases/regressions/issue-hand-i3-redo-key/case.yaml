@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-i3-redo-key
+feature: slide.editor.keyboard-and-view
+intent: "Cmd+Shift+Z redoes, as Cmd+Y still does (only Cmd+Y did; walkthrough I3, WPS W-H3)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/keys.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/keys.mjs, chromium, i3-redo-key]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-k2-focus-after-show
+feature: slide.editor.keyboard-and-view
+intent: "After a slide show started with F5 ends with Escape, the editor has the keyboard and PageDown works at once; Shift+F5 starts the show as well (the keyboard was left on the body; walkthrough K2, K6)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/keys.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/keys.mjs, chromium, k2-focus-after-show]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Button,
   HAND_TOOL,
@@ -39,6 +39,12 @@ import { CONTEXT_PRIMARY, RIBBON_MENUS } from './ribbon/menus'
 import { FileTab } from './ribbon/FileTab'
 import { ExportDialog } from './ExportDialog'
 import { useEngineBackdrop } from './backdrop'
+import { returnKeyboardLater, takeKeyboardOnOpen, useKeyboardFallback } from './focus'
+import { slideKeys, usePopupEscape } from './editorKeys'
+import { drawSlideHandle } from './handles'
+import { LinkDialog } from './LinkDialog'
+import { ZoomBox } from './ZoomBox'
+import { steppedCanvas } from './zoom'
 
 const HOST_TOOLS = { hand: HAND_TOOL }
 
@@ -59,17 +65,35 @@ function Editor({ slides }: { slides: Slides }) {
   const viewMemory = useRef<RasterView | null>(null)
   useSlideWheel(canvasRegion, canvas, viewMemory, slides)
   useEngineBackdrop(doc, canvas)
+  useKeyboardFallback()
+  usePopupEscape()
+  // The slides just opened have the keyboard (walkthrough K1).
+  useEffect(() => {
+    if (doc) takeKeyboardOnOpen()
+  }, [doc])
+  const area = useRef(state?.area)
+  area.current = state?.area
+  // Fit fits the slide, and zoom steps go 10% at a time, from every entry (zoom.ts).
+  const zoomCanvas = useMemo(() => steppedCanvas(canvas, () => area.current), [])
+  const keys = slideKeys(slides, zoomCanvas)
   const [zoom, setZoom] = useState(1)
   const [tab, setTab] = useState('home')
   const [exporting, setExporting] = useState(false)
-  const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS })
+  const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS, drawOverlay: drawSlideHandle })
+  const endShow = view.endShow
+  // The show ended: the editor has the keyboard again (walkthrough K2).
+  const showEnded = useCallback(() => {
+    endShow()
+    returnKeyboardLater()
+  }, [endShow])
   // Escape cancels first (KitPointer 4.4): the engine's tool has it while text is edited, shapes
   // are selected or a gesture is under way; else a tool other than Select gives way to Select,
   // as PowerPoint puts a shape tool down. Only an Escape with nothing to cancel is left untaken,
-  // so in Focus it leaves Focus.
+  // so in Focus it leaves Focus. An open menu or panel takes Escape before all of them (usePopupEscape).
   const tools = {
     ...engineTools,
     keyDown: (event: Parameters<typeof engineTools.keyDown>[0]) => {
+      if (keys.beforeTool(event)) return true
       if (engineTools.keyDown(event)) return true
       if (!plainEscape(event) || engineTools.active === 'select') return false
       engineTools.select('select')
@@ -98,7 +122,7 @@ function Editor({ slides }: { slides: Slides }) {
     { id: 'slideShow', label: t('tab.slideShow'), view: true, ribbon: more('slideShow', <SlideShowTab />) },
     { id: 'record', label: t('tab.record'), ribbon: more('record', <SlideShowTab record />) },
     { id: 'review', label: t('tab.review'), view: true, ribbon: more('review', <ReviewTab />) },
-    { id: 'view', label: t('tab.view'), view: true, ribbon: more('view', <ViewTab canvas={canvas} />) },
+    { id: 'view', label: t('tab.view'), view: true, ribbon: more('view', <ViewTab canvas={zoomCanvas} />) },
     ...(kinds.some((kind) => ['shape', 'textBox', 'placeholder', 'connector', 'group'].includes(kind)) || state?.editingText ? [{ id: 'shapeFormat', label: t('tab.shapeFormat'), ribbon: contextual('shapeFormat') }] : []),
     ...(kinds.includes('picture') ? [{ id: 'pictureFormat', label: t('tab.pictureFormat'), ribbon: contextual('pictureFormat') }] : []),
     ...(kinds.includes('table')
@@ -120,8 +144,8 @@ function Editor({ slides }: { slides: Slides }) {
         tabs={tabs}
         tab={activeTab}
         onTab={setTab}
-        canvas={canvas}
-        zoom={zoom}
+        canvas={zoomCanvas}
+        onKeyDown={keys.afterTool}
         status={
           <>
             <span data-testid="slides-status">{state ? t('slideOf', { slide: state.current + 1, slides: state.slides }) : ''}</span>
@@ -134,9 +158,12 @@ function Editor({ slides }: { slides: Slides }) {
           </>
         }
         statusEnd={
-          <Button variant="ghost" aria-pressed={view.notesOpen} onClick={() => view.setNotesOpen((open) => !open)}>
-            {t('notes')}
-          </Button>
+          <>
+            <Button variant="ghost" aria-pressed={view.notesOpen} onClick={() => view.setNotesOpen((open) => !open)}>
+              {t('notes')}
+            </Button>
+            {doc ? <ZoomBox canvas={zoomCanvas} zoom={zoom} /> : null}
+          </>
         }
         sidebar={view.mode !== 'sorter' ? ((state?.target.kind ?? 'slides') !== 'slides' ? <MasterPanel /> : <SlidesPanel />) : null}
         panels={<TaskPane />}
@@ -150,7 +177,8 @@ function Editor({ slides }: { slides: Slides }) {
           </div>
         </div>
         {exporting ? <ExportDialog onClose={() => setExporting(false)} /> : null}
-        {view.showing != null && doc ? <SlideShow doc={doc} from={view.showing.from} slides={state?.slides ?? 1} onEnd={view.endShow} hint={t('endShow')} options={view.showing} /> : null}
+        {slides.linking ? <LinkDialog onClose={() => slides.setLinking(false)} /> : null}
+        {view.showing != null && doc ? <SlideShow doc={doc} from={view.showing.from} slides={state?.slides ?? 1} onEnd={showEnded} hint={t('endShow')} options={view.showing} /> : null}
       </EditorFrame>
     </KitEditorProvider>
     </div>

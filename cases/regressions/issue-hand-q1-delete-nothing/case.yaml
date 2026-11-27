@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-q1-delete-nothing
+feature: slide.editor.keyboard-and-view
+intent: "With nothing selected on the slide, Delete and Backspace delete nothing, even after the slide was chosen in the slide list (they deleted the current slide; WPS W-Q1)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/keys.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/keys.mjs, chromium, q1-delete-nothing]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"
