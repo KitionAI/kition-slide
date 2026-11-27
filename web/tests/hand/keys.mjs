@@ -167,6 +167,8 @@ const list = [
     const count = (await shapesOn(e, 1)).length
     await press(e, 'Tab')
     await press(e, 'ControlOrMeta+c')
+    // The selection brought Shape Format forward (plan stage 1, WPS W-A15): Paste is on Home.
+    await e.kit.getByTestId('ribbon-tab-home').click()
     await e.kit.getByTestId('slides-cmd-edit.paste').click()
     await e.wait(500)
     assert.equal(await e.kit.locator('.kui-dialog').count(), 0, 'Paste opens no form')

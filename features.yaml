@@ -480,6 +480,15 @@ features:
     gap: "A press on a selected shape still enters its text wherever it lands (the move pointer shows away from the words; stage 3 makes the press follow the pointer, WPS W-F2). No hover outline: neither PowerPoint nor Keynote draws one. The rotation handle's place and the handles' reach are the kit's own (kition-office-core's box_handles keeps 20 pt for doc and sheet)."
     cases: [regressions/issue-hand-c3-cursors, regressions/issue-hand-d7-handle-hit]
     since: "2026-11-27"
+  - id: slide.editor.arrange-and-size
+    title: "Align, order and size by hand, as WPS works: Home › Arrange and the editor's own Shape Format and Picture Format tabs run align (one object to the slide, several to their selection, either chosen for this selection), distribute, order, group, rotate and flip straight on the selection with no parameter form; fill, outline and font color menus show the theme's colors with their tints, the standard colors and a typed #RRGGBB; height, width and rotation are typed (centimetres or any unit), with the aspect ratio locked on demand; selecting a shape, picture, table, chart or media brings its tab forward and clearing the selection goes back to the person's tab; Cmd+G groups and Cmd+Shift+G ungroups; a double-clicked Format Painter paints until Escape; both tabs fit a 1600 px window in Single line and speak Chinese"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/ribbon/ArrangeMenu.tsx, web/src/ribbon/ShapeFormatTab.tsx, web/src/ribbon/common.tsx, web/src/ribbon/HomeTab.tsx, web/src/App.tsx, web/src/slides.tsx, web/src/i18n/locales/en-US/format.json, web/src/i18n/locales/zh-CN/format.json, crates/engine/engine/src/cmd/arrange.rs, crates/engine/engine/src/keys.rs, bindings/wasm/src/lib.rs, web/tests/hand/format.mjs]
+    gap: "The rare commands (alt text, text box margins, paragraph, text outline, quick style, custom crop and corrections) stay in More with their parameter forms, whose fields keep the parameters' English names. While text is edited no tab comes forward (its formatting is on Home; WPS brings a Text Tools tab). Change Shape offers 18 common shapes, not every preset (stage 9). No eyedropper or More Colors dialog. Clicking a loaded Format Painter again loads it again rather than putting it down (Escape puts it down)."
+    cases: [regressions/issue-hand-g5-align-direct, regressions/issue-hand-g8-mode-step-down, regressions/issue-hand-g11-zh-format-tab]
+    since: "2026-11-27"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

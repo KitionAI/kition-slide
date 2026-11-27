@@ -1,9 +1,10 @@
-import { AArrowDownIcon as AArrowDown, AArrowUpIcon as AArrowUp, TextAlignCenterIcon as AlignCenter, TextAlignJustifyIcon as AlignJustify, TextAlignStartIcon as AlignLeft, TextAlignEndIcon as AlignRight, BaselineIcon as Baseline, BoldIcon as Bold, BringToFrontIcon as BringToFront, ClipboardPasteIcon as ClipboardPaste, CopyIcon as Copy, CaseSensitiveIcon as CaseSensitive, Columns2Icon as Columns2, PanelRightIcon as PanelRight, SparklesIcon as Sparkles, GroupIcon as Group, HighlighterIcon as Highlighter, ImageIcon as Image, ListIndentDecreaseIcon as IndentDecrease, ListIndentIncreaseIcon as IndentIncrease, ItalicIcon as Italic, LayersIcon as Layers, LayoutTemplateIcon as LayoutTemplate, ListIcon as List, ListOrderedIcon as ListOrdered, PaintBucketIcon as PaintBucket, PaintbrushIcon as Paintbrush, PenLineIcon as PenLine, RemoveFormattingIcon as RemoveFormatting, RotateCcwIcon as RotateCcw, Rows3Icon as Rows3, ScissorsIcon as Scissors, SendToBackIcon as SendToBack, SquarePlusIcon as SquarePlus, StrikethroughIcon as Strikethrough, SubscriptIcon as Subscript, SuperscriptIcon as Superscript, TextCursorInputIcon as TextCursorInput, UnderlineIcon as Underline, UngroupIcon as Ungroup, MoveHorizontalIcon, MoveVerticalIcon, AlignVerticalJustifyCenterIcon, ShapesIcon as Shapes } from '@kition/tessera/icons/react'
-import { MenuItem, MenuSeparator, RibbonButton, RibbonGroup, RibbonItem, RibbonRow, RibbonStack, toast } from '@kition/sdk/editor'
+import { AArrowDownIcon as AArrowDown, AArrowUpIcon as AArrowUp, TextAlignCenterIcon as AlignCenter, TextAlignJustifyIcon as AlignJustify, TextAlignStartIcon as AlignLeft, TextAlignEndIcon as AlignRight, BaselineIcon as Baseline, BoldIcon as Bold, ClipboardPasteIcon as ClipboardPaste, CopyIcon as Copy, CaseSensitiveIcon as CaseSensitive, Columns2Icon as Columns2, SparklesIcon as Sparkles, HighlighterIcon as Highlighter, ImageIcon as Image, ListIndentDecreaseIcon as IndentDecrease, ListIndentIncreaseIcon as IndentIncrease, ItalicIcon as Italic, LayoutTemplateIcon as LayoutTemplate, ListIcon as List, ListOrderedIcon as ListOrdered, PaintBucketIcon as PaintBucket, PaintbrushIcon as Paintbrush, PenLineIcon as PenLine, RemoveFormattingIcon as RemoveFormatting, RotateCcwIcon as RotateCcw, Rows3Icon as Rows3, ScissorsIcon as Scissors, SquarePlusIcon as SquarePlus, StrikethroughIcon as Strikethrough, SubscriptIcon as Subscript, SuperscriptIcon as Superscript, TextCursorInputIcon as TextCursorInput, UnderlineIcon as Underline, MoveHorizontalIcon, MoveVerticalIcon, AlignVerticalJustifyCenterIcon, ShapesIcon as Shapes } from '@kition/tessera/icons/react'
+import { MenuItem, RibbonButton, RibbonGroup, RibbonItem, RibbonRow, RibbonStack, toast } from '@kition/sdk/editor'
 import { useSlides } from '../slides'
 import { useTools } from '../tools'
 import { releaseField } from '../focus'
-import { ColorGrid, CommandButton, RibbonMenu, ShapesMenu } from './common'
+import { ColorGrid, ColorPicker, CommandButton, RibbonMenu, ShapesMenu } from './common'
+import { ArrangeMenu } from './ArrangeMenu'
 
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
 const SPACINGS = [1, 1.15, 1.5, 2, 2.5, 3]
@@ -16,21 +17,53 @@ function base64(bytes: ArrayBuffer) {
   return btoa(text)
 }
 
-/** Picks a workspace picture through the host and inserts it on the current slide. */
-export function usePictureInsert() {
-  const { host, run, t } = useSlides()
+/** Picks a workspace picture through the host: its bytes as base64 and its name, or null when none was picked. */
+export function usePicturePick() {
+  const { host, t } = useSlides()
   const can = host.init.capabilities.includes('pick-file')
-  const insert = async () => {
+  const pick = async (): Promise<{ data: string; name: string | undefined } | null> => {
     try {
       const path = await host.pick('picture', PICTURES)
-      if (!path) return
+      if (!path) return null
       const { bytes } = await host.files.read(path)
-      await run('image.insert', { data: base64(bytes), name: path.split('/').pop() })
+      return { data: base64(bytes), name: path.split('/').pop() }
     } catch (error) {
       toast('error', t('commandFailed'), error instanceof Error ? error.message : String(error))
+      return null
     }
   }
+  return { can, pick }
+}
+
+/** Picks a workspace picture through the host and inserts it on the current slide. */
+export function usePictureInsert() {
+  const { run } = useSlides()
+  const { can, pick } = usePicturePick()
+  const insert = async () => {
+    const picked = await pick()
+    if (picked) await run('image.insert', picked)
+  }
   return { can, insert }
+}
+
+/**
+ * Format Painter, as WPS has it (W-P1, W-P2): a click loads it for one object, a double click keeps
+ * it loaded for object after object until Escape.
+ */
+export function FormatPainterButton({ primary }: { primary?: boolean }) {
+  const { run, enabled, format, t } = useSlides()
+  return (
+    <RibbonButton
+      icon={Paintbrush}
+      label={t('formatPainter')}
+      size="small"
+      primary={primary}
+      pressed={format.painter === true}
+      disabled={!enabled('format.painter')}
+      onClick={(event) => void run('format.painter', event.detail >= 2 ? { sticky: true } : {})}
+      data-testid="slides-cmd-format.painter"
+    />
+  )
 }
 
 export function HomeTab() {
@@ -47,7 +80,7 @@ export function HomeTab() {
         <RibbonStack>
           <CommandButton command="edit.cut" icon={Scissors} label={t('cut')} />
           <CommandButton command="edit.copy" icon={Copy} label={t('copy')} />
-          <CommandButton command="format.painter" icon={Paintbrush} label={t('formatPainter')} pressed={format.painter} params={{}} />
+          <FormatPainterButton primary />
         </RibbonStack>
       </RibbonGroup>
 
@@ -106,7 +139,7 @@ export function HomeTab() {
             <CommandButton command="format.subscript" icon={Subscript} label={t('subscript')} size="icon" pressed={format.subscript} params={{}} />
             <CommandButton command="format.textShadow" icon={Baseline} label={t('textShadow')} size="icon" params={{}} />
             <RibbonMenu icon={Baseline} label={t('fontColor')} size="icon" disabled={!textOn} swatch="#C00000" testId="slides-font-color" primary>
-              <ColorGrid onPick={(color) => void run('format.color', { color })} testId="slides-font-colors" />
+              <ColorPicker onPick={(color) => void run('format.color', { color })} testId="slides-font-colors" />
             </RibbonMenu>
             <RibbonMenu icon={Highlighter} label={t('highlight')} size="icon" disabled={!textOn} swatch="#FFFF00">
               <MenuItem label={t('noHighlight')} onSelect={() => void run('format.highlight', {})} />
@@ -146,25 +179,15 @@ export function HomeTab() {
       <RibbonGroup label={t('group.drawing')} icon={Shapes}>
         <ShapesMenu label={t('shapes')} primary />
         <RibbonButton icon={TextCursorInput} label={t('textBox')} size="large" pressed={tools.active === 'textBox'} onClick={() => tools.select('textBox')} data-testid="slides-tool-textBox" primary />
-        <RibbonMenu icon={Layers} label={t('arrange')} size="large" disabled={!enabled('arrange.bringToFront')}>
-          <MenuItem icon={BringToFront} label={t('bringToFront')} onSelect={() => void run('arrange.bringToFront', {})} />
-          <MenuItem label={t('bringForward')} onSelect={() => void run('arrange.bringForward', {})} />
-          <MenuItem label={t('sendBackward')} onSelect={() => void run('arrange.sendBackward', {})} />
-          <MenuItem icon={SendToBack} label={t('sendToBack')} onSelect={() => void run('arrange.sendToBack', {})} />
-          <MenuSeparator />
-          <MenuItem icon={Group} label={t('group')} disabled={!enabled('arrange.group')} onSelect={() => void run('arrange.group', {})} />
-          <MenuItem icon={Ungroup} label={t('ungroup')} disabled={!enabled('arrange.ungroup')} onSelect={() => void run('arrange.ungroup', {})} />
-          <MenuSeparator />
-          <MenuItem icon={PanelRight} label={t('selectionPane')} onSelect={() => view.setPane('selection')} />
-        </RibbonMenu>
+        <ArrangeMenu primary />
         <RibbonStack>
           <RibbonMenu icon={PaintBucket} label={t('shapeFill')} disabled={!enabled('shape.fill')} testId="slides-shape-fill">
             <MenuItem label={t('noFill')} onSelect={() => void run('shape.fill', { none: true })} />
-            <ColorGrid onPick={(color) => void run('shape.fill', { color })} testId="slides-fills" />
+            <ColorPicker onPick={(color) => void run('shape.fill', { color })} testId="slides-fills" />
           </RibbonMenu>
-          <RibbonMenu icon={PenLine} label={t('shapeOutline')} disabled={!enabled('shape.line')}>
+          <RibbonMenu icon={PenLine} label={t('shapeOutline')} disabled={!enabled('shape.line')} testId="slides-shape-outline">
             <MenuItem label={t('noOutline')} onSelect={() => void run('shape.line', { none: true })} />
-            <ColorGrid onPick={(color) => void run('shape.line', { color })} testId="slides-outlines" />
+            <ColorPicker onPick={(color) => void run('shape.line', { color })} testId="slides-outlines" />
           </RibbonMenu>
         </RibbonStack>
       </RibbonGroup>

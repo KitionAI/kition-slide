@@ -14,8 +14,8 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("arrange.sendBackward", "Send Backward", ["Arrange"], Some("Cmd+["), "{ids?}", has_selection, |s, p| order(s, p, -1)),
         cmd!("arrange.sendToBack", "Send to Back", ["Arrange"], Some("Cmd+Shift+["), "{ids?}", has_selection, |s, p| order(s, p, -2)),
         cmd!("arrange.reorder", "Reorder Objects", ["Arrange"], None, "{id, index: position in the stack (0 = back)}", has_slide, reorder),
-        cmd!("arrange.group", "Group", ["Arrange"], Some("Cmd+Alt+G"), "{ids?}", has_two, group),
-        cmd!("arrange.ungroup", "Ungroup", ["Arrange"], Some("Cmd+Alt+Shift+G"), "{ids?}", has_selection, ungroup),
+        cmd!("arrange.group", "Group", ["Arrange"], Some("Cmd+G"), "{ids?}", has_two, group),
+        cmd!("arrange.ungroup", "Ungroup", ["Arrange"], Some("Cmd+Shift+G"), "{ids?}", has_selection, ungroup),
         cmd!("arrange.regroup", "Regroup", ["Arrange"], Some("Cmd+Alt+J"), "{}", has_doc, regroup),
         cmd!(
             "arrange.align",

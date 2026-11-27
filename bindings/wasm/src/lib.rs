@@ -956,8 +956,9 @@ impl SlideDocument {
             overlays: self.overlays(),
             cursor: cursor(self.session.pointing(self.pointer_at, HIT_PX / self.zoom)),
             // Editing keys come here while text is edited, shapes are selected (Delete, arrows,
-            // Escape), or a gesture or freeform is under way.
-            busy: editing || selected || self.session.tool.dragging(),
+            // Escape), a gesture or freeform is under way, or a Format Painter is loaded (Escape
+            // puts it down).
+            busy: editing || selected || self.session.tool.dragging() || self.session.painter.is_some() || self.session.anim_painter.is_some(),
             wants_text: editing || one,
         }
     }

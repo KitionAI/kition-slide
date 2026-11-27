@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-g11-zh-format-tab
+feature: slide.editor.arrange-and-size
+intent: "With locale zh-CN, Shape Format and Picture Format, their Align, fill, outline, rotate, corrections and border menus, and Home › Arrange show no English names (every button, group and parameter form there was English; walkthrough G11)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/format.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/format.mjs, chromium, g11-zh-format-tab]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 240
+since: "2026-11-27"

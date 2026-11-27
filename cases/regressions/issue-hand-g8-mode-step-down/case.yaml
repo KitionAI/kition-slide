@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-g8-mode-step-down
+feature: slide.editor.arrange-and-size
+intent: "Shape Format and Picture Format fit a 1600 px window in Single line, and a command run from them keeps Single line (the tab was 24 px too wide, and the first command stepped the ribbon down to Menus; walkthrough G8)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/format.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/format.mjs, chromium, g8-mode-step-down]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

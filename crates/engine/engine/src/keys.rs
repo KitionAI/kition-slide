@@ -41,6 +41,13 @@ impl Session {
         if matches!(k, "escape" | "esc") && self.cancel_gesture() {
             return Ok(json!({"handled": true}));
         }
+        // Escape puts a loaded Format Painter down (one kept loaded by a double click too, WPS
+        // W-P2) before it cancels anything else.
+        if matches!(k, "escape" | "esc") && (self.painter.is_some() || self.anim_painter.is_some()) {
+            self.painter = None;
+            self.anim_painter = None;
+            return Ok(json!({"handled": true}));
+        }
         if !mods.cmd && !mods.alt && matches!(k, "left" | "right" | "up" | "down") && self.table_arrow(k, mods.shift)? {
             return Ok(json!({"handled": true}));
         }

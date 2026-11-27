@@ -143,6 +143,24 @@ export type HostMark = KitShownThread & { slide: number | null; rect: { x: numbe
 
 type Placed = { found?: boolean; slide?: number | null; rect?: HostMark['rect']; point?: HostMark['point'] }
 
+/**
+ * Commands that act on the selection and need nothing else (their `ids` default to it): from a
+ * menu or a shortcut they run at once, never through a parameter form (walkthrough G5).
+ */
+const ON_SELECTION = new Set([
+  'arrange.bringToFront',
+  'arrange.bringForward',
+  'arrange.sendBackward',
+  'arrange.sendToBack',
+  'arrange.group',
+  'arrange.ungroup',
+  'arrange.rotateLeft',
+  'arrange.rotateRight',
+  'arrange.flipHorizontal',
+  'arrange.flipVertical',
+  'image.reset',
+])
+
 /** The protocol's plain-text rule (UI-V6) for a label: one line, no control or bidirectional formatting characters. */
 // eslint-disable-next-line no-control-regex
 const labelText = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\u200e\u200f\u061c]+/g, ' ').trim().slice(0, 500)
@@ -299,7 +317,7 @@ function useSlidesState(host: HostConnection, t: Strings) {
     // Agent schemas keep conditional parameters optional. In the editor, a field-based
     // command still needs a form unless its native button intentionally uses defaults.
     const command = editor.byId.get(id)
-    if (params === undefined && command && Object.keys(command.schema ?? {}).length > 0 && !['slide.new', 'slide.reset', 'view.slideMaster', 'master.insertLayout'].includes(id)) {
+    if (params === undefined && command && Object.keys(command.schema ?? {}).length > 0 && !['slide.new', 'slide.reset', 'view.slideMaster', 'master.insertLayout'].includes(id) && !ON_SELECTION.has(id)) {
       editor.ask(id)
       return null
     }

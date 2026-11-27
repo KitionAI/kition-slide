@@ -33,6 +33,7 @@ import { AnimationsTab } from './ribbon/AnimationsTab'
 import { ReviewTab } from './ribbon/ReviewTab'
 import { TableTab } from './ribbon/TableTab'
 import { ContextTab } from './ribbon/ContextTab'
+import { PictureFormatTab, ShapeFormatTab } from './ribbon/ShapeFormatTab'
 import { ChartTab } from './ribbon/ChartTab'
 import { MoreCommands } from './ribbon/MoreCommands'
 import { CONTEXT_PRIMARY, RIBBON_MENUS } from './ribbon/menus'
@@ -51,6 +52,26 @@ const HOST_TOOLS = { hand: HAND_TOOL }
 /** Escape alone, the key that cancels. */
 const plainEscape = (event: { key: string; shiftKey: boolean; altKey: boolean; metaKey: boolean; ctrlKey: boolean }) =>
   event.key === 'Escape' && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
+
+/** The kinds of object Shape Format is for. */
+const SHAPE_KINDS = ['shape', 'textBox', 'placeholder', 'connector', 'group']
+/** The tabs that come and go with the selection; the others are the person's own choice. */
+const CONTEXT_TABS = new Set(['shapeFormat', 'pictureFormat', 'tableDesign', 'tableLayout', 'chartDesign', 'playback', 'slideMaster'])
+
+/**
+ * The tab the selection brings forward, as WPS does (W-A15): a table's, a chart's, a media
+ * object's, a picture's, or a shape's tools; none while text is edited (its formatting is on Home,
+ * where WPS shows its Text Tools) or with nothing selected.
+ */
+export function contextTab(kinds: readonly string[], editing: boolean): string | null {
+  if (kinds.includes('table')) return 'tableDesign'
+  if (kinds.includes('chart')) return 'chartDesign'
+  if (kinds.some((kind) => ['media', 'audio', 'video'].includes(kind))) return 'playback'
+  if (editing) return null
+  if (kinds.some((kind) => SHAPE_KINDS.includes(kind))) return 'shapeFormat'
+  if (kinds.includes('picture')) return 'pictureFormat'
+  return null
+}
 
 export function App({ host }: { host: HostConnection }) {
   const t = useMemo(() => createKitStrings(CATALOGS, host.init.locale), [host])
@@ -78,6 +99,22 @@ function Editor({ slides }: { slides: Slides }) {
   const keys = slideKeys(slides, zoomCanvas)
   const [zoom, setZoom] = useState(1)
   const [tab, setTab] = useState('home')
+  /** The last tab the person chose that is not a contextual one: where a contextual tab goes back to. */
+  const ownTab = useRef('home')
+  const chooseTab = useCallback((id: string) => {
+    setTab(id)
+    if (!CONTEXT_TABS.has(id)) ownTab.current = id
+  }, [])
+  // Selecting an object brings its tab forward, and clearing the selection goes back to the tab
+  // the person had (WPS W-A15); only when what the selection asks for changes, so a tab the person
+  // picks meanwhile stays. A read-only document keeps its tab.
+  const wanted = slides.host.readOnly === true ? null : contextTab(state?.selectedKinds ?? [], state?.editingText === true)
+  const lastWanted = useRef<string | null>(null)
+  useEffect(() => {
+    if (wanted === lastWanted.current) return
+    lastWanted.current = wanted
+    setTab(wanted ?? ownTab.current)
+  }, [wanted])
   const [exporting, setExporting] = useState(false)
   const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS, drawOverlay: drawSlideHandle })
   const endShow = view.endShow
@@ -123,8 +160,8 @@ function Editor({ slides }: { slides: Slides }) {
     { id: 'record', label: t('tab.record'), ribbon: more('record', <SlideShowTab record />) },
     { id: 'review', label: t('tab.review'), view: true, ribbon: more('review', <ReviewTab />) },
     { id: 'view', label: t('tab.view'), view: true, ribbon: more('view', <ViewTab canvas={zoomCanvas} />) },
-    ...(kinds.some((kind) => ['shape', 'textBox', 'placeholder', 'connector', 'group'].includes(kind)) || state?.editingText ? [{ id: 'shapeFormat', label: t('tab.shapeFormat'), ribbon: contextual('shapeFormat') }] : []),
-    ...(kinds.includes('picture') ? [{ id: 'pictureFormat', label: t('tab.pictureFormat'), ribbon: contextual('pictureFormat') }] : []),
+    ...(kinds.some((kind) => SHAPE_KINDS.includes(kind)) || state?.editingText ? [{ id: 'shapeFormat', label: t('tab.shapeFormat'), ribbon: <ShapeFormatTab /> }] : []),
+    ...(kinds.includes('picture') ? [{ id: 'pictureFormat', label: t('tab.pictureFormat'), ribbon: <PictureFormatTab /> }] : []),
     ...(kinds.includes('table')
       ? [
           { id: 'tableDesign', label: t('tab.tableDesign'), ribbon: more('tableDesign', <TableTab design />) },
@@ -135,7 +172,7 @@ function Editor({ slides }: { slides: Slides }) {
     ...(kinds.some((kind) => ['media', 'audio', 'video'].includes(kind)) ? [{ id: 'playback', label: t('tab.playback'), ribbon: contextual('playback') }] : []),
     ...((state?.target.kind ?? 'slides') !== 'slides' ? [{ id: 'slideMaster', label: t('tab.slideMaster'), ribbon: contextual('slideMaster') }] : []),
   ]
-  const activeTab = tabs.some((item) => item.id === tab) ? tab : 'home'
+  const activeTab = tabs.some((item) => item.id === tab) ? tab : tabs.some((item) => item.id === ownTab.current) ? ownTab.current : 'home'
 
   return (
     <div className="slides-editor" data-dark={view.dark}>
@@ -143,7 +180,7 @@ function Editor({ slides }: { slides: Slides }) {
       <EditorFrame
         tabs={tabs}
         tab={activeTab}
-        onTab={setTab}
+        onTab={chooseTab}
         canvas={zoomCanvas}
         onKeyDown={keys.afterTool}
         status={

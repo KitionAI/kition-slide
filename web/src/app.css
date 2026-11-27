@@ -158,13 +158,62 @@
 }
 
 
-.slides-theme-swatch {
+/* A color swatch: the color itself; a hatch only until the theme's colors are read. */
+.slides-swatch {
   width: 18px;
   height: 18px;
+  padding: 0;
   border: 1px solid var(--kit-border);
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   background: repeating-linear-gradient(45deg, var(--kit-surface-muted) 0 3px, var(--kit-border) 3px 6px);
+}
+
+.slides-swatch:hover,
+.slides-swatch:focus-visible {
+  outline: 2px solid var(--kit-primary);
+  outline-offset: 1px;
+}
+
+.slides-color-picker {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+}
+
+.slides-swatches {
+  display: grid;
+  grid-template-columns: repeat(10, 18px);
+  gap: 3px;
+  padding: 0 10px 4px;
+}
+
+.slides-hex-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px 0;
+}
+
+.slides-hex-row input {
+  width: 110px;
+}
+
+.slides-hex-row input[aria-invalid='true'] {
+  border-color: var(--kit-danger);
+}
+
+/* Shape Format's and Picture Format's size fields: an icon and a value one types. */
+.slides-size-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--kit-text-muted);
+}
+
+.slides-size-field input {
+  width: 72px;
+  text-align: right;
 }
 
 .slides-show {

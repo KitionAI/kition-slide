@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-g5-align-direct
+feature: slide.editor.arrange-and-size
+intent: "Two shapes selected with Shift: Shape Format › Align › Align Top aligns their tops in two clicks, with no parameter form, and one Cmd+Z undoes it; Home › Arrange has the same rows (it was a form asking for edge, ids, onSlide and to; walkthrough G5, D13)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/format.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/format.mjs, chromium, g5-align-direct]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

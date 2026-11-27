@@ -1483,3 +1483,49 @@ fn shift_drag_keeps_its_axis_against_the_snap() {
     assert_eq!(v["box"]["y"], 201.0, "{v}");
     assert!(v["box"]["x"].as_f64().unwrap() > 400.0, "{v}");
 }
+
+/// Plan stage 1 (WPS W-A12, W-P2; case regressions/issue-hand-g5-align-direct): Cmd+G groups and
+/// Cmd+Shift+G ungroups; a Format Painter kept loaded (a double click) paints shape after shape
+/// until Escape puts it down, and Escape then leaves the selection alone.
+#[test]
+fn group_keys_and_a_kept_painter_put_down_by_escape() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [300, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a, b]})).unwrap();
+    let cmd = Mods { cmd: true, ..Mods::default() };
+    s.key("g", cmd).unwrap();
+    let top = |s: &Session| s.doc().unwrap().doc.slides[1].shapes.len();
+    assert_eq!(top(&s), 1, "Cmd+G groups the two");
+    s.key("g", Mods { shift: true, ..cmd }).unwrap();
+    assert_eq!(top(&s), 2, "Cmd+Shift+G ungroups them");
+    s.key("g", Mods { alt: true, ..cmd }).unwrap();
+    assert_eq!(top(&s), 2, "Cmd+Alt+G is no longer Group");
+
+    let c = s.execute("shape.insert", &json!({"preset": "rect", "rect": [500, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    s.execute("shape.fill", &json!({"color": "#FF0000"})).unwrap();
+    s.execute("format.painter", &json!({"sticky": true})).unwrap();
+    let click = |s: &mut Session, x: f64, y: f64| {
+        let ev = |kind| PointerEvent { kind, x, y, mods: Mods::default(), tol: 3.0 };
+        s.pointer(ev(PointerKind::Down)).unwrap();
+        s.pointer(ev(PointerKind::Up)).unwrap();
+    };
+    let fill = |s: &mut Session, id: u64| s.execute("shape.inspect", &json!({"id": id})).unwrap()["shape"]["fill"].to_string();
+    let red = fill(&mut s, a);
+    click(&mut s, 350.0, 140.0);
+    click(&mut s, 550.0, 140.0);
+    assert_eq!(fill(&mut s, b), red, "the kept painter paints the first shape");
+    assert_eq!(fill(&mut s, c), red, "and the next");
+    let selected = s.doc().unwrap().selection.shapes.clone();
+    assert_eq!(s.key("Escape", Mods::default()).unwrap()["handled"], true);
+    assert!(s.painter.is_none(), "Escape puts the painter down");
+    assert_eq!(s.doc().unwrap().selection.shapes, selected, "and leaves the selection alone");
+    s.execute("edit.select", &json!({"ids": [b]})).unwrap();
+    s.execute("shape.fill", &json!({"color": "#00FF00"})).unwrap();
+    let green = fill(&mut s, b);
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    click(&mut s, 350.0, 140.0);
+    assert_eq!(fill(&mut s, b), green, "a click after Escape paints nothing");
+}

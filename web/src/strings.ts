@@ -1,6 +1,8 @@
 import type { Catalog } from '@kition/sdk/editor'
 import ribbonEN from './i18n/locales/en-US/ribbon.json'
 import ribbonZH from './i18n/locales/zh-CN/ribbon.json'
+import formatEN from './i18n/locales/en-US/format.json'
+import formatZH from './i18n/locales/zh-CN/format.json'
 
 /** The editor's strings. `en-US` is required (UI protocol section 4); the others fall back to it. */
 const enUS: Catalog = {
@@ -337,6 +339,6 @@ const zhCN: Catalog = {
   'link.untitled': '无标题幻灯片',
 }
 
-export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN }, 'zh-CN': { ...zhCN, ...ribbonZH } }
+export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN, ...formatEN }, 'zh-CN': { ...zhCN, ...ribbonZH, ...formatZH } }
 
 export type { Strings as T } from '@kition/sdk/editor'

@@ -28,7 +28,7 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 |---|---|---|---|
 | Menu-bar items with a Kition Slide equivalent | 217 app-specific items | 128 matched by name (59%, heuristic lower bound) | One parameterized command (`insert.chart {type}`) stands for many menu items, which a name match cannot see |
 | Ribbon tabs: Home, Insert, Draw, Design, Transitions, Animations, Slide Show, Record, Review, View | 10 | 10 | Record tab is a placeholder |
-| Contextual tabs: Shape Format, Picture Format, Table Design, Table Layout, Chart Design, Chart Format, Video/Audio Format and Playback | yes | most; checklist P0 row partial | Chart Format, media tabs thinner |
+| Contextual tabs: Shape Format, Picture Format, Table Design, Table Layout, Chart Design, Chart Format, Video/Audio Format and Playback | yes | most; checklist P0 row partial | Shape Format and Picture Format are the editor's own: fill, outline and effects menus, align, order, group, rotate, typed height, width and rotation, no parameter forms, in Chinese too; selecting an object brings its tab forward and clearing the selection goes back, as WPS does (`web/tests/hand/format.mjs`). Chart Format, media tabs thinner |
 | Status bar: slide counter, language, notes, comments, views, zoom slider | yes | yes | Zoom goes 10% at a time to multiples of 10 within 10%–400% (as WPS), the percentage takes a typed value, Fit fits the slide as it opens (`web/tests/hand/zoom.mjs`) |
 | Command search (Tell Me) | yes | no | |
 | Light / dark appearance | follows the system | follows the host's theme | |
@@ -61,7 +61,8 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Edit points on freeforms | yes | **no** |
 | Crop handles, crop to shape, aspect ratio | yes | partial |
 | Text caret, selection, double/triple click, drag-select | yes | yes (three clicks select the paragraph, `web/tests/hand/pointer.mjs`); Tab in text boxes ends editing |
-| Exact size/position, lock aspect | yes | yes |
+| Exact size/position, lock aspect | yes | yes: Shape Format's height, width and rotation fields take a typed value (centimetres, or with its unit), with the aspect ratio locked on demand (`web/tests/hand/format.mjs`) |
+| Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
 | Context menus on shapes, slides, text, thumbnails | yes | yes, shorter |
 | Drag and drop of files and between thumbnails | yes | yes |
@@ -71,7 +72,7 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 ## Keyboard shortcuts
 
 Every common PowerPoint for Mac shortcut is bound (checklist row done): new slide, duplicate,
-group/ungroup, bold/italic/underline, alignment, font size, list levels, Format Painter, show from
+group/ungroup (Cmd+G, Cmd+Shift+G, as WPS), bold/italic/underline, alignment, font size, list levels, Format Painter, show from
 start/current, view switching. Not yet: Cmd+F Find opening a find bar on the slide, Option+drag
 precision without snapping, F6 pane cycling, ribbon KeyTips (Windows). With nothing selected Home and
 End go to the first and last slide, the arrows change slides, Tab selects the first object and Delete
