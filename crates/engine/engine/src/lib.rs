@@ -189,6 +189,9 @@ pub struct DocState {
     pub title: String,
     /// The document's KDM replica and what it last saw ([`kdm_bridge`]).
     pub(crate) link: kdm_bridge::Link,
+    /// The run of typing, deleting or nudging under way ([`keys`]): the person's next keystroke
+    /// of the same kind joins its undo step. Session state, never written.
+    pub(crate) run: Option<keys::EditRun>,
 }
 
 static NEXT_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -206,6 +209,7 @@ impl DocState {
             path,
             revision: 1,
             interaction: None,
+            run: None,
             uid: NEXT_UID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             title,
         }
@@ -544,12 +548,24 @@ impl Session {
         if let Some(st) = self.active_mut() {
             clamp_selection(st);
         }
+        // A command that changed the document or the selection ends a run of typing or nudges
+        // (`keys::EditRun`), unless it is the run's own next keystroke; one that only reads leaves
+        // it.
+        if outer
+            && let (Some((uid, old, sel)), Some(st)) = (&before, self.active_mut())
+            && st.uid == *uid
+            && !st.link.join
+            && (!Arc::ptr_eq(old, &st.doc) || *sel != st.selection)
+        {
+            st.run = None;
+        }
         if let (Some((uid, old, sel)), Some(st)) = (before, self.active_mut())
             && st.uid == uid
             && !Arc::ptr_eq(&old, &st.doc)
             && (st.interaction.is_none() || beside)
             && spec.undoable
             && outer
+            && !st.link.join
         {
             push_undo(st, HistoryEntry { label: spec.label.to_string(), doc: old, selection: sel, steps: 0, agent: false });
         }

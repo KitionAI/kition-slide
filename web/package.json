@@ -23,7 +23,7 @@
     "test:focus-escape": "node tests/focus-escape.mjs chromium && node tests/focus-escape.mjs webkit",
     "test:replica": "node tests/replica.mjs chromium && node tests/replica.mjs webkit",
     "test:drafts": "node tests/drafts.mjs chromium && node tests/drafts.mjs webkit",
-    "test:hand-input": "node tests/hand/keys.mjs chromium && node tests/hand/zoom.mjs chromium && node tests/hand/keys.mjs webkit && node tests/hand/zoom.mjs webkit",
+    "test:hand-input": "node tests/hand/keys.mjs chromium && node tests/hand/zoom.mjs chromium && node tests/hand/undo.mjs chromium && node tests/hand/keys.mjs webkit && node tests/hand/zoom.mjs webkit && node tests/hand/undo.mjs webkit",
     "test:hand-canvas": "node tests/hand/handles.mjs chromium && node tests/hand/pointer.mjs chromium && node tests/hand/handles.mjs webkit && node tests/hand/pointer.mjs webkit",
     "test:hand-panel": "node tests/hand/menus.mjs chromium && node tests/hand/format.mjs chromium && node tests/hand/menus.mjs webkit && node tests/hand/format.mjs webkit",
     "test:contract": "node ../../kition-sdk/tools/check-manifest.mjs ../kit.json --module public/engine"

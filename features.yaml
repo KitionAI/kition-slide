@@ -489,6 +489,15 @@ features:
     gap: "The rare commands (alt text, text box margins, paragraph, text outline, quick style, custom crop and corrections) stay in More with their parameter forms, whose fields keep the parameters' English names. While text is edited no tab comes forward (its formatting is on Home; WPS brings a Text Tools tab). Change Shape offers 18 common shapes, not every preset (stage 9). No eyedropper or More Colors dialog. Clicking a loaded Format Painter again loads it again rather than putting it down (Escape puts it down)."
     cases: [regressions/issue-hand-g5-align-direct, regressions/issue-hand-g8-mode-step-down, regressions/issue-hand-g11-zh-format-tab]
     since: "2026-11-27"
+  - id: slide.editor.undo-runs
+    title: "Undo steps as WPS takes them: a run of typing is one step however long and whatever the pauses in it, Backspace or Delete pressed in a row is one, an arrow key held on a selection (or pressed again with nothing between) is one; moving the caret, a click, Enter, switching between typing and deleting, another command, formatting, leaving the text, another shape or another selection end the run; an input method's commit of several characters is a step of its own; an agent's edit in the middle is the agent's own step, and a collaborator's change, a merged draft or a restored version ends the run; each run is one step of the document's replica too, however long"
+    dimension: [function, data-safety]
+    priority: P1
+    status: has
+    paths: [crates/engine/engine/src/keys.rs, crates/engine/engine/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/engine/engine/src/tools.rs, crates/engine/engine/src/tests.rs, crates/engine/engine/tests/kdm_bridge.rs, web/tests/hand/undo.mjs]
+    gap: "A one-character commit of an input method (one Chinese character chosen alone) joins the typing run around it; WPS makes every commit its own step (W-R2), which needs the editor to tell the engine a commit came from composition (stage 4). Paste stays a step of its own. The undo button still says only Undo, not what it takes back."
+    cases: [regressions/issue-hand-i2-typing-undo, regressions/issue-hand-i4-nudge-undo]
+    since: "2026-11-27"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

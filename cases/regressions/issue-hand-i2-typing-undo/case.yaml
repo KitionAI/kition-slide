@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-i2-typing-undo
+feature: slide.editor.undo-runs
+intent: "Typing \"one two three\" with a 2.6 s pause in the middle is one undo step: one Cmd+Z empties the text box and one Cmd+Shift+Z brings the words back; typing, moving the caret and typing again are two steps, and three Backspaces in a row are one (each character was a step of its own; walkthrough I2, WPS W-H1, W-H2)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/undo.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/undo.mjs, chromium, i2-typing-undo, i2-typing-steps]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

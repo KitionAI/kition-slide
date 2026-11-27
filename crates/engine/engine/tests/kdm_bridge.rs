@@ -314,6 +314,107 @@ fn a_draft_merged_in_the_middle_of_a_drag_ends_the_drag_as_its_own_step() {
     assert_holds(&a, "after both redos");
 }
 
+/// Types `text` one key at a time, as the editor's text sink sends it.
+fn type_keys(s: &mut Session, text: &str) {
+    for c in text.chars() {
+        s.type_text(&c.to_string()).unwrap();
+    }
+}
+
+/// A run of typing is one undo step and one replica step (plan stage 2, WPS W-H1), and an agent's
+/// command in the middle of it is the agent's own step: the person's undo takes back only their
+/// typing, the agent's undo only its command, and the histories agree with the replica's.
+#[test]
+fn an_agents_edit_in_the_middle_of_typing_is_its_own_step() {
+    let mut a = new_session();
+    let agent = Origin::agent("test");
+    let name = doc(&a).slides[1].name.clone();
+    let id = shape_ids(&a)[0];
+    a.execute("text.edit", &json!({"id": id})).unwrap();
+    let (entries, replica) = (a.active().unwrap().history.undo.len(), replica_steps(&a));
+    type_keys(&mut a, "bcd");
+    assert_eq!(first_text(&a), "Abcd");
+    assert_eq!(a.active().unwrap().history.undo.len(), entries + 1, "one history step");
+    assert_eq!(replica_steps(&a), replica + 1, "one replica step");
+    assert_histories_agree(&a, "after typing");
+    a.execute_as("slide.rename", &json!({"name": "Agent", "index": 1}), &agent).unwrap();
+    type_keys(&mut a, "ef");
+    assert_eq!(first_text(&a), "Abcdef");
+    assert_holds(&a, "after the second run");
+    assert_histories_agree(&a, "after the second run");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(
+        (first_text(&a).as_str(), doc(&a).slides[1].name.as_str()),
+        ("Abcd", "Agent"),
+        "the person's undo: their typing after the agent's edit"
+    );
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("A", "Agent"), "then their typing before it, never the agent's edit");
+    assert_holds(&a, "after the person's undos");
+    assert_histories_agree(&a, "after the person's undos");
+    a.execute_as("edit.undo", &json!({}), &agent).unwrap();
+    assert_eq!(doc(&a).slides[1].name, name, "the agent's undo takes its edit back");
+    a.execute("edit.redo", &json!({})).unwrap();
+    a.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(first_text(&a), "Abcdef");
+    assert_holds(&a, "after the redos");
+    assert_histories_agree(&a, "after the redos");
+}
+
+/// A draft merged in the middle of a run of typing ends the run where it is: the typing before
+/// the merge, the merge and the typing after it are three steps of the person's undo.
+#[test]
+fn a_draft_merged_in_the_middle_of_typing_ends_the_run() {
+    let mut a = new_session();
+    let name = doc(&a).slides[1].name.clone();
+    let base = a.version().unwrap();
+    let mut draft = peer(&mut a);
+    draft.execute("slide.rename", &json!({"name": "Draft", "index": 1})).unwrap();
+    let changes = draft.export_changes(&base).unwrap();
+    let id = shape_ids(&a)[0];
+    a.execute("text.edit", &json!({"id": id})).unwrap();
+    let entries = a.active().unwrap().history.undo.len();
+    type_keys(&mut a, "bc");
+    a.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
+    type_keys(&mut a, "de");
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abcde", "Draft"));
+    assert_eq!(a.active().unwrap().history.undo.len(), entries + 3, "the typing, the merge, the typing");
+    assert_holds(&a, "after the merge");
+    assert_histories_agree(&a, "after the merge");
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abc", "Draft"));
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abc", name.as_str()));
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(first_text(&a), "A");
+    assert_holds(&a, "after the undos");
+    assert_histories_agree(&a, "after the undos");
+}
+
+/// A collaborator's change that comes in while the person types: both are kept, the person's typing
+/// before and after it are their own steps, and undo leaves the collaborator's change.
+#[test]
+fn a_remote_edit_in_the_middle_of_typing_keeps_both() {
+    let mut a = new_session();
+    let mut b = peer(&mut a);
+    let id = shape_ids(&a)[0];
+    a.execute("text.edit", &json!({"id": id})).unwrap();
+    type_keys(&mut a, "bc");
+    b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
+    send(&mut b, &mut a);
+    type_keys(&mut a, "de");
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abcde", "Remote"));
+    assert_holds(&a, "after the typing");
+    assert_histories_agree(&a, "after the typing");
+    a.execute("edit.undo", &json!({})).unwrap();
+    a.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("A", "Remote"), "two undos take the typing back, not the remote edit");
+    assert_holds(&a, "after the undos");
+    assert_histories_agree(&a, "after the undos");
+    send(&mut a, &mut b);
+    assert_same(&mut a, &mut b, "after the undos");
+}
+
 #[test]
 fn undo_back_to_the_saved_slide_file_is_clean() {
     let mut s = new_session();

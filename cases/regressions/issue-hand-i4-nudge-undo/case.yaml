@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-i4-nudge-undo
+feature: slide.editor.undo-runs
+intent: "An arrow key held down on a selected shape (the press and nine repeats) is one undo step: one Cmd+Z puts the shape back where it was (each nudge was a step of its own; walkthrough I4, D5)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/undo.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/undo.mjs, chromium, i4-nudge-undo]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

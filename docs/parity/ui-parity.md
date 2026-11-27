@@ -55,7 +55,8 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Marquee, Shift/Cmd multi-select, Tab to cycle | yes | yes |
 | Smart guides (edges, centres, equal spacing) | yes | yes |
 | Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
-| Nudge (arrows), fine nudge (Option+arrows) | yes | yes |
+| Nudge (arrows), fine nudge (Option+arrows) | yes | yes; an arrow key held on a selection is one undo step (`web/tests/hand/undo.mjs`) |
+| Undo of typing | a run of typing is one step | the same, as WPS: a run of typing is one step whatever its pauses, Backspaces in a row are one, moving the caret, Enter, a click or another command start a new one (`web/tests/hand/undo.mjs`) |
 | Shift-constrained move, Option-drag to duplicate | yes | yes; a Shift drag stays on its axis against the grid and guides |
 | Connector glue and rerouting | yes | yes |
 | Edit points on freeforms | yes | **no** |

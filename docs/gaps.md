@@ -45,7 +45,8 @@ land work, then this list. The comparison with the target application is in
 - `slide.editor.keyboard-and-view`: Checked in the development host only: whether Kition Desktop gives the editor the keyboard as a file opens is the host's part. A trackpad swipe turning one page and a real mouse notch's delta are checked with synthetic wheel events only.
 - `slide.editor.pointer-feedback`: A press on a selected shape still enters its text wherever it lands (the move pointer shows away from the words; stage 3 makes the press follow the pointer, WPS W-F2). No hover outline: neither PowerPoint nor Keynote draws one. The rotation handle's place and the handles' reach are the kit's own (kition-office-core's box_handles keeps 20 pt for doc and sheet).
 - `slide.editor.arrange-and-size`: The rare commands (alt text, text box margins, paragraph, text outline, quick style, custom crop and corrections) stay in More with their parameter forms, whose fields keep the parameters' English names. While text is edited no tab comes forward (its formatting is on Home; WPS brings a Text Tools tab). Change Shape offers 18 common shapes, not every preset (stage 9). No eyedropper or More Colors dialog. Clicking a loaded Format Painter again loads it again rather than putting it down (Escape puts it down).
+- `slide.editor.undo-runs`: A one-character commit of an input method (one Chinese character chosen alone) joins the typing run around it; WPS makes every commit its own step (W-R2), which needs the editor to tell the engine a commit came from composition (stage 4). Paste stays a step of its own. The undo button still says only Undo, not what it takes back.
 
 ## Catalogue
 
-The catalogue has 50 features: 28 `has`, 22 not yet.
+The catalogue has 51 features: 29 `has`, 22 not yet.

@@ -1,10 +1,60 @@
 //! Keyboard: text-editing keys while editing text, nudges and shortcuts otherwise. Shared by the
 //! UI, the control channel and MCP so a key does the same thing everywhere.
 
+use std::sync::Arc;
+
+use kition_slide_model::SlideFile;
 use serde_json::{Value, json};
 
 use crate::tools::Mods;
-use crate::{Result, Session};
+use crate::{DocState, Result, Selection, Session};
+
+/// What a run of keystrokes is (plan stage 2; WPS W-H1, W-H2): characters typed one after
+/// another, Backspace or Delete pressed one after another, arrow-key nudges of one selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RunKind {
+    Typing,
+    Deleting,
+    Nudging,
+}
+
+/// A run under way: the person's next keystroke of the same kind joins its undo step (one step
+/// however long the run, a pause too), as long as the document, the selection and the history are
+/// exactly as its last keystroke left them. Anything else in between ends it: moving the caret or
+/// changing the selection (keys or the pointer), another command (formatting too), undo, an
+/// agent's edit, a collaborator's change, a merged draft or a restored version.
+#[derive(Clone, Debug)]
+pub(crate) struct EditRun {
+    kind: RunKind,
+    doc: Arc<SlideFile>,
+    selection: Selection,
+    pushed: u64,
+    undo: usize,
+    redo: usize,
+}
+
+impl EditRun {
+    fn after(kind: RunKind, st: &DocState) -> Self {
+        EditRun {
+            kind,
+            doc: st.doc.clone(),
+            selection: st.selection.clone(),
+            pushed: st.history.pushed,
+            undo: st.history.undo.len(),
+            redo: st.history.redo.len(),
+        }
+    }
+
+    fn goes_on(&self, kind: RunKind, st: &DocState) -> bool {
+        self.kind == kind
+            && Arc::ptr_eq(&self.doc, &st.doc)
+            && self.selection == st.selection
+            && self.pushed == st.history.pushed
+            && self.undo == st.history.undo.len()
+            && self.redo == st.history.redo.len()
+            && st.history.undo.last().is_some_and(|e| !e.agent)
+    }
+}
 
 /// Does a shortcut like `Cmd+Shift+]` match `key` + `mods`?
 pub fn shortcut_matches(shortcut: &str, key: &str, mods: Mods) -> bool {
@@ -25,9 +75,62 @@ impl Session {
     /// `ArrowLeft`…, `Home`, `End`, `PageUp`, `PageDown`, `F5`) or a character (`b`, `]`).
     /// Returns `{handled: bool, …}`.
     pub fn key(&mut self, key: &str, mods: Mods) -> Result<Value> {
-        let r = self.key_press(key, mods);
+        let r = match self.run_kind(key, mods) {
+            Some(kind) => self.in_run(kind, |s| s.key_press(key, mods)),
+            None => {
+                self.end_run();
+                self.key_press(key, mods)
+            }
+        };
         self.sync_all_kdm();
         r
+    }
+
+    /// The run a key press goes on with: Backspace and Delete (Alt too) while text is edited, an
+    /// arrow key that nudges the selected shapes. Any other key ends the run.
+    fn run_kind(&self, key: &str, mods: Mods) -> Option<RunKind> {
+        let st = self.active()?;
+        if mods.cmd || st.interaction.is_some() {
+            return None;
+        }
+        let k = key.to_ascii_lowercase();
+        let k = k.trim_start_matches("arrow");
+        if st.selection.text.is_some() {
+            return matches!(k, "backspace" | "delete").then_some(RunKind::Deleting);
+        }
+        let nudges = !st.selection.shapes.is_empty() && st.selection.cells.is_none();
+        (nudges && matches!(k, "left" | "right" | "up" | "down")).then_some(RunKind::Nudging)
+    }
+
+    /// Runs `edit`, one keystroke of a run of `kind`: the person's keystroke that goes on with the
+    /// run under way pushes no undo step and joins the run's one (and its replica step); one that
+    /// changed the document starts or goes on with the run. An agent's keystroke is a step of its
+    /// own and ends the run.
+    fn in_run(&mut self, kind: RunKind, edit: impl FnOnce(&mut Self) -> Result<Value>) -> Result<Value> {
+        let person = !self.acts_as_agent();
+        let Some(st) = self.active_mut() else { return edit(self) };
+        let run = st.run.take();
+        let joins = person && run.is_some_and(|run| run.goes_on(kind, st));
+        st.link.join = joins;
+        let (uid, before) = (st.uid, st.doc.clone());
+        let r = edit(self);
+        self.sync_all_kdm();
+        if let Some(st) = self.active_mut()
+            && st.uid == uid
+        {
+            st.link.join = false;
+            if person && r.is_ok() && (joins || !Arc::ptr_eq(&before, &st.doc)) {
+                st.run = Some(EditRun::after(kind, st));
+            }
+        }
+        r
+    }
+
+    /// Ends the run of typing or nudges under way: the next keystroke is a step of its own.
+    pub(crate) fn end_run(&mut self) {
+        for st in &mut self.docs {
+            st.run = None;
+        }
     }
 
     fn key_press(&mut self, key: &str, mods: Mods) -> Result<Value> {
@@ -160,8 +263,19 @@ impl Session {
     }
 
     /// Type text: into the text being edited, or (a shape selected) start editing it.
+    ///
+    /// One character typed goes on with the run of typing under way (one undo step, WPS W-H1);
+    /// more at once (an input method's commit, W-R2) or a line break is a step of its own and ends
+    /// the run.
     pub fn type_text(&mut self, text: &str) -> Result<Value> {
-        let r = self.type_into(text);
+        let mut chars = text.chars();
+        let one = chars.next().is_some_and(|c| !matches!(c, '\n' | '\r' | '\u{b}')) && chars.next().is_none();
+        let r = if one {
+            self.in_run(RunKind::Typing, |s| s.type_into(text))
+        } else {
+            self.end_run();
+            self.type_into(text)
+        };
         self.sync_all_kdm();
         r
     }

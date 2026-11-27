@@ -445,6 +445,11 @@ impl Session {
     /// Feed a pointer event to the active tool. Returns what happened (for agents). What it
     /// changed is written to the document's replica (a gesture's when it ends: one step).
     pub fn pointer(&mut self, ev: PointerEvent) -> Result<Value> {
+        // A press (a click that puts the caret anywhere, even where it was) ends a run of typing
+        // or nudges (WPS W-H2).
+        if !matches!(ev.kind, PointerKind::Move | PointerKind::Drag | PointerKind::Up) {
+            self.end_run();
+        }
         let r = self.pointer_event(ev);
         self.sync_all_kdm();
         r

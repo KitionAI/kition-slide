@@ -1529,3 +1529,248 @@ fn group_keys_and_a_kept_painter_put_down_by_escape() {
     click(&mut s, 350.0, 140.0);
     assert_eq!(fill(&mut s, b), green, "a click after Escape paints nothing");
 }
+
+// Stage 2 of the slide-by-hand plan: the undo steps of typing and nudging (walkthrough I2, I4;
+// WPS W-H1, W-H2, W-R2). A run of keystrokes of one kind is one undo step, whatever its length
+// and however long the person paused (the engine has no clock: nothing but another action ends a
+// run); moving the caret, a click, Enter, another command, leaving the text, another shape, an
+// agent's edit and a merged draft end it.
+
+/// A new blank slide with an empty text box being edited (as the text box tool leaves it);
+/// answers the box's id.
+fn typing_box(s: &mut Session) -> u64 {
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    s.execute("textBox.insert", &json!({"rect": [100, 100, 400, 40]})).unwrap()["id"].as_u64().unwrap()
+}
+
+/// Types `text` one key at a time, as the editor's text sink sends it.
+fn type_keys(s: &mut Session, text: &str) {
+    for c in text.chars() {
+        s.type_text(&c.to_string()).unwrap();
+    }
+}
+
+fn press(s: &mut Session, key: &str) {
+    s.key(key, Mods::default()).unwrap();
+}
+
+fn text_of(s: &mut Session, id: u64) -> String {
+    s.execute("text.get", &json!({"id": id})).unwrap()["text"].as_str().unwrap().to_owned()
+}
+
+fn undo_steps(s: &Session) -> usize {
+    s.doc().unwrap().history.undo.len()
+}
+
+/// The replica's own undo steps.
+fn replica_undo_steps(s: &Session) -> usize {
+    s.kdm().map_or(0, |k| k.steps().0)
+}
+
+fn undo(s: &mut Session) {
+    s.execute("edit.undo", &json!({})).unwrap();
+}
+
+fn redo(s: &mut Session) {
+    s.execute("edit.redo", &json!({})).unwrap();
+}
+
+#[test]
+fn typing_is_one_undo_step() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    let (steps, replica) = (undo_steps(&s), replica_undo_steps(&s));
+    type_keys(&mut s, "one two three");
+    assert_eq!(text_of(&mut s, id), "one two three");
+    assert_eq!(undo_steps(&s), steps + 1, "one history step for the whole run");
+    assert_eq!(replica_undo_steps(&s), replica + 1, "one replica step");
+    assert_eq!(s.doc().unwrap().history.undo.last().map(|e| e.steps), Some(1));
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "", "one undo takes the whole run back (WPS W-H1)");
+    redo(&mut s);
+    assert_eq!(text_of(&mut s, id), "one two three", "one redo brings it back");
+}
+
+#[test]
+fn a_run_longer_than_the_replicas_step_limit_is_still_one_step() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    let long = "abcdefghij ".repeat(15);
+    type_keys(&mut s, &long);
+    assert_eq!(text_of(&mut s, id), long);
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "", "165 keystrokes, one undo");
+    redo(&mut s);
+    assert_eq!(text_of(&mut s, id), long);
+}
+
+#[test]
+fn moving_the_caret_and_switching_between_typing_and_deleting_end_the_run() {
+    // WPS W-H2: type " dd", move the caret, type " ee", Backspace twice, type "XY"; four undos
+    // take back "XY", the two deleted characters, " ee" and " dd" in turn.
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, " dd");
+    press(&mut s, "ArrowLeft");
+    press(&mut s, "ArrowRight");
+    type_keys(&mut s, " ee");
+    press(&mut s, "Backspace");
+    press(&mut s, "Backspace");
+    type_keys(&mut s, "XY");
+    assert_eq!(text_of(&mut s, id), " dd XY");
+    let mut seen = Vec::new();
+    for _ in 0..4 {
+        undo(&mut s);
+        seen.push(text_of(&mut s, id));
+    }
+    assert_eq!(seen, [" dd ", " dd ee", " dd", ""]);
+}
+
+#[test]
+fn backspaces_in_a_row_are_one_step() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    s.type_text("Hello world").unwrap();
+    let steps = undo_steps(&s);
+    for _ in 0..3 {
+        press(&mut s, "Backspace");
+    }
+    press(&mut s, "Delete");
+    assert_eq!(text_of(&mut s, id), "Hello wo");
+    assert_eq!(undo_steps(&s), steps + 1, "Backspace and Delete in a row: one step");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "Hello world");
+}
+
+#[test]
+fn enter_is_a_step_of_its_own() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    press(&mut s, "Enter");
+    type_keys(&mut s, "cd");
+    assert_eq!(text_of(&mut s, id), "ab\ncd");
+    let mut seen = Vec::new();
+    for _ in 0..3 {
+        undo(&mut s);
+        seen.push(text_of(&mut s, id));
+    }
+    assert_eq!(seen, ["ab\n", "ab", ""]);
+}
+
+#[test]
+fn another_command_ends_the_run() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    let r = s.key("b", Mods { cmd: true, ..Mods::default() }).unwrap();
+    assert_eq!(r["command"], "format.bold");
+    type_keys(&mut s, "cd");
+    assert_eq!(text_of(&mut s, id), "abcd");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "ab", "the typing after the formatting is a step of its own");
+}
+
+#[test]
+fn leaving_the_text_or_going_to_another_shape_ends_the_run() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    // Out of the text and back to the very same caret (the end of the text).
+    press(&mut s, "Escape");
+    s.execute("text.edit", &json!({"id": id})).unwrap();
+    type_keys(&mut s, "cd");
+    // The same, through commands only (an editor's Escape, a click on the text).
+    s.execute("text.exit", &json!({})).unwrap();
+    s.execute("text.edit", &json!({"id": id})).unwrap();
+    type_keys(&mut s, "ef");
+    // Another shape, and back.
+    let other = s.execute("textBox.insert", &json!({"rect": [100, 300, 400, 40]})).unwrap()["id"].as_u64().unwrap();
+    type_keys(&mut s, "x");
+    s.execute("text.edit", &json!({"id": id})).unwrap();
+    type_keys(&mut s, "gh");
+    assert_eq!(text_of(&mut s, id), "abcdefgh");
+    assert_eq!(text_of(&mut s, other), "x");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "abcdef");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, other), "");
+    undo(&mut s);
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "abcd");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "ab");
+}
+
+#[test]
+fn a_click_ends_the_run_even_where_the_caret_was() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    // A press with nothing under it changes the selection; the run ends at the press itself.
+    let ev = |kind| PointerEvent { kind, x: 900.0, y: 500.0, mods: Mods::default(), tol: 3.0 };
+    s.pointer(ev(PointerKind::Down)).unwrap();
+    s.pointer(ev(PointerKind::Up)).unwrap();
+    s.execute("text.edit", &json!({"id": id})).unwrap();
+    type_keys(&mut s, "cd");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "ab");
+}
+
+#[test]
+fn an_input_methods_commit_is_a_step_of_its_own() {
+    // WPS W-R2: commit "你好", then "中"; one undo takes back only "中".
+    let mut s = session();
+    let id = typing_box(&mut s);
+    s.type_text("你好").unwrap();
+    s.type_text("中").unwrap();
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "你好");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "");
+}
+
+#[test]
+fn an_agents_typing_is_never_joined() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    let agent = Origin::agent("test");
+    let steps = undo_steps(&s);
+    let previous = s.set_origin(Some(agent));
+    type_keys(&mut s, "abc");
+    s.set_origin(previous);
+    assert_eq!(text_of(&mut s, id), "abc");
+    assert_eq!(undo_steps(&s), steps + 3, "each of the agent's keystrokes is its own step");
+}
+
+#[test]
+fn held_arrow_keys_nudge_in_one_step() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [400, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
+    let x = |s: &mut Session, id: u64| s.execute("shape.inspect", &json!({"id": id})).unwrap()["box"]["x"].as_f64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    let steps = undo_steps(&s);
+    for _ in 0..10 {
+        press(&mut s, "ArrowRight");
+    }
+    press(&mut s, "ArrowLeft");
+    assert_eq!(x(&mut s, a), 154.0);
+    assert_eq!(undo_steps(&s), steps + 1, "a held arrow key (and a turn back) is one step");
+    // Another selection: a step of its own.
+    s.execute("edit.select", &json!({"ids": [b]})).unwrap();
+    press(&mut s, "ArrowDown");
+    press(&mut s, "ArrowDown");
+    // Back to the first shape: a new run, not the old one.
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    press(&mut s, "ArrowRight");
+    assert_eq!(undo_steps(&s), steps + 3);
+    undo(&mut s);
+    assert_eq!(x(&mut s, a), 154.0);
+    undo(&mut s);
+    assert_eq!(s.execute("shape.inspect", &json!({"id": b})).unwrap()["box"]["y"].as_f64(), Some(100.0));
+    undo(&mut s);
+    assert_eq!(x(&mut s, a), 100.0, "one undo takes all the first run's nudges back");
+}

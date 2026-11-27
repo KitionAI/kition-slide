@@ -63,11 +63,15 @@ pub struct Link {
     /// The person may only comment ([`Session::set_comment_only`]): writes go through
     /// [`SlideSession::set_comment_only`].
     pub(crate) comment_only: bool,
+    /// The edit running now is the next keystroke of a run of typing or nudges (`crate::keys`): it
+    /// pushes no history step, and the next sync writes it into the top step's replica step
+    /// ([`DocState::join_kdm`]). Cleared by that sync.
+    pub(crate) join: bool,
 }
 
 impl Link {
     pub(crate) fn new(doc: &Arc<SlideFile>) -> Self {
-        Self { kdm: None, synced: doc.clone(), resets: 0, mark: 0, pending: 0, comment_only: false }
+        Self { kdm: None, synced: doc.clone(), resets: 0, mark: 0, pending: 0, comment_only: false, join: false }
     }
 }
 
@@ -100,6 +104,7 @@ impl DocState {
                 self.doc = Arc::new(doc);
             }
         }
+        let join = std::mem::take(&mut self.link.join);
         let pushed = self.history.pushed_since(self.link.mark);
         self.link.mark = self.history.pushed;
         if pushed.is_empty() && self.link.pending == 0 && Arc::ptr_eq(&self.link.synced, &self.doc) {
@@ -116,9 +121,13 @@ impl DocState {
             }
             let mut steps = std::mem::take(&mut self.link.pending);
             if !Arc::ptr_eq(&self.link.synced, &self.doc) {
-                let origin = if self.history.redo.is_empty() { origin.clone() } else { Origin::system("view") };
                 let after = self.doc.clone();
-                steps = steps.saturating_add(self.record_kdm(&origin, &after).unwrap_or(0));
+                if join {
+                    steps = steps.saturating_add(self.join_kdm(origin, &after).unwrap_or(0));
+                } else {
+                    let origin = if self.history.redo.is_empty() { origin.clone() } else { Origin::system("view") };
+                    steps = steps.saturating_add(self.record_kdm(&origin, &after).unwrap_or(0));
+                }
             }
             if steps > 0
                 && let Some(top) = self.history.undo.last_mut()
@@ -178,6 +187,31 @@ impl DocState {
                 None
             }
         }
+    }
+
+    /// Writes the next keystroke of a run (typing, deleting, nudging: `crate::keys`) into the
+    /// replica step of the run's history step, the top one (`SlideSession::record_in_step`), so a
+    /// run of any length is one replica step, as it is one history step. When the replica's newest
+    /// change is not that step's (no replica yet, or it was left), the keystroke is a replica step
+    /// of its own that the history step counts too: answers the replica steps it added.
+    fn join_kdm(&mut self, origin: &Origin, after: &Arc<SlideFile>) -> Option<u32> {
+        let scope = if origin.kind == OriginKind::Agent { UndoScope::Agent } else { UndoScope::Person };
+        if let Some(kdm) = self.link.kdm.as_mut() {
+            kdm.set_comment_only(self.link.comment_only);
+            // Refused (the step is not the newest change) writes nothing: the keystroke is then
+            // recorded as its own replica step below.
+            if let Ok(kept) = kdm.record_in_step(scope, origin, after) {
+                self.link.synced = after.clone();
+                if kept.is_none()
+                    && let Some(top) = self.history.undo.last_mut()
+                {
+                    // The run now changes nothing: the replica dropped its step.
+                    top.steps = top.steps.saturating_sub(1);
+                }
+                return Some(0);
+            }
+        }
+        self.record_kdm(origin, after)
     }
 
     /// [`DocState::record_kdm`] joining the top undo step of `scope` (`SlideSession::record_in_step`),
@@ -736,8 +770,10 @@ impl Session {
             return Err(EngineError::Other("a commenter can only comment: a draft or an earlier version is not theirs to take in".into()));
         }
         let origin_now = self.origin();
-        // A gesture under way ends where it is, as its own undo step below the one taken in.
+        // A gesture under way ends where it is, as its own undo step below the one taken in; so
+        // does a run of typing or nudges (the next keystroke is a step of its own).
         self.end_gesture();
+        self.end_run();
         let st = self.doc_mut()?;
         st.sync_kdm(&origin_now, false);
         let kdm = self.active_kdm(true)?;
