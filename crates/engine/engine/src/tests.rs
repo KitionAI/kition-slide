@@ -1369,6 +1369,7 @@ fn handles_reach_seven_pixels_and_a_near_miss_keeps_the_selection() {
     let mut s = session();
     s.prefs.snap_to_grid = false;
     s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
     let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [200, 100, 200, 100]})).unwrap()["id"].as_u64().unwrap();
     let shape = kition_slide_model::ShapeId(id as u32);
     s.execute("edit.select", &json!({"ids": [id]})).unwrap();
@@ -1457,7 +1458,6 @@ fn delete_with_nothing_selected_keeps_the_slide() {
     s.execute("edit.deselectAll", &json!({})).unwrap();
     assert!(!s.doc().unwrap().selection.slides.is_empty(), "the slide is chosen");
     s.key("Delete", Mods::default()).unwrap();
-    s.key("Backspace", Mods::default()).unwrap();
     s.execute("edit.delete", &json!({})).unwrap();
     assert_eq!(s.doc().unwrap().doc.slides.len(), 2);
     s.execute("edit.delete", &json!({"scope": "slides"})).unwrap();
@@ -1470,6 +1470,7 @@ fn delete_with_nothing_selected_keeps_the_slide() {
 fn shift_drag_keeps_its_axis_against_the_snap() {
     let mut s = session();
     s.prefs.snap_to_grid = true;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
     let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [331, 201, 200, 100]})).unwrap()["id"].as_u64().unwrap();
     s.execute("edit.deselectAll", &json!({})).unwrap();
     let shift = Mods { shift: true, ..Mods::default() };

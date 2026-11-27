@@ -349,7 +349,8 @@ fn text_box_doc() -> (SlideDocument, (f64, f64)) {
 }
 
 /// The pointer is the I-beam over text a click puts the caret in (a text box, the text being
-/// edited) and not elsewhere: an unselected shape and the empty slide keep the arrow.
+/// edited, the words of a selected shape) and not elsewhere: a shape shows move, selected or not
+/// when it has no text (plan 0B, walkthrough C3), and the empty slide keeps the arrow.
 #[test]
 fn the_pointer_is_the_text_cursor_over_editable_text_only() {
     let (mut doc, at) = text_box_doc();
@@ -359,9 +360,14 @@ fn the_pointer_is_the_text_cursor_over_editable_text_only() {
     doc.execute("shape.insert", json!({ "preset": "rect", "rect": [500, 300, 100, 100] })).unwrap();
     doc.key("Escape", ToolMods::default(), 1.0).unwrap();
     click(&mut doc, MARGIN + 700.0, MARGIN + 450.0);
-    assert_eq!(moved(&mut doc, (MARGIN + 550.0, MARGIN + 350.0)), "default", "an unselected shape is selected, not typed in");
+    assert_eq!(moved(&mut doc, (MARGIN + 550.0, MARGIN + 350.0)), "move", "an unselected shape is selected and moved, not typed in");
     click(&mut doc, MARGIN + 550.0, MARGIN + 350.0);
-    assert_eq!(moved(&mut doc, (MARGIN + 550.0, MARGIN + 350.0)), "text", "a click on the selected shape types in it");
+    assert_eq!(moved(&mut doc, (MARGIN + 550.0, MARGIN + 350.0)), "move", "a selected shape without text has no text to point at");
+    doc.execute("shape.insert", json!({ "preset": "rect", "rect": [500, 100, 200, 100], "text": "Words" })).unwrap();
+    click(&mut doc, MARGIN + 700.0, MARGIN + 450.0);
+    click(&mut doc, MARGIN + 520.0, MARGIN + 110.0);
+    assert_eq!(moved(&mut doc, (MARGIN + 600.0, MARGIN + 150.0)), "text", "the words of the selected shape take the caret");
+    doc.key("Escape", ToolMods::default(), 1.0).unwrap();
     // While its text is edited: the I-beam inside the box, the arrow far from it.
     click(&mut doc, at.0, at.1);
     click(&mut doc, at.0, at.1);
