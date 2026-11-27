@@ -400,9 +400,11 @@ fn a_remote_edit_in_the_middle_of_typing_keeps_both() {
     let id = shape_ids(&a)[0];
     a.execute("text.edit", &json!({"id": id})).unwrap();
     type_keys(&mut a, "bc");
+    // The typing so far reaches the collaborator (sending it changes nothing here), whose rename
+    // comes in while the run is open.
+    send(&mut a, &mut b);
     b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
-    // Each gets the other's change: a's typing so far goes to b, b's rename comes in.
-    sync(&mut a, &mut b);
+    send(&mut b, &mut a);
     type_keys(&mut a, "de");
     assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abcde", "Remote"));
     assert_holds(&a, "after the typing");
