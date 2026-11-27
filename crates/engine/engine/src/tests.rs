@@ -1358,3 +1358,127 @@ fn charts_refuse_unknown_types_and_draw_waterfall_funnel_treemap_and_combo() {
         Some(kition_slide_model::Fill::solid(kition_slide_model::ColorRef::rgb(kition_slide_color::Rgba::rgb(0x11, 0x22, 0x33))))
     );
 }
+
+/// Plan 0B (walkthrough D7; case regressions/issue-hand-d7-handle-hit): a resize handle reaches
+/// 7 screen pixels, the nearest handle wins, the rotation handle sits 18 screen pixels above the
+/// top edge at any zoom, and a press just outside a selected frame keeps the selection.
+#[test]
+fn handles_reach_seven_pixels_and_a_near_miss_keeps_the_selection() {
+    use crate::tools::{Hit, TOL_PX};
+    use kition_slide_geom::Point;
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [200, 100, 200, 100]})).unwrap()["id"].as_u64().unwrap();
+    let shape = kition_slide_model::ShapeId(id as u32);
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    for zoom in [1.0, 2.0, 0.5] {
+        let tol = TOL_PX / zoom;
+        let px = 1.0 / zoom;
+        // 6.5 px off the SE corner, diagonally out: the SE handle.
+        let off = 6.5 / std::f64::consts::SQRT_2 * px;
+        assert_eq!(s.hit_test(Point::new(400.0 + off, 200.0 + off), tol), Some(Hit::Resize { id: shape, handle: 4 }), "zoom {zoom}");
+        // 18 px above the top edge's middle: the rotation handle; 18 pt at 1x was not it at 2x.
+        assert_eq!(s.hit_test(Point::new(300.0, 100.0 - 18.0 * px), tol), Some(Hit::Rotate { id: shape }), "zoom {zoom}");
+        // 9 px straight out of the E handle: past its reach, but on the frame's band.
+        assert_eq!(s.hit_test(Point::new(400.0 + 9.0 * px, 150.0), tol), Some(Hit::Shape { id: shape, text: false }), "zoom {zoom}");
+        // 12 px out: the empty slide.
+        assert_eq!(s.hit_test(Point::new(400.0 + 12.0 * px, 150.0), tol), None, "zoom {zoom}");
+    }
+    // A press 9 pt (9 px at 1x) right of the E handle keeps the selection; a drag from it moves the shape.
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: TOL_PX };
+    s.pointer(ev(PointerKind::Down, 409.0, 150.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 409.0, 150.0)).unwrap();
+    assert_eq!(s.doc().unwrap().selection.shapes, vec![shape], "a near miss keeps the selection");
+    // 6 px off the E handle's centre, dragged 40 px: a resize.
+    s.pointer(ev(PointerKind::Down, 406.0, 150.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 446.0, 150.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 446.0, 150.0)).unwrap();
+    let v = s.execute("shape.inspect", &json!({"id": id})).unwrap();
+    assert_eq!(v["box"]["w"], 240.0, "{v}");
+    assert_eq!(v["box"]["x"], 200.0, "{v}");
+}
+
+/// Plan 0B (walkthrough C3; case regressions/issue-hand-c3-cursors): what the pointer would do,
+/// which the editor shows as the pointer's shape.
+#[test]
+fn pointing_follows_what_a_press_would_do() {
+    use crate::tools::{Pointing, TOL_PX};
+    use kition_slide_geom::Point;
+    let mut s = session();
+    let tol = TOL_PX;
+    let p = |x: f64, y: f64| Some(Point::new(x, y));
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let star = s.execute("shape.insert", &json!({"preset": "star5", "rect": [100, 100, 200, 200]})).unwrap()["id"].as_u64().unwrap();
+    let rect = s.execute("shape.insert", &json!({"preset": "rect", "rect": [500, 100, 200, 100], "text": "Hello"})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    assert_eq!(s.pointing(p(20.0, 400.0), tol), Pointing::Default, "the empty slide");
+    assert_eq!(s.pointing(p(200.0, 200.0), tol), Pointing::Move, "an unselected shape moves");
+    s.execute("edit.select", &json!({"ids": [star]})).unwrap();
+    assert_eq!(s.pointing(p(200.0, 200.0), tol), Pointing::Move, "a selected star without text is no text");
+    assert_eq!(s.pointing(p(300.0, 200.0), tol), Pointing::Resize { angle: 0.0 }, "E handle");
+    assert_eq!(s.pointing(p(300.0, 300.0), tol), Pointing::Resize { angle: 45.0 }, "SE handle");
+    assert_eq!(s.pointing(p(200.0, 100.0 - 18.0), tol), Pointing::Rotate);
+    // Turned by 30°: the E handle pulls at 30°.
+    s.execute("shape.rotate", &json!({"ids": [star], "deg": 30})).unwrap();
+    let turned = {
+        let st = s.doc().unwrap();
+        crate::cmd::xfrm_of(&st.doc, &st.selection, st.shape(kition_slide_model::ShapeId(star as u32)).unwrap())
+    };
+    assert!((turned.rot - 30.0).abs() < 1e-6, "{turned:?}");
+    let (handles, rotate) = crate::tools::handles(&turned, 1.0);
+    match s.pointing(p(handles[3].x, handles[3].y), tol) {
+        Pointing::Resize { angle } => assert!((angle - 30.0).abs() < 1e-6, "{angle}"),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(s.pointing(p(rotate.x, rotate.y), tol), Pointing::Rotate, "the turned rotation handle");
+    // The selected rectangle with text: the text cursor on its words, the move cursor beside them.
+    s.execute("edit.select", &json!({"ids": [rect]})).unwrap();
+    assert_eq!(s.pointing(p(600.0, 150.0), tol), Pointing::Text, "on its text");
+    assert_eq!(s.pointing(p(510.0, 110.0), tol), Pointing::Move, "in its corner, away from the text");
+    // Format Painter loaded: the copy cursor.
+    s.execute("format.painter", &json!({})).unwrap();
+    assert_eq!(s.pointing(p(200.0, 200.0), tol), Pointing::Copy);
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    s.painter = None;
+    s.set_tool(ToolKind::Shape { preset: "rect".into() });
+    assert_eq!(s.pointing(p(20.0, 400.0), tol), Pointing::Draw);
+    s.set_tool(ToolKind::TextBox);
+    assert_eq!(s.pointing(p(20.0, 400.0), tol), Pointing::TextTool);
+}
+
+/// WPS W-Q1 (case regressions/issue-hand-q1-delete-nothing): with nothing selected on the slide,
+/// Delete deletes nothing, even with the slide chosen; `scope: "slides"` still deletes it.
+#[test]
+fn delete_with_nothing_selected_keeps_the_slide() {
+    let mut s = session();
+    s.execute("slide.new", &json!({})).unwrap();
+    s.execute("slide.go", &json!({"index": 1})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    assert!(!s.doc().unwrap().selection.slides.is_empty(), "the slide is chosen");
+    s.key("Delete", Mods::default()).unwrap();
+    s.key("Backspace", Mods::default()).unwrap();
+    s.execute("edit.delete", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.slides.len(), 2);
+    s.execute("edit.delete", &json!({"scope": "slides"})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.slides.len(), 1);
+}
+
+/// Walkthrough D3 (plan 0B's pointer.mjs): a Shift drag stays on its axis, even where the grid or
+/// a guide would pull the other way.
+#[test]
+fn shift_drag_keeps_its_axis_against_the_snap() {
+    let mut s = session();
+    s.prefs.snap_to_grid = true;
+    let id = s.execute("shape.insert", &json!({"preset": "rect", "rect": [331, 201, 200, 100]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let shift = Mods { shift: true, ..Mods::default() };
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: shift, tol: 4.0 };
+    s.pointer(ev(PointerKind::Down, 430.0, 250.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 520.0, 280.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 580.0, 280.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 580.0, 280.0)).unwrap();
+    let v = s.execute("shape.inspect", &json!({"id": id})).unwrap();
+    assert_eq!(v["box"]["y"], 201.0, "{v}");
+    assert!(v["box"]["x"].as_f64().unwrap() > 400.0, "{v}");
+}

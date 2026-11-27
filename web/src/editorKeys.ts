@@ -7,8 +7,9 @@
  *   selected.
  * - `afterTool`: keys the tool did not take: with nothing selected, Home and End go to the first
  *   and last slide, the arrows to the next and previous one, Tab selects the first object (Shift+Tab
- *   the last); Delete stays nothing (only the slide list deletes slides). Cmd+Shift+Z redoes as Cmd+Y
- *   does, Cmd+K opens the link dialog, Cmd+Alt+M a new comment, Cmd+1 shows 100%.
+ *   the last). Delete goes on to the engine's Delete, which deletes nothing then (only the slide
+ *   list deletes slides, WPS W-Q1). Cmd+Shift+Z redoes as Cmd+Y does, Cmd+K opens the link dialog,
+ *   Cmd+Alt+M a new comment, Cmd+1 shows 100%.
  */
 import type { KitCanvasHandle } from '@kition/sdk/editor'
 import { useEffect, type RefObject } from 'react'
@@ -102,11 +103,6 @@ export function slideKeys(slides: Slides, canvas: RefObject<KitCanvasHandle | nu
       case 'ArrowUp':
       case 'ArrowLeft':
         void run('slide.previous', {})
-        return true
-      case 'Delete':
-      case 'Backspace':
-        // Nothing selected on the slide: nothing to delete (WPS W-Q1); the engine would take the
-        // current slide, which a slide change keeps as the chosen slide.
         return true
       case 'Tab': {
         const backwards = event.shiftKey

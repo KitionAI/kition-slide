@@ -181,7 +181,14 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         copy_inner(s, p)?
     };
-    delete(s, p)?;
+    // What was copied goes: the slides when the copy took them (Cut's slide scope is still the
+    // chosen slides when nothing is selected; Delete's is only `scope: "slides"`).
+    let editing = s.doc().is_ok_and(|st| st.selection.text.is_some() || st.selection.cells.is_some());
+    if !names_shapes(p) && !editing && slides_scope(s, p) {
+        delete(s, &json!({"scope": "slides"}))?;
+    } else {
+        delete(s, p)?;
+    }
     Ok(json!({"text": t}))
 }
 
@@ -365,7 +372,9 @@ fn delete(s: &mut Session, p: &Value) -> Result<Value> {
     if s.doc()?.selection.cells.is_some() && !named {
         return s.execute("table.clearCells", &json!({}));
     }
-    if slides_scope(s, p) && !named {
+    // Slides only when asked for (the slide list asks): with nothing selected on the slide,
+    // Delete deletes nothing (WPS W-Q1), not the slide a slide change made the chosen one.
+    if str_param(p, "scope") == Some("slides") && !named {
         return s.execute("slide.delete", &json!({}));
     }
     let ids = targets(s, p)?;

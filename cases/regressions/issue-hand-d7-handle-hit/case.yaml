@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-d7-handle-hit
+feature: slide.editor.pointer-feedback
+intent: "A handle takes a press 6 px from its centre and a drag resizes; a press 9 px past it keeps the selection (it cleared it, as a press on the empty slide); the rotation handle is taken where it is drawn, 18 px above the top edge at the fitted zoom and at 200% (walkthrough D7; WPS W-B1)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/pointer.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/pointer.mjs, chromium, d7-handle-hit, rotate-handle-grab]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

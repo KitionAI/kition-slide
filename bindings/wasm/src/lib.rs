@@ -34,7 +34,7 @@ use kition_kit::raster::{self, Frame};
 use kition_kit::tools::{KitTools, PointerAction, ToolInfo, ToolMods, ToolOverlay, ToolPointer, ToolRequest, ToolResponse};
 use kition_kit::{CallContext, KitCommand, KitDocument, MAX_RENDER_SIDE};
 use kition_slide_engine::cmd::{self, xfrm_of};
-use kition_slide_engine::tools::{Hit, Mods, PointerEvent, PointerKind, ToolKind, box_handles};
+use kition_slide_engine::tools::{Mods, PointerEvent, PointerKind, Pointing, TOL_PX, ToolKind, handles};
 use kition_slide_engine::{CallSlide, DocState, Session, Target, UiRequest};
 use kition_slide_geom::{Point, Xfrm};
 use kition_slide_model::SlideFile;
@@ -45,8 +45,8 @@ use serde_json::{Value, json};
 pub const MARGIN: f64 = 40.0;
 /// Space between two slides, in points.
 pub const GAP: f64 = 40.0;
-/// Hit tolerance in screen pixels, as in the app.
-const HIT_PX: f64 = 4.0;
+/// Hit tolerance in screen pixels: the engine measures its handles' reach from it.
+const HIT_PX: f64 = TOL_PX;
 /// Memory the 1:1 slide images kept for zoomed-out views may take (about 90 slides of 960 × 540
 /// points). Past it the least recently drawn images go, never one the frame being drawn uses, so a
 /// long slide file scrolls without repainting every slide.
@@ -820,7 +820,8 @@ impl SlideDocument {
                 dashed: editing_this,
             });
             if st.selection.shapes.len() == 1 || !editing_this {
-                let (handles, rotate) = box_handles(&x);
+                // Where the engine's hit test finds them, at this zoom (one source for both).
+                let (handles, rotate) = handles(&x, 1.0 / self.zoom);
                 if !editing_this {
                     let (tx, ty) = self.to_canvas(handles[1]);
                     let (rx, ry) = self.to_canvas(rotate);
@@ -950,23 +951,10 @@ impl SlideDocument {
         let selected = state.is_some_and(|st| !st.selection.shapes.is_empty());
         // Typing on one selected shape replaces its text, as in PowerPoint.
         let one = state.is_some_and(|st| st.selection.shapes.len() == 1);
-        let drawing = !matches!(self.session.tool.kind, ToolKind::Select);
         ToolResponse {
             requests,
             overlays: self.overlays(),
-            cursor: if let Some(Hit::TableDivider { vertical, .. }) = &self.session.tool.hover
-                && !drawing
-            {
-                if *vertical { "ew-resize" } else { "ns-resize" }
-            } else if self.pointer_at.is_some_and(|p| self.session.over_text(p, HIT_PX / self.zoom)) {
-                // Over the text being edited, or text a click puts the caret in: the I-beam.
-                "text"
-            } else if drawing {
-                "crosshair"
-            } else {
-                "default"
-            }
-            .to_owned(),
+            cursor: cursor(self.session.pointing(self.pointer_at, HIT_PX / self.zoom)),
             // Editing keys come here while text is edited, shapes are selected (Delete, arrows,
             // Escape), or a gesture or freeform is under way.
             busy: editing || selected || self.session.tool.dragging(),
@@ -974,6 +962,41 @@ impl SlideDocument {
         }
     }
 }
+
+/// The CSS cursor for what the pointer would do (plan 0B, walkthrough C3): the engine decides
+/// from its own hit test; this only names the shape. A resize handle's arrow follows the
+/// object's rotation and flips, to the nearest of the four double arrows.
+fn cursor(pointing: Pointing) -> String {
+    match pointing {
+        Pointing::Default => "default",
+        Pointing::Move => "move",
+        Pointing::Text => "text",
+        Pointing::Resize { angle } => match ((angle + 22.5) / 45.0).floor() as i64 % 4 {
+            0 => "ew-resize",
+            1 => "nwse-resize",
+            2 => "ns-resize",
+            _ => "nesw-resize",
+        },
+        Pointing::Rotate => ROTATE_CURSOR,
+        Pointing::Adjust => "pointer",
+        Pointing::LineEnd => "crosshair",
+        Pointing::Divider { vertical } => {
+            if vertical {
+                "ew-resize"
+            } else {
+                "ns-resize"
+            }
+        }
+        Pointing::Draw => "crosshair",
+        Pointing::TextTool => "text",
+        Pointing::Copy => "copy",
+    }
+    .to_owned()
+}
+
+/// The rotation handle's cursor: a circular arrow drawn here (CSS has none), centred on its hot
+/// spot, with `grab` where an image cursor is not shown.
+const ROTATE_CURSOR: &str = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.5 12a6.5 6.5 0 1 1-2-4.7' stroke='white' stroke-width='4'/%3E%3Cpath d='M17 3.5v4.5h-4.5' stroke='white' stroke-width='4'/%3E%3Cpath d='M18.5 12a6.5 6.5 0 1 1-2-4.7' stroke='black' stroke-width='1.6'/%3E%3Cpath d='M17 3.5v4.5h-4.5' stroke='black' stroke-width='1.6'/%3E%3C/g%3E%3C/svg%3E\") 12 12, grab";
 
 /// `out` = `src` over `out`, both premultiplied.
 fn over(out: &mut [u8], src: &[u8]) {

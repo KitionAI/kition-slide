@@ -50,16 +50,17 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 
 | Behaviour | PowerPoint | Kition Slide |
 |---|---|---|
-| Selection handles, rotation handle, yellow adjustment handles | yes | yes: white round handles with a dark ring, a grey rotation handle, yellow diamonds, visible on any slide (`web/tests/hand/handles.mjs`) |
+| Selection handles, rotation handle, yellow adjustment handles | yes | yes: white round handles with a dark ring, a grey rotation handle 18 px above the top edge at any zoom, yellow diamonds, visible on any slide; a handle takes a press 7 px from its centre, the nearest wins, and a press just past one keeps the selection (`web/tests/hand/handles.mjs`, `pointer.mjs`) |
+| Pointer shape: move over objects, a double arrow on each resize handle turned with the object, rotate, adjust, line end, the text cursor only where a press puts the caret, copy with Format Painter loaded | yes | yes (`web/tests/hand/pointer.mjs`) |
 | Marquee, Shift/Cmd multi-select, Tab to cycle | yes | yes |
 | Smart guides (edges, centres, equal spacing) | yes | yes |
 | Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
 | Nudge (arrows), fine nudge (Option+arrows) | yes | yes |
-| Shift-constrained move, Option-drag to duplicate | yes | yes |
+| Shift-constrained move, Option-drag to duplicate | yes | yes; a Shift drag stays on its axis against the grid and guides |
 | Connector glue and rerouting | yes | yes |
 | Edit points on freeforms | yes | **no** |
 | Crop handles, crop to shape, aspect ratio | yes | partial |
-| Text caret, selection, double/triple click, drag-select | yes | yes; Tab in text boxes ends editing |
+| Text caret, selection, double/triple click, drag-select | yes | yes (three clicks select the paragraph, `web/tests/hand/pointer.mjs`); Tab in text boxes ends editing |
 | Exact size/position, lock aspect | yes | yes |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
 | Context menus on shapes, slides, text, thumbnails | yes | yes, shorter |

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-c3-cursors
+feature: slide.editor.pointer-feedback
+intent: "The pointer says what a press would do: the arrow on the empty slide, move over objects (a selected star without text too: it was the text cursor), a double arrow on each resize handle turned with the object, its own pointer on the rotation handle, the text cursor on a selected shape's words, copy with Format Painter loaded (walkthrough C3, G4: it was the arrow everywhere)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/pointer.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/pointer.mjs, chromium, c3-cursors]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

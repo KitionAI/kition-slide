@@ -468,8 +468,17 @@ features:
     priority: P1
     status: has
     paths: [web/src/focus.ts, web/src/editorKeys.ts, web/src/zoom.ts, web/src/ZoomBox.tsx, web/src/useSlideWheel.ts, web/src/handles.ts, web/src/LinkDialog.tsx, web/src/SlidesPanel.tsx, web/src/App.tsx, web/src/app.css, web/tests/hand/harness.mjs, web/tests/hand/keys.mjs, web/tests/hand/zoom.mjs, web/tests/hand/menus.mjs, web/tests/hand/handles.mjs]
-    gap: "Checked in the development host only: whether Kition Desktop gives the editor the keyboard as a file opens is the host's part. A trackpad swipe turning one page and a real mouse notch's delta are checked with synthetic wheel events only. The rotation handle sits where the engine puts it (20 pt above the top edge), not WPS's 18 px; handles keep their 4 px reach (stage 0B)."
+    gap: "Checked in the development host only: whether Kition Desktop gives the editor the keyboard as a file opens is the host's part. A trackpad swipe turning one page and a real mouse notch's delta are checked with synthetic wheel events only."
     cases: [regressions/issue-hand-f2-single-line-menus, regressions/issue-hand-c2-handles-visible, regressions/issue-hand-k1-first-key, regressions/issue-hand-k2-focus-after-show, regressions/issue-hand-a3-wheel-zoom-step, regressions/issue-hand-a12-home-end, regressions/issue-hand-i3-redo-key, regressions/issue-hand-g6-link-url, regressions/issue-hand-b7-thumb-menu-close, regressions/issue-hand-q1-delete-nothing]
+    since: "2026-11-27"
+  - id: slide.editor.pointer-feedback
+    title: "The pointer says what a press would do and the handles are where they are drawn, as WPS works: move over objects, a double arrow on each resize handle turned with the object, its own pointer on the rotation handle, adjust handles and line ends, the text cursor only where a press puts the caret, copy with a painter loaded; a handle takes a press 7 px from its centre (the nearest wins), the rotation handle sits 18 px above the top edge at any zoom, and a press just past a selected frame keeps the selection; three clicks select a paragraph; a Shift drag stays on its axis"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [crates/engine/engine/src/tools.rs, bindings/wasm/src/lib.rs, web/src/SlideCanvas.tsx, web/tests/hand/pointer.mjs]
+    gap: "A press on a selected shape still enters its text wherever it lands (the move pointer shows away from the words; stage 3 makes the press follow the pointer, WPS W-F2). No hover outline: neither PowerPoint nor Keynote draws one. The rotation handle's place and the handles' reach are the kit's own (kition-office-core's box_handles keeps 20 pt for doc and sheet)."
+    cases: [regressions/issue-hand-c3-cursors, regressions/issue-hand-d7-handle-hit]
     since: "2026-11-27"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"

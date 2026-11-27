@@ -63,7 +63,7 @@ pub fn describe(id: &str) -> &'static str {
             "Duplicates shapes in place, slightly offset. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
         }
         "edit.delete" => {
-            "Deletes shapes, or the selected slides with `scope: \"slides\"`. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection."
+            "Deletes shapes, or the selected slides with `scope: \"slides\"`. Applies to the shapes in `ids` (on slide `onSlide`, from 1) or else the selection; with nothing selected it deletes nothing."
         }
         "edit.selectAll" => "Selects every shape on the current slide and answers their ids.",
         "edit.deselectAll" => "Clears the selection on the current slide.",

@@ -13,7 +13,8 @@ pub(super) fn add(doc: &SlideDocument, command: &str, params: &Value, found: &mu
     let mut holds = Holds::default();
     match command {
         "media.posterFrame" => poster_frame(doc, &scope, &mut holds, params),
-        "edit.cut" | "edit.delete" => delete(&scope, &mut holds, params),
+        "edit.cut" => delete(&scope, &mut holds, params, true),
+        "edit.delete" => delete(&scope, &mut holds, params, false),
         "edit.duplicate" => duplicate(&scope, &mut holds, params),
         "edit.paste" => paste(doc, &scope, &mut holds, params),
         _ => {
@@ -30,8 +31,10 @@ fn names_shapes(params: &Value) -> bool {
 }
 
 /// `edit.delete` (and `edit.cut`, which copies first: the clipboard is not the deck): text being
-/// edited, else selected cells, else the slides scope, else the shapes.
-fn delete(scope: &Scope<'_>, holds: &mut Holds, params: &Value) {
+/// edited, else selected cells, else the slides scope, else the shapes. The slides scope is
+/// `scope: "slides"`; for `edit.cut` (`inferred`) also no shape and no text selected with slides
+/// chosen, where `edit.delete` deletes nothing.
+fn delete(scope: &Scope<'_>, holds: &mut Holds, params: &Value, inferred: bool) {
     let named = names_shapes(params);
     let selection = &scope.selection;
     if !named && selection.text.is_some() {
@@ -45,7 +48,7 @@ fn delete(scope: &Scope<'_>, holds: &mut Holds, params: &Value) {
         return;
     }
     let slides_scope = params.get("scope").and_then(Value::as_str) == Some("slides")
-        || (selection.shapes.is_empty() && selection.text.is_none() && !selection.slides.is_empty());
+        || (inferred && selection.shapes.is_empty() && selection.text.is_none() && !selection.slides.is_empty());
     if !named && slides_scope {
         // `slide.delete {}`: the selected slides (else the current one) whole, with their shapes
         // and comment threads; the sections around them.

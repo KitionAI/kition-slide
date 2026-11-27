@@ -40,8 +40,74 @@ pub struct PointerEvent {
     pub x: f64,
     pub y: f64,
     pub mods: Mods,
-    /// Hit tolerance in points (≈ 4 screen px at the current zoom).
+    /// Hit tolerance in points: [`TOL_PX`] screen pixels at the current zoom. The handles' reach
+    /// and the rotation handle's place, which are fixed on screen, are measured from it.
     pub tol: f64,
+}
+
+/// The screen pixels a pointer event's `tol` stands for: `tol` is this many pixels in points.
+pub const TOL_PX: f64 = 4.0;
+/// A press this close to a handle's centre (screen pixels) takes the handle: a resize handle, an
+/// adjust handle, a line's end (plan 0B, walkthrough D7; the handles are drawn 9 px across).
+pub const HANDLE_REACH_PX: f64 = 7.0;
+/// The rotation handle's reach (screen pixels; it is drawn 13 px across).
+pub const ROTATE_REACH_PX: f64 = 8.0;
+/// The rotation handle's centre sits this far above the middle of the top edge, in screen pixels
+/// whatever the zoom (WPS W-B1: about 18 px).
+pub const ROTATE_GAP_PX: f64 = 18.0;
+/// Around a selected object's frame, a press this close (screen pixels) that hits nothing else is
+/// a press on that object: a handle missed by a little keeps the selection and moves the object,
+/// and never clears the selection as a press on the empty slide does (walkthrough D7).
+pub const FRAME_BAND_PX: f64 = 10.0;
+
+/// Points per screen pixel, from a pointer event's tolerance.
+pub fn px_of(tol: f64) -> f64 {
+    if tol.is_finite() && tol > 0.0 { tol / TOL_PX } else { 1.0 }
+}
+
+/// Where a selected frame's handles are, at `px` points per screen pixel: the 8 resize handles
+/// (NW, N, NE, E, SE, S, SW, W) on the frame, and the rotation handle [`ROTATE_GAP_PX`] above the
+/// middle of its top edge, in its rotated (and flipped) frame. The one place both the hit test and
+/// the handles drawn on the canvas take them from.
+pub fn handles(x: &Xfrm, px: f64) -> ([Point; 8], Point) {
+    let (pts, _) = box_handles(x);
+    let up = if x.flip_v { 1.0 } else { -1.0 };
+    let gap = ROTATE_GAP_PX * if px.is_finite() && px > 0.0 { px } else { 1.0 };
+    let rot =
+        Affine::translate(Vec2::new(x.x + x.w / 2.0, x.y + x.h / 2.0)) * Affine::rotate(x.rot.to_radians()) * Point::new(0.0, up * (x.h / 2.0 + gap));
+    (pts, rot)
+}
+
+/// What the pointer would do where it is, for its shape on screen ([`Session::pointing`]).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum Pointing {
+    /// Nothing under the pointer (a press clears the selection and starts a marquee).
+    Default,
+    /// An object a press selects and a drag moves.
+    Move,
+    /// Text a press puts the caret in (or text being selected).
+    Text,
+    /// A resize handle: `angle` is the direction it pulls on screen, in degrees from 0 (→) to
+    /// 180, after the object's rotation and flips.
+    Resize {
+        angle: f64,
+    },
+    Rotate,
+    /// A shape's adjust handle.
+    Adjust,
+    /// A line's end.
+    LineEnd,
+    /// A table's grid line between columns (`vertical`) or rows.
+    Divider {
+        vertical: bool,
+    },
+    /// A drawing tool: a press starts a shape, a line or a stroke.
+    Draw,
+    /// The text box tool.
+    TextTool,
+    /// Format Painter or Animation Painter is loaded: a press paints.
+    Copy,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -227,9 +293,12 @@ impl Session {
         self.tool.marquee = None;
     }
 
-    /// What's under `p` on the current slide.
+    /// What's under `p` on the current slide: a selected object's handles first (the nearest
+    /// within reach), then the objects, topmost first, then the band around a selected frame.
     pub fn hit_test(&self, p: Point, tol: f64) -> Option<Hit> {
         let st = self.active()?;
+        let px = px_of(tol);
+        let reach = HANDLE_REACH_PX * px;
         // Handles of selected shapes first.
         if st.selection.text.is_none() || st.selection.shapes.len() == 1 {
             for id in st.selection.shapes.iter().rev() {
@@ -237,27 +306,23 @@ impl Session {
                 let x = xfrm_of(&st.doc, &st.selection, sh);
                 if sh.is_line() {
                     let a = x.affine();
-                    for (end, q) in [(0u8, a * Point::new(0.0, 0.0)), (1u8, a * Point::new(x.w, x.h))] {
-                        if (q - p).hypot() <= tol * 1.6 {
-                            return Some(Hit::LineEnd { id: *id, end });
-                        }
+                    let ends = [(0u8, a * Point::new(0.0, 0.0)), (1u8, a * Point::new(x.w, x.h))];
+                    if let Some((end, _)) = nearest(ends.iter().map(|(end, q)| (*end, (*q - p).hypot())), reach) {
+                        return Some(Hit::LineEnd { id: *id, end });
                     }
                     continue;
                 }
                 let geo = kition_slide_render::shape_geometry(sh, x.w, x.h);
-                for hd in &geo.handles {
-                    if (x.affine() * hd.pos - p).hypot() <= tol * 1.6 {
-                        return Some(Hit::Adjust { id: *id, index: hd.index });
-                    }
+                let a = x.affine();
+                if let Some((index, _)) = nearest(geo.handles.iter().map(|hd| (hd.index, (a * hd.pos - p).hypot())), reach) {
+                    return Some(Hit::Adjust { id: *id, index });
                 }
-                let (pts, rot) = box_handles(&x);
-                if (rot - p).hypot() <= tol * 1.8 && st.selection.text.is_none() {
+                let (pts, rot) = handles(&x, px);
+                if (rot - p).hypot() <= ROTATE_REACH_PX * px && st.selection.text.is_none() {
                     return Some(Hit::Rotate { id: *id });
                 }
-                for (i, q) in pts.iter().enumerate() {
-                    if (*q - p).hypot() <= tol * 1.6 {
-                        return Some(Hit::Resize { id: *id, handle: i as u8 });
-                    }
+                if let Some((handle, _)) = nearest(pts.iter().enumerate().map(|(i, q)| (i as u8, (*q - p).hypot())), reach) {
+                    return Some(Hit::Resize { id: *id, handle });
                 }
             }
         }
@@ -270,35 +335,111 @@ impl Session {
                 return Some(h);
             }
         }
+        // Just outside a selected object's frame: that object, not the empty slide.
+        let band = FRAME_BAND_PX * px;
+        for id in st.selection.shapes.iter().rev() {
+            let Some(sh) = st.shape(*id) else { continue };
+            if sh.is_line() || sh.hidden || sh.locked {
+                continue;
+            }
+            let x = xfrm_of(&st.doc, &st.selection, sh);
+            let local = x.affine().inverse() * p;
+            if local.x >= -band && local.y >= -band && local.x <= x.w + band && local.y <= x.h + band {
+                return Some(Hit::Shape { id: *id, text: false });
+            }
+        }
         None
     }
 
-    /// Whether a press at `p` would place the caret (or the pointer is selecting text): inside the
-    /// text being edited (its cell, in a table) away from its handles, or with Select over the
-    /// text of a shape a click enters (a selected shape, a text box, a placeholder). The pointer
-    /// is the text cursor there.
-    pub fn over_text(&self, p: Point, tol: f64) -> bool {
-        if matches!(self.tool.drag, Some(Drag::TextSelect { .. })) {
-            return true;
-        }
-        if !matches!(self.tool.kind, ToolKind::Select) || self.tool.drag.is_some() || !(p.x.is_finite() && p.y.is_finite()) {
-            return false;
-        }
-        let Some(st) = self.active() else { return false };
-        let hit = self.hit_test(p, tol);
-        if matches!(hit, Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. } | Hit::LineEnd { .. })) {
-            return false;
-        }
-        if let Some(t) = &st.selection.text
-            && !t.notes
-            && let Some(sh) = st.shape(t.shape)
-        {
-            return match t.cell {
-                Some(cell) => table::hit_cell(st, t.shape, p) == Some(cell),
-                None => xfrm_of(&st.doc, &st.selection, sh).bounds().inflate(tol, tol).contains(p),
+    /// What a press at `p` (the pointer's last place on the slide, if it is on it) would do, for
+    /// the pointer's shape: a gesture under way keeps its own; a loaded painter paints; a drawing
+    /// tool draws; otherwise what [`Session::hit_test`] finds there. Text is only where a press
+    /// puts the caret: the text being edited, a text box or placeholder, a table's cells, and the
+    /// lines of a selected shape's text (not a shape without text).
+    pub fn pointing(&self, p: Option<Point>, tol: f64) -> Pointing {
+        let Some(st) = self.active() else { return Pointing::Default };
+        if let Some(drag) = &self.tool.drag {
+            return match drag {
+                Drag::Move { moved: true, .. } => Pointing::Move,
+                Drag::Resize { id, handle, .. } => {
+                    st.shape(*id).map_or(Pointing::Default, |sh| resize_pointing(&xfrm_of(&st.doc, &st.selection, sh), *handle))
+                }
+                Drag::Rotate { .. } => Pointing::Rotate,
+                Drag::Adjust { .. } => Pointing::Adjust,
+                Drag::LineEnd { .. } => Pointing::LineEnd,
+                Drag::TextSelect { .. } => Pointing::Text,
+                Drag::Divider { vertical, .. } => Pointing::Divider { vertical: *vertical },
+                Drag::Create { .. } | Drag::Ink { .. } | Drag::Erase { .. } | Drag::Freeform { .. } => Pointing::Draw,
+                Drag::Move { .. } | Drag::Marquee { .. } | Drag::Cells { .. } => self.pointing_at(p, tol),
             };
         }
-        matches!(hit, Some(Hit::Shape { id, text: true }) if st.selection.shapes.contains(&id) || is_text_first(st, id))
+        match &self.tool.kind {
+            ToolKind::Select => {}
+            ToolKind::TextBox => return Pointing::TextTool,
+            ToolKind::Shape { .. } | ToolKind::Ink { .. } => return Pointing::Draw,
+        }
+        if self.painter.is_some() || self.anim_painter.is_some() {
+            return Pointing::Copy;
+        }
+        self.pointing_at(p, tol)
+    }
+
+    fn pointing_at(&self, p: Option<Point>, tol: f64) -> Pointing {
+        let Some(st) = self.active() else { return Pointing::Default };
+        let Some(p) = p.filter(|p| p.x.is_finite() && p.y.is_finite()) else { return Pointing::Default };
+        if matches!(self.tool.kind, ToolKind::Select)
+            && let Some(Hit::TableDivider { vertical, .. }) = self.table_divider_hit(p, tol)
+        {
+            return Pointing::Divider { vertical };
+        }
+        let hit = self.hit_test(p, tol);
+        match hit {
+            Some(Hit::Resize { id, handle }) => {
+                st.shape(id).map_or(Pointing::Default, |sh| resize_pointing(&xfrm_of(&st.doc, &st.selection, sh), handle))
+            }
+            Some(Hit::Rotate { .. }) => Pointing::Rotate,
+            Some(Hit::Adjust { .. }) => Pointing::Adjust,
+            Some(Hit::LineEnd { .. }) => Pointing::LineEnd,
+            Some(Hit::TableDivider { vertical, .. }) => Pointing::Divider { vertical },
+            Some(Hit::Shape { id, text }) => {
+                // The text being edited takes the caret anywhere in its frame.
+                if let Some(t) = &st.selection.text
+                    && !t.notes
+                    && t.shape == id
+                {
+                    let inside = match t.cell {
+                        Some(cell) => table::hit_cell(st, id, p) == Some(cell),
+                        None => st.shape(id).is_some_and(|sh| xfrm_of(&st.doc, &st.selection, sh).bounds().inflate(tol, tol).contains(p)),
+                    };
+                    if inside {
+                        return Pointing::Text;
+                    }
+                }
+                let Some(sh) = st.shape(id) else { return Pointing::Default };
+                let x = xfrm_of(&st.doc, &st.selection, sh);
+                let local = x.affine().inverse() * p;
+                let within = local.x >= tol && local.y >= tol && local.x <= x.w - tol && local.y <= x.h - tol;
+                if matches!(sh.kind, ShapeKind::Table(_)) {
+                    // A press in a cell edits it; the frame moves the table.
+                    return if within && table::hit_cell(st, id, p).is_some() { Pointing::Text } else { Pointing::Move };
+                }
+                if !text || !within {
+                    return Pointing::Move;
+                }
+                if is_text_first(st, id) || (st.selection.shapes.contains(&id) && over_lines(st, sh, p, tol)) {
+                    Pointing::Text
+                } else {
+                    Pointing::Move
+                }
+            }
+            None => Pointing::Default,
+        }
+    }
+
+    /// Whether the pointer at `p` is the text cursor: a press there places the caret, or text is
+    /// being selected ([`Session::pointing`]).
+    pub fn over_text(&self, p: Point, tol: f64) -> bool {
+        self.pointing(Some(p), tol) == Pointing::Text
     }
 
     /// Feed a pointer event to the active tool. Returns what happened (for agents). What it
@@ -574,17 +715,23 @@ impl Session {
                     }
                 }
                 let ids_now = if duplicate { self.doc()?.selection.shapes.clone() } else { ids.clone() };
-                if mods.shift {
-                    if d.x.abs() > d.y.abs() {
-                        d.y = 0.0;
-                    } else {
-                        d.x = 0.0;
-                    }
+                // Shift keeps the move on one axis: the snap does not pull it off it either.
+                let lock = mods.shift.then_some(d.x.abs() > d.y.abs());
+                match lock {
+                    Some(true) => d.y = 0.0,
+                    Some(false) => d.x = 0.0,
+                    None => {}
                 }
                 // Smart guides on the moved group's bounds.
                 let bounds = origs.iter().map(|(_, x)| x.bounds()).reduce(|a, b| a.union(b)).unwrap_or_default();
                 let moved_b = bounds + d;
-                let (snap, guides) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !mods.cmd);
+                let (mut snap, mut guides) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !mods.cmd);
+                match lock {
+                    Some(true) => snap.y = 0.0,
+                    Some(false) => snap.x = 0.0,
+                    None => {}
+                }
+                guides.retain(|g| lock.is_none_or(|across| g.vertical == across));
                 d += snap;
                 self.tool.guides = guides;
                 let origs2: Vec<(ShapeId, Xfrm)> =
@@ -1179,6 +1326,31 @@ impl Session {
 
 fn is_text_first(st: &crate::DocState, id: ShapeId) -> bool {
     st.shape(id).is_some_and(|s| s.ph.is_some() || s.text_box)
+}
+
+/// The key of the nearest of `items` (key, distance) within `reach`.
+fn nearest<K: Copy>(items: impl Iterator<Item = (K, f64)>, reach: f64) -> Option<(K, f64)> {
+    items.filter(|(_, d)| d.is_finite() && *d <= reach).min_by(|a, b| a.1.total_cmp(&b.1))
+}
+
+/// The direction resize handle `handle` of frame `x` pulls on screen, from 0° to 180°.
+fn resize_pointing(x: &Xfrm, handle: u8) -> Pointing {
+    const DIRS: [(f64, f64); 8] = [(-1.0, -1.0), (0.0, -1.0), (1.0, -1.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (-1.0, 1.0), (-1.0, 0.0)];
+    let Some(&(dx, dy)) = DIRS.get(usize::from(handle)) else { return Pointing::Move };
+    let local = Point::new(if x.flip_h { -dx } else { dx }, if x.flip_v { -dy } else { dy });
+    let d = Affine::rotate(x.rot.to_radians()) * local;
+    let angle = d.y.atan2(d.x).to_degrees().rem_euclid(180.0);
+    Pointing::Resize { angle: if angle.is_finite() { angle } else { 0.0 } }
+}
+
+/// Whether `p` is on the lines of shape `sh`'s text (not on the shape's empty space).
+fn over_lines(st: &crate::DocState, sh: &Shape, p: Point, tol: f64) -> bool {
+    let t = TextSel { shape: sh.id, ..Default::default() };
+    let Some(layout) = cmd::text::layout_for(st, &t) else { return false };
+    let x = xfrm_of(&st.doc, &st.selection, sh);
+    let rect = kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect;
+    let local = kition_slide_render::text_transform(x.affine(), rect, layout.rotation).inverse() * p;
+    layout.lines.iter().any(|l| l.extent.1 > l.extent.0 && Rect::new(l.extent.0, l.top, l.extent.1, l.bottom).inflate(tol, tol).contains(local))
 }
 
 fn contains_rect(outer: Rect, inner: Rect) -> bool {

@@ -1,4 +1,4 @@
-import { useMemo, useState, type PointerEvent, type RefObject } from 'react'
+import { useMemo, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
@@ -6,7 +6,7 @@ import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { slideScrollArea } from './useSlideWheel'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
-  const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint } = useSlides()
+  const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled } = useSlides()
   const tools = useKitTools()
   const [position, setPosition] = useState<RasterView>({ x: 0, y: 0, zoom: 1 })
   const area = session.state?.area
@@ -72,7 +72,15 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
     const inside = x >= 0 && y >= 0 && x <= area.x1 - area.x0 && y <= area.y1 - area.y0
     commentPoint.current = inside ? { slide: session.state?.current ?? 0, x, y } : null
   }
-  return <div className="slides-canvas-view" data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed}>
+  // A third click in text being edited selects its paragraph (plan 0B): the engine's command, in the
+  // input order after the presses before it, which decide whether text is being edited by then. The
+  // canvas gives the tool presses and double clicks only.
+  const clicked = (event: MouseEvent) => {
+    const surface = event.target
+    if (event.detail !== 3 || !(surface instanceof HTMLCanvasElement) || !surface.classList.contains('kui-canvas-surface')) return
+    void runWhenEnabled('text.selectParagraph')
+  }
+  return <div className="slides-canvas-view" data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed} onClick={clicked}>
     {view.ruler ? <>{ruler('x')}{ruler('y')}</> : null}
     <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={area ?? null} panBounds={panBounds} framed={false} decorate={decorate} onView={(raster) => { setPosition(raster); views.set(raster); onZoom(raster.zoom) }} testId="slides-canvas-region">
       {hostComments ? <CanvasMarkers view={position} /> : null}
