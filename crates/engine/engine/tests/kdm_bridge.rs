@@ -401,7 +401,8 @@ fn a_remote_edit_in_the_middle_of_typing_keeps_both() {
     a.execute("text.edit", &json!({"id": id})).unwrap();
     type_keys(&mut a, "bc");
     b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
-    send(&mut b, &mut a);
+    // Each gets the other's change: a's typing so far goes to b, b's rename comes in.
+    sync(&mut a, &mut b);
     type_keys(&mut a, "de");
     assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("Abcde", "Remote"));
     assert_holds(&a, "after the typing");
@@ -411,7 +412,7 @@ fn a_remote_edit_in_the_middle_of_typing_keeps_both() {
     assert_eq!((first_text(&a).as_str(), doc(&a).slides[1].name.as_str()), ("A", "Remote"), "two undos take the typing back, not the remote edit");
     assert_holds(&a, "after the undos");
     assert_histories_agree(&a, "after the undos");
-    send(&mut a, &mut b);
+    sync(&mut a, &mut b);
     assert_same(&mut a, &mut b, "after the undos");
 }
 
