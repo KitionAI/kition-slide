@@ -147,6 +147,15 @@ const list = [
     await e.wait(400)
     const facts = await e.ask('file.inspect')
     assert.equal((await e.ask('shape.inspect', { id }))?.shape?.click?.action?.slide, facts.slides[3].id, 'the shape links to slide 4')
+    // Insert › Link opens the same dialog, not the parameter form.
+    await e.kit.getByTestId('ribbon-tab-insert').click()
+    await e.kit.getByTestId('slides-cmd-link.insert').click()
+    await e.wait(400)
+    assert(await dialog.isVisible(), 'Insert › Link opens the link dialog')
+    assert.equal(await e.kit.getByTestId('slides-link-url').getAttribute('type'), 'text', 'the address is a text field')
+    await press(e, 'Escape', 400)
+    assert(!(await dialog.isVisible().catch(() => false)), 'Escape closes it')
+    await e.kit.getByTestId('ribbon-tab-home').click()
     // New Comment by its key: the comment composer, no raw error.
     await press(e, 'ControlOrMeta+Alt+m', 500)
     const toasts = await e.kit.locator('.kui-toast').allTextContents().catch(() => [])

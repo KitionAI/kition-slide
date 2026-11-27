@@ -46,7 +46,7 @@ export function InsertTab() {
         <CommandButton command="smartGraphic.insert" icon={Workflow} label={t('smartGraphic')} size="large" ask />
         <ChartInsertMenu testId="slides-chart" primary />
       </RibbonGroup>
-      <RibbonGroup label={t('group.links')} icon={Link}><CommandButton command="link.insert" primary icon={Link} label={t('link')} size="large" ask /><CommandButton command="actionButton.insert" icon={Link} label={t('action')} size="large" ask /></RibbonGroup>
+      <RibbonGroup label={t('group.links')} icon={Link}><CommandButton command="link.insert" primary icon={Link} label={t('link')} size="large" /><CommandButton command="actionButton.insert" icon={Link} label={t('action')} size="large" ask /></RibbonGroup>
       <RibbonGroup label={t('group.comments')} icon={MessageSquarePlus}><RibbonButton icon={MessageSquarePlus} label={t('comment')} size="large" disabled={!canNewComment} onClick={() => void newComment()} data-testid="slides-new-comment" primary /></RibbonGroup>
       <RibbonGroup label={t('group.text')} icon={TextCursorInput}>
         <RibbonButton icon={TextCursorInput} label={t('textBox')} size="large" pressed={tools.active === 'textBox'} onClick={() => tools.select('textBox')} primary />

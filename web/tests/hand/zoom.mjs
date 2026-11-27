@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict'
 import { open, segments } from './harness.mjs'
 
-/** The fitted zoom the editor opened at (1600 × 1000: 132%). */
+/** The fitted zoom the editor opened at (1600 × 1000: 132% in Chromium). */
 let fitted = 0
 
 async function settled(e, value) {
@@ -29,10 +29,18 @@ async function fit(e) {
   await settled(e, fitted)
 }
 
+/** Types a zoom into the status bar's percentage: an exact start, whatever the fitted zoom is here. */
+async function typeZoom(e, percent) {
+  await e.kit.getByTestId('kit-zoom').click()
+  await e.kit.getByTestId('slides-zoom-field').fill(String(percent))
+  await e.page.keyboard.press('Enter')
+  await settled(e, percent)
+}
+
 const list = [
   ['a2-fit-same', async (e) => {
     fitted = await e.zoom()
-    assert.equal(fitted, 132, `the slide opens fitted at 132% (${fitted}%)`)
+    assert(fitted > 100 && fitted < 160, `the slide opens fitted (${fitted}%)`)
     await e.kit.getByTestId('slides-zoom-in').click()
     await e.kit.getByTestId('slides-zoom-fit').click()
     assert.equal(await settled(e, fitted), fitted, 'the status bar\'s Fit gives the zoom the slide opened at')
@@ -46,21 +54,19 @@ const list = [
     await e.kit.getByTestId('ribbon-tab-home').click()
   }],
   ['a3-wheel-zoom-step', async (e) => {
-    fitted ||= await e.zoom()
-    await fit(e)
+    await typeZoom(e, 132)
     await wheelAtCentre(e, 'Control', -100)
     assert.equal(await settled(e, 150), 150, 'Ctrl and one wheel notch: 132% → 150%')
     await wheelAtCentre(e, 'Control', -100)
     assert.equal(await settled(e, 160), 160, 'and the next notch 160%')
     await wheelAtCentre(e, 'Control', 100)
     assert.equal(await settled(e, 150), 150, 'a notch back 150%')
-    await fit(e)
+    await typeZoom(e, 132)
     await wheelAtCentre(e, 'Meta', -100)
     assert.equal(await settled(e, 150), 150, 'Cmd and one wheel notch: the same')
   }],
   ['a3-steps', async (e) => {
-    fitted ||= await e.zoom()
-    await fit(e)
+    await typeZoom(e, 132)
     await e.kit.getByTestId('slides-zoom-out').click()
     assert.equal(await settled(e, 130), 130, '− from 132%: 130%')
     await e.kit.getByTestId('slides-zoom-out').click()
