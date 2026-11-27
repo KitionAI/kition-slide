@@ -158,14 +158,14 @@
     "protocol": "kition-kit/1",
     "features": [
       "view.describe",
-      "document.check",
+      "file.check",
       "model.open",
       "model.import",
       "model.export",
       "model.save",
       "model.describe",
       "model.batch",
-      "document.identity"
+      "file.identity"
     ]
   },
   "model": {

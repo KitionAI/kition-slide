@@ -214,7 +214,7 @@ fn act(root: &Path) -> Vec<String> {
             wrong.push(format!("{name}: the picture it links outside the workspace was read into the render"));
         }
         let found = agent.kit.check(&linked).map_err(|e| format!("{e:?}"));
-        let _ = agent.keep(format!("document.check {name}"), found);
+        let _ = agent.keep(format!("file.check {name}"), found);
         for (command, value) in [("file.inspect", json!({})), ("file.saveBytes", json!({ "format": "pptx" })), ("file.save", json!({}))] {
             let _ = agent.run(&linked, command, value);
         }

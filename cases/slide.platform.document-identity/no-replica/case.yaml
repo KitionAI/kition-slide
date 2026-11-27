@@ -3,8 +3,8 @@ id: slide.platform.document-identity/no-replica
 feature: slide.platform.document-identity
 intent: >-
   Through the real kition-slide process: a saved .kslide (slide.json and media) or .pptx embeds no
-  replica, so document.identity answers no docId for either and for an empty file, and
-  document.fork writes the file's bytes unchanged under the new name with no docId; the source is
+  replica, so file.identity answers no docId for either and for an empty file, and
+  file.fork writes the file's bytes unchanged under the new name with no docId; the source is
   unchanged, the fork opens as a deck, a fork of the fork is the same bytes again, a fork never
   replaces an existing file, and kit.json lists exactly the features kit.initialize answers.
 layer: gate

@@ -2,7 +2,7 @@
 //! editor runs (`kition-slide-kit`), served headless over the Kit Protocol by
 //! `kition-headless`, as the kit's `kit.json` declares it, with the object model
 //! (`model.describe`, `model.batch`) over the document's change exchange, and the identity a file
-//! carries (`document.identity`, `document.fork`): a `.kslide` (its `slide.json` and media) or a
+//! carries (`file.identity`, `file.fork`): a `.kslide` (its `slide.json` and media) or a
 //! `.pptx` embeds no replica, which the kit makes anew each time it opens a file, so a file carries
 //! no identity and its fork is the same bytes.
 

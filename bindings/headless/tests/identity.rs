@@ -1,4 +1,4 @@
-//! `document.identity` and `document.fork` (Kit Process Protocol section 5.6, KitModel M7a)
+//! `file.identity` and `file.fork` (Kit Process Protocol section 5.6, KitModel M7a)
 //! through the real `kition-slide` process. A `.kslide` holds `slide.json` and the media, and a
 //! `.pptx` is PowerPoint's own package (`kition_slide_engine::cmd::file::save_bytes`): neither
 //! embeds a replica, and the kit makes a new one, under a new id, each time it opens a file. So a
@@ -40,7 +40,7 @@ async fn a_slide_file_carries_no_identity_and_forks_into_the_same_bytes() {
     std::fs::write(dir.join("Plan.kslide"), &kslide).unwrap();
     std::fs::write(dir.join("Plan.pptx"), &pptx).unwrap();
     let kit = launch(&dir).await;
-    assert!(kit.serves("document.identity"), "{}", kit.capabilities());
+    assert!(kit.serves("file.identity"), "{}", kit.capabilities());
     let manifest: serde_json::Value = serde_json::from_str(include_str!("../../../kit.json")).unwrap();
     assert_eq!(kit.capabilities()["features"], manifest["headless"]["features"], "kit.json lists exactly the features kit.initialize answers");
 
@@ -61,7 +61,7 @@ async fn a_slide_file_carries_no_identity_and_forks_into_the_same_bytes() {
         // The fork opens as a deck.
         let state = kit.open(target, true, LIMIT).await.unwrap();
         assert!(state["documentId"].is_string(), "the fork opens as a deck: {state}");
-        kit.request("document.close", serde_json::json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
+        kit.request("file.close", serde_json::json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
     }
 
     // A fork of the fork is the same bytes again.
