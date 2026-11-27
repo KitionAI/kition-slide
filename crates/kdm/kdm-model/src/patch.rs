@@ -336,7 +336,7 @@ fn places(p: &SlideFile, ids: &Ids) -> Option<HashMap<ObjectId, Place>> {
             BodyOwner::Notes(slide) => slide_index.get(slide).map_or(Place::Other, |index| Place::Part(*index)),
             BodyOwner::Cell { table, .. } => tables.get(table).copied().unwrap_or(Place::Other),
         };
-        for object in std::iter::once(&body.body).chain(&body.paragraphs).chain(body.absorbed.iter().map(|(paragraph, _)| paragraph)) {
+        for object in std::iter::once(&body.body).chain(&body.paragraphs) {
             places.insert(object.clone(), place);
         }
     }

@@ -12,7 +12,7 @@ use kition_kit::kdm::ObjectId;
 use kition_kit::session::IdMap;
 use kition_slide_model::{LayoutId, MasterId, MediaId, Shape, ShapeId, ShapeKind, SlideFile, SlideId};
 
-use crate::pieces::{Piece, Truth};
+use crate::text::Truth;
 use crate::{KdmResult, kdm_err};
 
 /// A table's objects: the `Table`, and its rows and columns in the order the view holds them.
@@ -32,14 +32,11 @@ pub enum BodyOwner {
     Cell { table: ObjectId, row: ObjectId, col: ObjectId },
 }
 
-/// A text body's objects: the `TextBody`, its `Paragraph`s in the order the view holds them, and
-/// the listed paragraphs a merge absorbed into one of those (`crate::pieces`), with the view
-/// paragraph showing each, in the order they are placed.
+/// A text body's objects: the `TextBody` and its `Paragraph`s in the order the view holds them.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BodyIds {
     pub body: ObjectId,
     pub paragraphs: Vec<ObjectId>,
-    pub absorbed: Vec<(ObjectId, ObjectId)>,
 }
 
 /// The objects behind a view's masters, layouts, slides, media, shapes, tables and animations.
@@ -56,12 +53,9 @@ pub struct Ids {
     pub(crate) animations: HashMap<ObjectId, Vec<ObjectId>>,
     /// Every text body the view holds, by what holds it.
     pub(crate) bodies: HashMap<BodyOwner, BodyIds>,
-    /// Each paragraph's `text` field as last read or written (the replica's truth, split anchors
-    /// and their tails included, `crate::pieces`): what the next write diffs from, so it writes
-    /// exactly the view's runs whatever marks a merge left.
+    /// Each paragraph's `text` field as last read or written (the replica's truth): what the next
+    /// write diffs from, so it writes exactly the view's runs whatever marks a merge left.
     pub(crate) texts: HashMap<ObjectId, Truth>,
-    /// The pieces of each view paragraph that shows more than its own field's visible runs.
-    pub(crate) pieces: HashMap<ObjectId, Vec<Piece>>,
     /// The objects of the view's comment threads and comments, by their key in the view (an id
     /// the view holds, or one derived from the comment, `crate::comments`).
     pub(crate) comments: HashMap<String, ObjectId>,
@@ -152,8 +146,7 @@ impl Ids {
             };
             if let Some(slide) = slide {
                 owners.insert(slide.clone(), slide.clone());
-                let absorbed = body.absorbed.iter().map(|(listed, _)| listed);
-                for object in std::iter::once(&body.body).chain(&body.paragraphs).chain(absorbed) {
+                for object in std::iter::once(&body.body).chain(&body.paragraphs) {
                     owners.insert(object.clone(), slide.clone());
                 }
             }
@@ -213,20 +206,17 @@ impl Ids {
             };
             if held {
                 paragraphs.extend(body.paragraphs.iter().cloned());
-                paragraphs.extend(body.absorbed.iter().map(|(paragraph, _)| paragraph.clone()));
             }
             !held
         });
         for paragraph in &paragraphs {
             self.texts.remove(paragraph);
-            self.pieces.remove(paragraph);
         }
         self.shapes.extend(read.shapes);
         self.tables.extend(read.tables);
         self.animations.extend(read.animations);
         self.bodies.extend(read.bodies);
         self.texts.extend(read.texts);
-        self.pieces.extend(read.pieces);
         if root {
             self.sections = read.sections;
             self.shows = read.shows;

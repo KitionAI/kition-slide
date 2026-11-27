@@ -1,5 +1,5 @@
 //! `write_changes` writes only what differs: one shape's text, one table row and its cells, one
-//! slide moved.
+//! slide moved; a paragraph split and merge leave only paragraph text in the fields.
 
 mod common;
 
@@ -114,4 +114,49 @@ fn moving_a_slide_is_one_list_move() {
     expected.push(first);
     assert_eq!(ops, expected);
     // That it took exactly one `list_move` is `list::tests` (the list sync counts its operations).
+}
+
+/// A split keeps the larger half's object and makes the other half a new paragraph; a merge keeps
+/// one object and deletes the other. Every `text` field holds only its paragraph's own text (no
+/// anchor characters), and the body lists only the paragraphs the view shows.
+#[test]
+fn a_paragraph_split_and_merge_store_only_the_paragraphs_text() {
+    let blobs = SharedBlobs::default();
+    let mut before = slide_file();
+    let index = before.slides[0].shapes.iter().position(|s| s.name == "A").unwrap_or_else(|| panic!("shape A"));
+    Arc::make_mut(&mut before.slides[0]).shapes[index].text = Some(TextBody::from_text("Hello big world"));
+    let (mut replica, mut ids) = new_replica(&before, &blobs);
+    let slide = ids.slides.object(before.slides[0].id).cloned().unwrap_or_else(|| panic!("slide"));
+    let object = ids.shape(&slide, before.slides[0].shapes[index].id).cloned().unwrap_or_else(|| panic!("shape"));
+    let owner = BodyOwner::Shape(object);
+    let body = ids.body(&owner).unwrap_or_else(|| panic!("a text body")).body.clone();
+    let original = ids.body(&owner).unwrap_or_else(|| panic!("a text body")).paragraphs[0].clone();
+    let texts = |replica: &kition_kit::kdm::Replica| -> Vec<(ObjectId, String)> {
+        replica
+            .list(&body, "paragraphs")
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| {
+                let text = replica.text(&p, "text").unwrap_or_else(|error| panic!("text: {error}"));
+                (p, text)
+            })
+            .collect()
+    };
+    let mut sink = blobs.clone();
+
+    let mut split = before.clone();
+    Arc::make_mut(&mut split.slides[0]).shapes[index].text = Some(TextBody::from_text("Hello big\n world"));
+    replica.transact(&person("t"), |tx| write_changes(tx, &before, &split, &mut ids, &mut sink)).unwrap_or_else(|error| panic!("write: {error}"));
+    let after_split = texts(&replica);
+    assert_eq!(after_split.len(), 2, "the body lists the two paragraphs only");
+    assert_eq!(after_split[0], (original.clone(), "Hello big".to_owned()), "the larger half keeps the object");
+    assert_eq!(after_split[1].1, " world");
+    let second = after_split[1].0.clone();
+    assert_eq!(ids.body(&owner).map(|b| b.paragraphs.clone()), Some(vec![original.clone(), second.clone()]));
+
+    let mut merged = split.clone();
+    Arc::make_mut(&mut merged.slides[0]).shapes[index].text = Some(TextBody::from_text("Hello big world"));
+    replica.transact(&person("t"), |tx| write_changes(tx, &split, &merged, &mut ids, &mut sink)).unwrap_or_else(|error| panic!("write: {error}"));
+    assert_eq!(texts(&replica), [(original.clone(), "Hello big world".to_owned())], "one paragraph, its own text only");
+    assert!(!replica.objects_of_type("Paragraph").contains(&second), "the merged-away paragraph is deleted");
 }

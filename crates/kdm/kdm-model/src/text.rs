@@ -15,9 +15,12 @@
 //!   second one, so a round trip keeps a file's runs as they were.
 //!
 //! [`align_paragraphs`] pairs the paragraphs of two versions of a body (unchanged ones first, then
-//! by shared content), so typing, a split or a merge keeps the paragraphs' objects.
+//! by shared content), so typing keeps a paragraph's object, a split keeps it for the half with more
+//! of its text (the other half is a new paragraph) and a merge for the paragraph with more of the
+//! merged text (the other is deleted).
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use kition_kit::session::TextRun;
 use kition_slide_model::text::{Paragraph, Run, RunKind, RunProps, TextBody};
@@ -211,6 +214,44 @@ pub(crate) fn from_runs(delta: &[TextRun], fix: &dyn Fn(&mut Value)) -> KdmResul
         push_text(&mut out, &mut text);
     }
     Ok(out)
+}
+
+/// A paragraph object's field as last read or written: what the next write diffs from.
+pub(crate) type Truth = Arc<Vec<TextRun>>;
+
+/// Runs without empty ones, mark values in the form the replica stores them (whole floats as
+/// integers), adjacent runs with the same marks joined: the form a field's delta takes, so two run
+/// lists of one text compare equal, and a write sets only marks whose value really changed.
+pub(crate) fn canon(runs: Vec<TextRun>) -> Vec<TextRun> {
+    let mut out: Vec<TextRun> = Vec::with_capacity(runs.len());
+    for mut run in runs {
+        if run.insert.is_empty() {
+            continue;
+        }
+        for value in run.attributes.values_mut() {
+            *value = canonical(std::mem::take(value));
+        }
+        match out.last_mut() {
+            Some(last) if last.attributes == run.attributes => last.insert.push_str(&run.insert),
+            _ => out.push(run),
+        }
+    }
+    out
+}
+
+/// `value` as the replica stores it: whole floats as integers (object keys are sorted already).
+fn canonical(value: Value) -> Value {
+    const SAFE: f64 = 9_007_199_254_740_992.0;
+    match value {
+        Value::Number(number) if !number.is_i64() && !number.is_u64() => match number.as_f64() {
+            #[allow(clippy::cast_possible_truncation)]
+            Some(float) if float.fract() == 0.0 && float.abs() <= SAFE => Value::from(float as i64),
+            _ => Value::Number(number),
+        },
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical).collect()),
+        Value::Object(fields) => Value::Object(fields.into_iter().map(|(key, value)| (key, canonical(value))).collect()),
+        other => other,
+    }
 }
 
 /// A body's `props` register: the body without its paragraphs.

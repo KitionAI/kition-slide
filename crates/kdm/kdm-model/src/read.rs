@@ -19,7 +19,6 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::ids::{BodyIds, BodyOwner, Ids, Known, TableIds};
-use crate::pieces;
 use crate::refs::{Locals, shape_in, to_locals};
 use crate::{KdmResult, MediaCache, kdm_err, root_id};
 
@@ -689,28 +688,15 @@ impl Reader<'_> {
         let mut body: TextBody = from(self.translated(object, "props", false)?)?;
         body.paragraphs.clear();
         let listed = self.live(object, "paragraphs")?;
-        let mut fields = HashMap::with_capacity(listed.len());
         for item in &listed {
             let delta = self.replica.text_delta(item, "text")?;
-            fields.insert(item.clone(), pieces::compose(&delta));
+            let mut paragraph: Paragraph = from(self.translated(item, "props", false)?)?;
+            let locals = &self.locals;
+            paragraph.runs = crate::text::from_runs(&delta, &|v: &mut Value| to_locals(v, locals, false))?;
+            body.paragraphs.push(paragraph);
             self.ids.texts.insert(item.clone(), Arc::new(delta));
         }
-        let layout = pieces::layout(&listed, &fields);
-        for item in &layout.roots {
-            let mut paragraph: Paragraph = from(self.translated(item, "props", false)?)?;
-            let runs = match layout.pieces.get(item) {
-                Some(parts) => pieces::shown(parts, &fields),
-                None => fields.get(item).map(|c| c.segment(0).to_vec()).unwrap_or_default(),
-            };
-            let locals = &self.locals;
-            paragraph.runs = crate::text::from_runs(&runs, &|v: &mut Value| to_locals(v, locals, false))?;
-            body.paragraphs.push(paragraph);
-        }
-        for item in &listed {
-            self.ids.pieces.remove(item);
-        }
-        self.ids.pieces.extend(layout.pieces);
-        self.ids.bodies.insert(owner, BodyIds { body: object.clone(), paragraphs: layout.roots, absorbed: layout.absorbed });
+        self.ids.bodies.insert(owner, BodyIds { body: object.clone(), paragraphs: listed });
         Ok(Some(body))
     }
 

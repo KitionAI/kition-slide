@@ -12,10 +12,10 @@
 //! - a shape's text body is a `TextBody` object (its `body` ref) listing `Paragraph` objects, each
 //!   a `props` register and a `text` field whose marks are the run properties (K4, `src/text.rs`);
 //!   table cells' and slide notes' text bodies are the same (a cell's map value names its body, a
-//!   slide's `notesBody`). A paragraph split leaves a split anchor in the first half's field, and a
-//!   merge keeps the second paragraph listed behind a merge anchor, so both keep their paragraph
-//!   objects (`src/pieces.rs`); each paragraph's field is written from what it held when last read
-//!   or written, so every replica reads the same runs. A shape's `xfrm` and `name` are their own registers;
+//!   slide's `notesBody`). A paragraph's field holds its own text only: a split keeps the
+//!   object of the half with more text and makes the other a new paragraph, a merge keeps one
+//!   paragraph's object and deletes the other's; each paragraph's field is written from what it
+//!   held when last read or written, so every replica reads the same runs. A shape's `xfrm` and `name` are their own registers;
 //!   every other member of the shape and its kind is an entry of its `look` map
 //!   (`src/look.rs`), except group children
 //!   (`children` list), a table's grid (a `Table` object: `cols`/`rows` lists, and a `cells` map
@@ -75,7 +75,6 @@ mod list;
 mod look;
 mod members;
 mod patch;
-mod pieces;
 mod read;
 mod refs;
 mod session;

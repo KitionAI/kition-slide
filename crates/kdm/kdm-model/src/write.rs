@@ -10,7 +10,7 @@
 //! 3. every field that differs is set, and every list made to hold `after`'s order (lists are
 //!    aligned by object identity, so a move is a move, not a rewrite).
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use kition_kit::kdm::{ObjectId, TextRun, Tx};
@@ -23,9 +23,8 @@ use serde_json::{Map, Value, json};
 
 use crate::ids::{BodyIds, BodyOwner, Ids, TableIds, check_unique};
 use crate::list::{align, sync_list};
-use crate::pieces::{self, Anchor, Composition, Piece, assign, canon, char_len, compose, text_of};
 use crate::refs::{shape_out, to_objects};
-use crate::text::{INLINE, INLINE_MARK, align_paragraphs, body_props, paragraph_props, to_runs};
+use crate::text::{align_paragraphs, body_props, canon, paragraph_props, to_runs};
 use crate::{KdmResult, kdm_err, root_id};
 
 const MAX_DEPTH: usize = 64;
@@ -1239,7 +1238,7 @@ impl Writer<'_, '_> {
                 self.tx.list_insert(&body, "paragraphs", j, &object)?;
                 paragraphs.push(object);
             }
-            self.ids.bodies.insert(owner, BodyIds { body: body.clone(), paragraphs, absorbed: Vec::new() });
+            self.ids.bodies.insert(owner, BodyIds { body: body.clone(), paragraphs });
             return Ok((true, body));
         };
         let body = known.body.clone();
@@ -1253,10 +1252,8 @@ impl Writer<'_, '_> {
             self.tx.set(&body, "props", new_props)?;
             wrote = true;
         }
-        let absorbed: Vec<ObjectId> = known.absorbed.iter().map(|(object, _)| object.clone()).collect();
-        // Every paragraph's field as last read or written, split at its anchors (`pieces`).
-        let mut old_fields: HashMap<ObjectId, Composition> = HashMap::with_capacity(known.paragraphs.len() + absorbed.len());
-        let mut truths: HashMap<ObjectId, Vec<TextRun>> = HashMap::with_capacity(known.paragraphs.len() + absorbed.len());
+        // Every paragraph's field as last read or written: what its write diffs from.
+        let mut truths: Vec<Vec<TextRun>> = Vec::with_capacity(known.paragraphs.len());
         for (i, object) in known.paragraphs.iter().enumerate() {
             let truth = match (self.ids.texts.get(object), old.paragraphs.get(i)) {
                 (Some(truth), _) => canon(truth.as_ref().clone()),
@@ -1266,228 +1263,56 @@ impl Writer<'_, '_> {
                 }
                 (None, None) => Vec::new(),
             };
-            old_fields.insert(object.clone(), compose(&truth));
-            truths.insert(object.clone(), truth);
+            truths.push(truth);
         }
-        for object in &absorbed {
-            let truth = self.ids.texts.get(object).map(|truth| canon(truth.as_ref().clone())).unwrap_or_default();
-            old_fields.insert(object.clone(), compose(&truth));
-            truths.insert(object.clone(), truth);
-        }
-        let pieces_of = |ids: &Ids, object: &ObjectId| ids.pieces.get(object).cloned().unwrap_or_else(|| vec![Piece::own(object)]);
-        let aligned = align_paragraphs(&old.paragraphs, &after.paragraphs);
-        let mut partner = aligned.clone();
-        let mut merges = self.find_merges(old, after, &known, &mut partner)?;
-        let mut gone = gone_paragraphs(&known, &partner, &merges);
-        if !merges.is_empty() && !merges_show(&merges, &known, &gone, &old_fields, self.ids, after)? {
-            // The anchors would not show the merged text as the view holds it: copy it instead.
-            merges.clear();
-            partner = aligned;
-            gone = gone_paragraphs(&known, &partner, &merges);
-        }
-        let mut fields = old_fields.clone();
-        // The paragraphs `after` adds get their objects first: a split's anchor names one.
+        // Paragraphs paired by content (`align_paragraphs`): a split keeps the object for the half
+        // with more of the text and makes the other half a new paragraph; a merge keeps the object
+        // of the paragraph with more of the merged text and deletes the other.
+        let partner = align_paragraphs(&old.paragraphs, &after.paragraphs);
+        let kept: HashSet<usize> = partner.iter().flatten().copied().collect();
         let mut objects = Vec::with_capacity(after.paragraphs.len());
         for (j, p) in after.paragraphs.iter().enumerate() {
-            match partner.get(j).copied().flatten().and_then(|i| known.paragraphs.get(i)) {
-                Some(object) => objects.push(object.clone()),
-                None => {
-                    let object = self.new_paragraph(p)?;
-                    if let Some(truth) = self.ids.texts.get(&object) {
-                        fields.insert(object.clone(), compose(truth));
-                    }
-                    objects.push(object);
-                    wrote = true;
-                }
-            }
-        }
-        // A deleted paragraph's view took its tails with it.
-        for object in &gone {
-            for piece in pieces_of(self.ids, object) {
-                if piece.object != *object
-                    && !gone.contains(&piece.object)
-                    && let Some(slot) = fields.get_mut(&piece.object).and_then(|c| c.segment_mut(piece.seg))
-                {
-                    slot.clear();
-                }
-            }
-        }
-        // Paired paragraphs: properties, then their new runs onto their pieces.
-        // The anchors each field gets: (segment, offset in it, anchor).
-        let mut inserts: HashMap<ObjectId, Vec<(usize, usize, Anchor)>> = HashMap::new();
-        for (j, p) in after.paragraphs.iter().enumerate() {
-            let Some(i) = partner.get(j).copied().flatten() else { continue };
-            let (Some(object), Some(q)) = (known.paragraphs.get(i), old.paragraphs.get(i)) else { continue };
-            let parts = pieces_of(self.ids, object);
-            let lost = parts.iter().any(|piece| gone.contains(&piece.object));
-            if q == p && !lost {
+            let Some(i) = partner.get(j).copied().flatten() else {
+                objects.push(self.new_paragraph(p)?);
+                wrote = true;
+                continue;
+            };
+            let (Some(object), Some(q)) = (known.paragraphs.get(i).cloned(), old.paragraphs.get(i)) else {
+                return Err(kdm_err("a paragraph has no object"));
+            };
+            objects.push(object.clone());
+            if q == p {
                 continue;
             }
-            let (old_props, new_props, new_runs, next_runs) = {
+            let (old_props, new_props, new_runs) = {
                 let ids = &*self.ids;
                 let fix = |v: &mut Value| to_objects(v, ids, None);
-                let next = match (after.paragraphs.get(j + 1), partner.get(j + 1)) {
-                    (Some(next), Some(None)) => Some(canon(to_runs(next, &fix)?)),
-                    _ => None,
-                };
-                (paragraph_props(q, &fix)?, paragraph_props(p, &fix)?, canon(to_runs(p, &fix)?), next)
+                (paragraph_props(q, &fix)?, paragraph_props(p, &fix)?, canon(to_runs(p, &fix)?))
             };
             if old_props != new_props {
-                self.tx.set(object, "props", new_props)?;
+                self.tx.set(&object, "props", new_props)?;
                 wrote = true;
             }
-            // A merge's text is both paragraphs' fields as they are, joined by its anchor.
-            if merges.iter().any(|m| m.after == j) {
-                continue;
+            let old_runs = truths.get(i).map_or(&[][..], Vec::as_slice);
+            if new_runs != old_runs {
+                write_rich_text(self.tx, &object, "text", old_runs, &new_runs).map_err(kdm_err)?;
+                wrote = true;
             }
-            let olds: Vec<&[TextRun]> = parts.iter().map(|piece| old_fields.get(&piece.object).map_or(&[][..], |c| c.segment(piece.seg))).collect();
-            let old_runs = canon(olds.iter().flat_map(|runs| runs.iter().cloned()).collect());
-            if old_runs == new_runs && !lost {
-                continue;
-            }
-            let lens: Vec<usize> = olds.iter().map(|runs| char_len(runs)).collect();
-            let losing: Vec<bool> = parts.iter().map(|piece| gone.contains(&piece.object)).collect();
-            let old_text = text_of(&old_runs);
-            for (piece, runs) in parts.iter().zip(assign(&old_text, &lens, &losing, &new_runs)) {
-                if gone.contains(&piece.object) {
-                    continue;
-                }
-                if let Some(slot) = fields.get_mut(&piece.object).and_then(|c| c.segment_mut(piece.seg)) {
-                    *slot = runs;
-                }
-            }
-            // Enter inside this paragraph, its object kept for the first half: a split anchor at
-            // the split point, and at the start of every other field's text after it, so what
-            // stands after it follows the second half (`pieces`).
-            if let (Some(next), Some(target)) = (next_runs, objects.get(j + 1)) {
-                let (first, second) = (text_of(&new_runs), text_of(&next));
-                let at = first.chars().count();
-                if at > 0 && !second.is_empty() && old_text == format!("{first}{second}") {
-                    let mut start = 0;
-                    let mut seen = HashSet::new();
-                    for (piece, len) in parts.iter().zip(&lens) {
-                        let end = start + len;
-                        if (end > at || start >= at)
-                            && !gone.contains(&piece.object)
-                            && let Some(c) = old_fields.get(&piece.object)
-                            && seen.insert((piece.object.clone(), c.region(piece.seg)))
-                        {
-                            let offset = at.saturating_sub(start).min(*len);
-                            inserts.entry(piece.object.clone()).or_default().push((piece.seg, offset, Anchor::Split(target.clone())));
-                        }
-                        start = end;
-                    }
-                }
-            }
+            self.ids.texts.insert(object, Arc::new(new_runs));
         }
-        for object in &gone {
+        for (i, object) in known.paragraphs.iter().enumerate() {
+            if kept.contains(&i) {
+                continue;
+            }
             if self.tx.exists(object) {
                 self.tx.delete(object)?;
                 wrote = true;
             }
-        }
-        // A merge anchor where the first paragraph's view ends.
-        for m in &merges {
-            let len = old_fields.get(&m.at.object).map_or(0, |c| char_len(c.segment(m.at.seg)));
-            inserts.entry(m.at.object.clone()).or_default().push((m.at.seg, len, Anchor::Merge(m.second.clone())));
-        }
-        // Last first, so earlier segments keep their index.
-        for list in inserts.values_mut() {
-            list.sort_by_key(|a| std::cmp::Reverse((a.0, a.1)));
-        }
-        let seconds: Vec<ObjectId> = merges.iter().map(|m| m.second.clone()).collect();
-        // Each kept paragraph's field: written where it differs from what it held.
-        let kept_fields: Vec<ObjectId> = known.paragraphs.iter().chain(&absorbed).filter(|o| !gone.contains(*o)).cloned().collect();
-        for object in &kept_fields {
-            let Some(mut c) = fields.remove(object) else { continue };
-            let mut old_truth = truths.remove(object).unwrap_or_default();
-            if let Some(list) = inserts.get(object) {
-                // Each anchor on its own, between the characters it goes between.
-                let mut with = compose(&old_truth);
-                for (seg, offset, anchor) in list {
-                    insert_anchor_char(self.tx, object, with.start_of(*seg) + offset, anchor, &old_truth)?;
-                    with.insert_anchor_at(*seg, *offset, anchor.clone());
-                    c.insert_anchor(*seg, anchor.clone());
-                }
-                old_truth = with.runs();
-                wrote = true;
-            }
-            // Anchors naming deleted paragraphs go (a split anchor once its tail is empty).
-            for k in (0..c.anchors.len()).rev() {
-                let target = c.anchors[k].target();
-                let dead = gone.contains(target) || !self.tx.exists(target);
-                let drop = match &c.anchors[k] {
-                    Anchor::Split(_) => dead && c.segment(k + 1).is_empty(),
-                    Anchor::Merge(_) => dead,
-                };
-                if drop {
-                    c.remove_anchor(k);
-                }
-            }
-            let new_truth = c.runs();
-            if new_truth != old_truth {
-                write_rich_text(self.tx, object, "text", &old_truth, &new_truth).map_err(kdm_err)?;
-                wrote = true;
-            }
-            fields.insert(object.clone(), compose(&new_truth));
-            self.ids.texts.insert(object.clone(), Arc::new(new_truth));
-        }
-        for object in &gone {
             self.ids.texts.remove(object);
-            self.ids.pieces.remove(object);
         }
-        // The body lists every view paragraph, each followed by the paragraphs absorbed into it.
-        let mut listed = objects.clone();
-        listed.extend(absorbed.iter().chain(&seconds).filter(|o| !gone.contains(*o) && !objects.contains(*o)).cloned());
-        let layout = pieces::layout(&listed, &fields);
-        debug_assert_eq!(layout.roots, objects, "the view's paragraphs are the body's");
-        let mut order = Vec::with_capacity(listed.len());
-        for root in &objects {
-            order.push(root.clone());
-            order.extend(layout.absorbed.iter().filter(|(_, host)| host == root).map(|(object, _)| object.clone()));
-        }
-        for object in &listed {
-            self.ids.pieces.remove(object);
-        }
-        self.ids.pieces.extend(layout.pieces);
-        wrote |= sync_list(self.tx, &body, "paragraphs", &order)? > 0;
-        self.ids.bodies.insert(owner, BodyIds { body: body.clone(), paragraphs: objects, absorbed: layout.absorbed });
+        wrote |= sync_list(self.tx, &body, "paragraphs", &objects)? > 0;
+        self.ids.bodies.insert(owner, BodyIds { body: body.clone(), paragraphs: objects });
         Ok((wrote, body))
-    }
-
-    /// The paragraph merges `after` makes of `old` that a merge anchor can keep (`pieces`): a view
-    /// paragraph whose runs are two adjacent old paragraphs' runs joined, both with text, the
-    /// second not paired with any. The view paragraph is paired with the first (`partner`).
-    fn find_merges(&self, old: &TextBody, after: &TextBody, known: &BodyIds, partner: &mut [Option<usize>]) -> KdmResult<Vec<Merge>> {
-        let ids = &*self.ids;
-        let fix = |v: &mut Value| to_objects(v, ids, None);
-        let mut paired: HashSet<usize> = partner.iter().flatten().copied().collect();
-        let mut used: HashSet<usize> = HashSet::new();
-        let mut out = Vec::new();
-        for (j, slot) in partner.iter_mut().enumerate() {
-            let (Some(i), Some(p)) = (*slot, after.paragraphs.get(j)) else { continue };
-            let candidates = [Some((i, i + 1)), i.checked_sub(1).map(|first| (first, i))];
-            for (first, second) in candidates.into_iter().flatten() {
-                let other = if first == i { second } else { first };
-                let (Some(q1), Some(q2)) = (old.paragraphs.get(first), old.paragraphs.get(second)) else { continue };
-                let (Some(x), Some(y)) = (known.paragraphs.get(first), known.paragraphs.get(second)) else { continue };
-                if paired.contains(&other) || used.contains(&first) || used.contains(&second) || q1.text().is_empty() || q2.text().is_empty() {
-                    continue;
-                }
-                let mut joined = to_runs(q1, &fix)?;
-                joined.extend(to_runs(q2, &fix)?);
-                if canon(joined) != canon(to_runs(p, &fix)?) {
-                    continue;
-                }
-                let at = ids.pieces.get(x).and_then(|parts| parts.last().cloned()).unwrap_or_else(|| Piece::own(x));
-                *slot = Some(first);
-                paired.insert(first);
-                used.extend([first, second]);
-                out.push(Merge { after: j, first, second: y.clone(), at });
-                break;
-            }
-        }
-        Ok(out)
     }
 
     /// A slide's animations: aligned by content (then by the shape they animate), so an edit,
@@ -1558,85 +1383,4 @@ struct Group<'a> {
     identity: Option<&'a str>,
     name: &'a str,
     slides: &'a [kition_slide_model::SlideId],
-}
-
-/// A paragraph merge kept with a merge anchor (`crate::pieces`): view paragraph `after` is old
-/// paragraphs `first` and `first + 1` joined; `second` is the latter's object, absorbed at the end
-/// of piece `at` (the last of the first's view).
-struct Merge {
-    after: usize,
-    first: usize,
-    second: ObjectId,
-    at: Piece,
-}
-
-/// The paragraphs a body write deletes: the old view paragraphs neither paired nor absorbed by a
-/// merge, and the paragraphs absorbed into those.
-fn gone_paragraphs(known: &BodyIds, partner: &[Option<usize>], merges: &[Merge]) -> HashSet<ObjectId> {
-    let kept: HashSet<usize> = partner.iter().flatten().copied().collect();
-    let seconds: HashSet<&ObjectId> = merges.iter().map(|m| &m.second).collect();
-    let mut gone: HashSet<ObjectId> =
-        known.paragraphs.iter().enumerate().filter(|(i, o)| !kept.contains(i) && !seconds.contains(o)).map(|(_, o)| o.clone()).collect();
-    for (object, host) in &known.absorbed {
-        if gone.contains(host) {
-            gone.insert(object.clone());
-        }
-    }
-    gone
-}
-
-/// Whether `merges`' anchors in the fields as they are show each merged view paragraph as `after`
-/// holds it.
-fn merges_show(
-    merges: &[Merge],
-    known: &BodyIds,
-    gone: &HashSet<ObjectId>,
-    old_fields: &HashMap<ObjectId, Composition>,
-    ids: &Ids,
-    after: &TextBody,
-) -> KdmResult<bool> {
-    let mut sim = old_fields.clone();
-    let mut inserts: Vec<&Merge> = merges.iter().collect();
-    inserts.sort_by_key(|a| std::cmp::Reverse(a.at.seg));
-    for m in inserts {
-        if gone.contains(&m.at.object) {
-            return Ok(false);
-        }
-        let Some(c) = sim.get_mut(&m.at.object) else { return Ok(false) };
-        c.insert_anchor(m.at.seg, Anchor::Merge(m.second.clone()));
-    }
-    let listed: Vec<ObjectId> =
-        known.paragraphs.iter().chain(known.absorbed.iter().map(|(o, _)| o)).filter(|o| !gone.contains(*o)).cloned().collect();
-    let layout = pieces::layout(&listed, &sim);
-    let fix = |v: &mut Value| to_objects(v, ids, None);
-    for m in merges {
-        let (Some(x), Some(p)) = (known.paragraphs.get(m.first), after.paragraphs.get(m.after)) else { return Ok(false) };
-        if layout.roots.contains(&m.second) {
-            return Ok(false);
-        }
-        let shown = match layout.pieces.get(x) {
-            Some(parts) => pieces::shown(parts, &sim),
-            None => sim.get(x).map(|c| canon(c.segment(0).to_vec())).unwrap_or_default(),
-        };
-        if shown != canon(to_runs(p, &fix)?) {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
-/// Inserts `anchor`'s character at `at` of `object`'s `text` field (whose runs are `runs`), with
-/// its `inline` mark and none of the marks it may have taken from its neighbours. Written on its
-/// own, not diffed, so it lands exactly between the characters it joins.
-fn insert_anchor_char(tx: &mut Tx<'_>, object: &ObjectId, at: usize, anchor: &Anchor, runs: &[TextRun]) -> KdmResult<()> {
-    tx.text_insert(object, "text", at, &INLINE.to_string())?;
-    let run = anchor.run();
-    if let Some(value) = run.attributes.get(INLINE_MARK) {
-        tx.text_mark(object, "text", at, at + 1, INLINE_MARK, value.clone())?;
-    }
-    let keys: BTreeSet<&str> = runs.iter().flat_map(|r| r.attributes.keys().map(String::as_str)).filter(|k| *k != INLINE_MARK).collect();
-    for key in keys {
-        tx.text_unmark(object, "text", at, at + 1, key)?;
-    }
-    Ok(())
 }
