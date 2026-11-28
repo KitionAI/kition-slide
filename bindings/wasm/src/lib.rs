@@ -47,6 +47,9 @@ pub const MARGIN: f64 = 40.0;
 pub const GAP: f64 = 40.0;
 /// Hit tolerance in screen pixels: the engine measures its handles' reach from it.
 const HIT_PX: f64 = TOL_PX;
+/// The grid spacing a person may set, in points (about 0.035 cm to 7 cm).
+const MIN_GRID_PT: f64 = 1.0;
+const MAX_GRID_PT: f64 = 200.0;
 /// Memory the 1:1 slide images kept for zoomed-out views may take (about 90 slides of 960 × 540
 /// points). Past it the least recently drawn images go, never one the frame being drawn uses, so a
 /// long slide file scrolls without repainting every slide.
@@ -423,6 +426,27 @@ impl SlideDocument {
     /// Shows only the current slide (`true`, an editor's normal view) or all the slides stacked.
     pub fn set_single(&mut self, single: bool) {
         self.single = single;
+    }
+
+    /// The person's grid and guides settings (plan stage 8, WPS W-C4), kept by the editor on this
+    /// machine and never in the file: `{snapToGrid?, gridSpacing? (pt, 1 to 200), smartGuides?}`.
+    /// What is not given stays as it was. Answers the settings now in force.
+    pub fn set_snapping(&mut self, settings: &str) -> Result<serde_json::Value, String> {
+        let given: serde_json::Value = serde_json::from_str(settings).map_err(|error| format!("snapping settings: {error}"))?;
+        let prefs = &mut self.session.prefs;
+        if let Some(on) = given.get("snapToGrid").and_then(serde_json::Value::as_bool) {
+            prefs.snap_to_grid = on;
+        }
+        if let Some(step) = given.get("gridSpacing").and_then(serde_json::Value::as_f64) {
+            if !(step.is_finite() && (MIN_GRID_PT..=MAX_GRID_PT).contains(&step)) {
+                return Err(format!("gridSpacing {step} is not between {MIN_GRID_PT} and {MAX_GRID_PT} pt"));
+            }
+            prefs.grid_spacing = step;
+        }
+        if let Some(on) = given.get("smartGuides").and_then(serde_json::Value::as_bool) {
+            prefs.smart_guides = on;
+        }
+        Ok(serde_json::json!({"snapToGrid": prefs.snap_to_grid, "gridSpacing": prefs.grid_spacing, "smartGuides": prefs.smart_guides}))
     }
 
     /// A theme preview rendered from a copy; it never edits the open slides.
@@ -860,6 +884,13 @@ impl SlideDocument {
 
     fn mods(mods: ToolMods) -> Mods {
         Mods { shift: mods.shift, alt: mods.alt, cmd: mods.command || mods.control }
+    }
+
+    /// A gesture's modifiers: only Cmd is Cmd (plan stage 8; WPS W-B4, W-E8: it anchors at the
+    /// centre). The frame reports Ctrl as both `command` and `control`; Ctrl on its own changes no
+    /// gesture (a Ctrl+press is the Mac's right-click).
+    fn pointer_mods(mods: ToolMods) -> Mods {
+        Mods { shift: mods.shift, alt: mods.alt, cmd: mods.command && !mods.control }
     }
 
     /// Canvas points of a point on the current slide.
@@ -1938,7 +1969,7 @@ impl KitTools for SlideDocument {
             return Ok(self.respond());
         }
         let area = self.area(slide);
-        let ev = PointerEvent { kind, x: event.x - area.x, y: event.y - area.y, mods: Self::mods(event.mods), tol: HIT_PX / self.zoom };
+        let ev = PointerEvent { kind, x: event.x - area.x, y: event.y - area.y, mods: Self::pointer_mods(event.mods), tol: HIT_PX / self.zoom };
         self.pointer_at = Some(Point::new(ev.x, ev.y));
         let result = self.session.pointer(ev);
         if matches!(kind, PointerKind::Up | PointerKind::DoubleClick) {
@@ -2024,6 +2055,13 @@ pub mod web {
         #[wasm_bindgen(js_name = setSingle)]
         pub fn set_single(&mut self, single: bool) {
             self.0.set_single(single);
+        }
+
+        /// The person's grid and guides settings, as JSON: see `SlideDocument::set_snapping`.
+        /// Answers the settings in force, as JSON.
+        #[wasm_bindgen(js_name = setSnapping)]
+        pub fn set_snapping(&mut self, settings: &str) -> Result<String, JsError> {
+            self.0.set_snapping(settings).map(|now| now.to_string()).map_err(error)
         }
 
         /// What an input method composes in the text being edited, shown at the caret (empty text

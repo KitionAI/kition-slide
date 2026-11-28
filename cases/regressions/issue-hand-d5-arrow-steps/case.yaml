@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-d5-arrow-steps
+feature: slide.editor.snap-and-modifiers
+intent: "An arrow key moves a selected shape one grid step with snap to grid on (6 pt) and 0.75 pt with it off; Shift and Alt with the arrow move the same; Cmd with the arrow moves 10 pt (walkthrough D5: Cmd+arrow did nothing and Alt+arrow was a 1 pt nudge; WPS W-D1–W-D4)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/snap.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/snap.mjs, chromium, arrow-steps, grid-off-follows]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

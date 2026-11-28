@@ -84,7 +84,17 @@ export type MenuSources = {
   newComment: (() => void) | null
   layouts: Array<{ id: number; name: string }>
   format: { bullets?: boolean; numbering?: boolean }
-  view: { ruler: boolean; gridlines: boolean; guides: boolean; setRuler: (on: boolean) => void; setGridlines: (on: boolean) => void; setGuides: (on: boolean) => void }
+  view: {
+    ruler: boolean
+    gridlines: boolean
+    guides: boolean
+    setRuler: (on: boolean) => void
+    setGridlines: (on: boolean) => void
+    setGuides: (on: boolean) => void
+    grid: { snapToGrid: boolean; smartGuides: boolean }
+    setGrid: (change: { snapToGrid?: boolean; smartGuides?: boolean }) => void
+    setGridDialog: (open: boolean) => void
+  }
   /** The table whose cell the menu is for. */
   table: { id: number; canMerge: boolean; canSplit: boolean } | null
   /** The slide's backgrounds (a color grid), for Background's submenu. */
@@ -237,6 +247,10 @@ export function menuModel(target: ContextTarget, from: MenuSources): MenuModel {
       entries: [
         { kind: 'item', id: 'gridlines', label: t('cm.gridlines'), checked: view.gridlines, run: () => view.setGridlines(!view.gridlines) },
         { kind: 'item', id: 'guides', label: t('cm.guides'), checked: view.guides, run: () => view.setGuides(!view.guides) },
+        { kind: 'item', id: 'smartGuides', label: t('cm.smartGuides'), checked: view.grid.smartGuides, run: () => view.setGrid({ smartGuides: !view.grid.smartGuides }) },
+        { kind: 'item', id: 'snapToGrid', label: t('cm.snapToGrid'), checked: view.grid.snapToGrid, run: () => view.setGrid({ snapToGrid: !view.grid.snapToGrid }) },
+        separator,
+        { kind: 'item', id: 'gridSettings', label: t('cm.gridSettings'), run: () => view.setGridDialog(true) },
       ],
     },
     { kind: 'item', id: 'ruler', label: t('cm.ruler'), icon: RulerIcon, checked: view.ruler, run: () => view.setRuler(!view.ruler) },

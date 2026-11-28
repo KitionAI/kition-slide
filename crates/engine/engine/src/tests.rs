@@ -1746,7 +1746,8 @@ fn an_agents_typing_is_never_joined() {
 #[test]
 fn held_arrow_keys_nudge_in_one_step() {
     let mut s = session();
-    s.prefs.snap_to_grid = false;
+    // Snap to grid on: an arrow key moves one 6 pt grid step (plan stage 8, WPS W-D1).
+    s.prefs.snap_to_grid = true;
     s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
     let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
     let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [400, 100, 100, 80]})).unwrap()["id"].as_u64().unwrap();
@@ -2227,4 +2228,193 @@ fn slides_copied_together_paste_in_deck_order() {
     s.execute("slide.go", &json!({"index": 2})).unwrap();
     s.execute("edit.paste", &json!({"scope": "slides"})).unwrap();
     assert_eq!(deck_titles(&s), ["1", "2", "3", "1", "3"]);
+}
+
+/// Plan stage 8: a blank slide with `rects` on it (nothing selected), the pointer events a person
+/// sends at 100% (4 px of tolerance), and a shape's box.
+fn stage8(rects: &[[f64; 4]]) -> (Session, Vec<u64>) {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let ids = rects.iter().map(|r| s.execute("shape.insert", &json!({"preset": "rect", "rect": r})).unwrap()["id"].as_u64().unwrap()).collect();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    (s, ids)
+}
+
+fn gesture(s: &mut Session, mods: Mods, points: &[(f64, f64)]) {
+    let ev = |kind, (x, y): (f64, f64)| PointerEvent { kind, x, y, mods, tol: crate::tools::TOL_PX };
+    let (first, last) = (points[0], points[points.len() - 1]);
+    s.pointer(ev(PointerKind::Down, first)).unwrap();
+    for p in &points[1..] {
+        s.pointer(ev(PointerKind::Drag, *p)).unwrap();
+    }
+    s.pointer(ev(PointerKind::Up, last)).unwrap();
+}
+
+fn box_of(s: &mut Session, id: u64) -> [f64; 5] {
+    let b = s.execute("shape.inspect", &json!({"id": id})).unwrap()["box"].clone();
+    let f = |k: &str| b[k].as_f64().unwrap_or(0.0);
+    [f("x"), f("y"), f("w"), f("h"), f("rot")]
+}
+
+/// Plan stage 8 item 1 (WPS W-B3–W-B5; case regressions/issue-hand-d2-snap-not-sticky): on a
+/// corner handle Cmd grows the shape about its centre, Alt lets it follow the pointer exactly with
+/// the corner across still anchored, Shift keeps its proportions.
+#[test]
+fn resize_modifiers_follow_wps() {
+    let cmd = Mods { cmd: true, ..Mods::default() };
+    let alt = Mods { alt: true, ..Mods::default() };
+    let shift = Mods { shift: true, ..Mods::default() };
+    let (mut s, ids) = stage8(&[[300.0, 200.0, 120.0, 60.0]]);
+    let id = ids[0];
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    gesture(&mut s, cmd, &[(420.0, 260.0), (440.0, 280.0), (460.0, 300.0)]);
+    let b = box_of(&mut s, id);
+    assert!((b[0] + b[2] / 2.0 - 360.0).abs() < 1e-6 && (b[1] + b[3] / 2.0 - 230.0).abs() < 1e-6, "Cmd keeps the centre: {b:?}");
+    assert!(b[2] > 190.0 && b[3] > 130.0, "and grows both sides: {b:?}");
+    undo(&mut s);
+    gesture(&mut s, alt, &[(420.0, 260.0), (430.0, 265.0), (439.0, 271.0)]);
+    assert_eq!(box_of(&mut s, id)[..4], [300.0, 200.0, 139.0, 71.0], "Alt: the corner follows the pointer, the opposite one stays");
+    undo(&mut s);
+    gesture(&mut s, shift, &[(420.0, 260.0), (450.0, 270.0), (480.0, 275.0)]);
+    let b = box_of(&mut s, id);
+    assert!((b[2] / b[3] - 2.0).abs() < 1e-9 && b[0] == 300.0 && b[1] == 200.0, "Shift keeps the proportions: {b:?}");
+    undo(&mut s);
+    // No modifier: the dragged corner lands on the grid (6 pt), the opposite corner stays.
+    gesture(&mut s, Mods::default(), &[(420.0, 260.0), (430.0, 265.0), (439.0, 271.0)]);
+    let b = box_of(&mut s, id);
+    assert_eq!(b[..4], [300.0, 200.0, 138.0, 70.0], "the grid pulls only the dragged edges: {b:?}");
+}
+
+/// Plan stage 8 items 1–2 (walkthrough D2; WPS W-A2, W-A7, W-A8, W-C3; case
+/// regressions/issue-hand-d2-snap-not-sticky): with snap to grid off a drag follows the pointer to
+/// the point, a 4 px drag moves; near another shape's centre line it snaps there and draws the
+/// guide; Cmd is a plain move that snaps; Alt drags a copy that lands where the pointer puts it.
+#[test]
+fn a_drag_follows_the_pointer_and_snaps_only_near_a_guide() {
+    let (mut s, ids) = stage8(&[[100.0, 100.0, 80.0, 60.0], [400.0, 300.0, 100.0, 50.0]]);
+    let (a, b) = (ids[0], ids[1]);
+    s.prefs.snap_to_grid = false;
+    gesture(&mut s, Mods::default(), &[(140.0, 130.0), (142.0, 130.0), (145.0, 130.0)]);
+    assert_eq!(box_of(&mut s, a)[..2], [105.0, 100.0], "5 pt with nothing near: 5 pt");
+    undo(&mut s);
+    gesture(&mut s, Mods::default(), &[(140.0, 130.0), (144.0, 130.0)]);
+    assert_eq!(box_of(&mut s, a)[0], 104.0, "a 4 px drag moves");
+    undo(&mut s);
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    // A's centre 2 pt from B's: it snaps to it, with the guide drawn while the drag goes on.
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    s.pointer(ev(PointerKind::Down, 140.0, 130.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 300.0, 130.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 448.0, 130.0)).unwrap();
+    assert!(s.tool.guides.iter().any(|g| g.vertical && g.pos == 450.0), "the centre line is drawn: {:?}", s.tool.guides);
+    s.pointer(ev(PointerKind::Up, 448.0, 130.0)).unwrap();
+    assert!(s.tool.guides.is_empty());
+    assert_eq!(box_of(&mut s, a)[0], 410.0, "and the centres line up");
+    undo(&mut s);
+    // Snap to grid on: Cmd still snaps (to the grid here).
+    s.prefs.snap_to_grid = true;
+    s.execute("shape.move", &json!({"ids": [a], "dx": 1, "dy": 1})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    gesture(&mut s, Mods { cmd: true, ..Mods::default() }, &[(141.0, 131.0), (146.0, 131.0), (150.0, 131.0)]);
+    assert_eq!(box_of(&mut s, a)[..2], [108.0, 102.0], "a Cmd drag lands on the grid");
+    undo(&mut s);
+    // Alt: a copy, at the pointer, off the grid; the original stays.
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    gesture(&mut s, Mods { alt: true, ..Mods::default() }, &[(141.0, 131.0), (145.0, 131.0), (148.0, 131.0)]);
+    assert_eq!(box_of(&mut s, a)[..2], [101.0, 101.0], "the original stays");
+    let copy = s.doc().unwrap().selection.shapes.clone();
+    assert_eq!(copy.len(), 1);
+    assert_ne!(u64::from(copy[0].0), a);
+    assert_eq!(box_of(&mut s, u64::from(copy[0].0))[..2], [108.0, 101.0], "the copy lands at the pointer");
+    let _ = b;
+}
+
+/// Plan stage 8 item 4 (walkthrough D5; WPS W-D1–W-D4; case regressions/issue-hand-d5-arrow-steps):
+/// an arrow key moves one grid step with snap to grid on and 0.75 pt with it off; Shift and Alt
+/// change nothing; Cmd moves 10 pt either way.
+#[test]
+fn arrow_steps_follow_the_grid() {
+    let (mut s, ids) = stage8(&[[100.0, 100.0, 80.0, 60.0]]);
+    let id = ids[0];
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    let steps = undo_steps(&s);
+    let x = |s: &mut Session| box_of(s, id)[0];
+    let step = |s: &mut Session, mods: Mods| {
+        let before = x(s);
+        s.key("ArrowRight", mods).unwrap();
+        x(s) - before
+    };
+    assert_eq!(step(&mut s, Mods::default()), 6.0, "one grid step");
+    assert_eq!(step(&mut s, Mods { shift: true, ..Mods::default() }), 6.0, "Shift: the same");
+    assert_eq!(step(&mut s, Mods { alt: true, ..Mods::default() }), 6.0, "Alt: the same");
+    assert_eq!(step(&mut s, Mods { cmd: true, ..Mods::default() }), 10.0, "Cmd: 10 pt");
+    s.prefs.snap_to_grid = false;
+    assert_eq!(step(&mut s, Mods::default()), 0.75, "grid off: 0.75 pt");
+    assert_eq!(step(&mut s, Mods { alt: true, ..Mods::default() }), 0.75, "Alt: the same");
+    assert_eq!(step(&mut s, Mods { cmd: true, ..Mods::default() }), 10.0, "Cmd: 10 pt");
+    assert_eq!(undo_steps(&s), steps + 1, "the nudges of one selection are one step");
+}
+
+/// Plan stage 8 item 5 (WPS W-I1, W-I3, W-I4): paste and Duplicate offset by 10 pt; Duplicate
+/// again on copies the person moved repeats that move.
+#[test]
+fn paste_and_duplicate_offset_10_and_duplicate_repeats_the_move() {
+    let (mut s, ids) = stage8(&[[100.0, 100.0, 80.0, 60.0]]);
+    let id = ids[0];
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    s.execute("edit.copy", &json!({})).unwrap();
+    let pasted = |s: &mut Session| s.doc().unwrap().selection.shapes[0].0 as u64;
+    s.execute("edit.paste", &json!({})).unwrap();
+    let p1 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, p1)[..2], [110.0, 110.0]);
+    s.execute("edit.paste", &json!({})).unwrap();
+    let p2 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, p2)[..2], [120.0, 120.0]);
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    s.execute("edit.duplicate", &json!({})).unwrap();
+    let d1 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, d1)[..2], [110.0, 110.0], "Cmd+D: 10 pt");
+    s.execute("shape.move", &json!({"dx": 30, "dy": 0})).unwrap();
+    s.execute("edit.duplicate", &json!({})).unwrap();
+    let d2 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, d2)[..2], [180.0, 120.0], "again on the moved copy: the copy's offset (40, 10)");
+    s.execute("edit.duplicate", &json!({})).unwrap();
+    let d3 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, d3)[..2], [220.0, 130.0], "and again");
+    // Another selection: the plain offset.
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    s.execute("edit.duplicate", &json!({})).unwrap();
+    let d4 = pasted(&mut s);
+    assert_eq!(box_of(&mut s, d4)[..2], [110.0, 110.0]);
+}
+
+/// Plan stage 8 items 1 and 6 (WPS W-B6, W-E8): a free rotation lands on a whole degree, Shift on
+/// 15°; a shape drawn with Cmd grows from its centre, with Shift and Cmd a square about the press.
+#[test]
+fn rotation_is_whole_degrees_and_cmd_draws_from_the_centre() {
+    let (mut s, ids) = stage8(&[[300.0, 200.0, 200.0, 100.0]]);
+    let id = ids[0];
+    s.execute("edit.select", &json!({"ids": [id]})).unwrap();
+    let (_, rotate) = crate::tools::handles(&kition_slide_geom::Xfrm::new(300.0, 200.0, 200.0, 100.0), 1.0);
+    let centre = (400.0, 250.0);
+    let r = (rotate.y - centre.1).abs();
+    let at = |deg: f64| {
+        let a = (deg - 90.0).to_radians();
+        (centre.0 + r * a.cos(), centre.1 + r * a.sin())
+    };
+    gesture(&mut s, Mods::default(), &[(rotate.x, rotate.y), at(10.0), at(20.3)]);
+    assert_eq!(box_of(&mut s, id)[4], 20.0, "a whole degree");
+    undo(&mut s);
+    gesture(&mut s, Mods { shift: true, ..Mods::default() }, &[(rotate.x, rotate.y), at(10.0), at(20.3)]);
+    assert_eq!(box_of(&mut s, id)[4], 15.0, "Shift: 15° steps");
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    s.set_tool(ToolKind::Shape { preset: "ellipse".into() });
+    let cmd = Mods { cmd: true, ..Mods::default() };
+    gesture(&mut s, cmd, &[(600.0, 400.0), (620.0, 410.0), (640.0, 420.0)]);
+    let drawn = s.doc().unwrap().selection.shapes[0].0 as u64;
+    assert_eq!(box_of(&mut s, drawn)[..4], [560.0, 380.0, 80.0, 40.0], "Cmd: from the centre");
+    s.set_tool(ToolKind::Shape { preset: "ellipse".into() });
+    gesture(&mut s, Mods { shift: true, ..cmd }, &[(600.0, 400.0), (620.0, 410.0), (640.0, 420.0)]);
+    let drawn = s.doc().unwrap().selection.shapes[0].0 as u64;
+    assert_eq!(box_of(&mut s, drawn)[..4], [560.0, 360.0, 80.0, 80.0], "Shift+Cmd: a square about the press");
 }

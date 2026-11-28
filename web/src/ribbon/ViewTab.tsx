@@ -23,6 +23,7 @@ export function ViewTab({ canvas }: { canvas: RefObject<KitCanvasHandle | null> 
       <RibbonStack>{(['ruler', 'gridlines', 'guides'] as const).map((key) => <label className="slides-field-row" key={key}>
         <input type="checkbox" checked={view[key]} onChange={(event) => ({ ruler: view.setRuler, gridlines: view.setGridlines, guides: view.setGuides }[key])(event.target.checked)} data-testid={`slides-view-${key}`} />{t(key)}
       </label>)}</RibbonStack>
+      <RibbonButton primary icon={Grid2X2} label={t('gridSettings')} size="large" onClick={() => view.setGridDialog(true)} data-testid="slides-view-gridSettings" />
       <RibbonButton primary icon={StickyNote} label={t('notes')} size="large" pressed={view.notesOpen} onClick={() => view.setNotesOpen(!view.notesOpen)} />
     </RibbonGroup>
     <RibbonGroup label={t('group.zoom')} icon={Search}>

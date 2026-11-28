@@ -294,7 +294,7 @@ pub struct Prefs {
     pub snap_to_grid: bool,
     pub grid_spacing: f64,
     pub smart_guides: bool,
-    /// Ctrl+D / Paste offset.
+    /// Cmd+D / Paste offset, across and down (WPS W-I1, W-I3: 10 pt).
     pub duplicate_offset: f64,
     pub autocorrect: bool,
     pub smart_quotes: bool,
@@ -310,7 +310,7 @@ impl Default for Prefs {
             snap_to_grid: true,
             grid_spacing: 6.0,
             smart_guides: true,
-            duplicate_offset: 12.0,
+            duplicate_offset: 10.0,
             autocorrect: true,
             smart_quotes: true,
             author: "Presenter".into(),
@@ -374,12 +374,24 @@ pub struct Clipboard {
     pub pastes: u32,
 }
 
+/// The person's last Duplicate (WPS W-I4): the shapes copied and their copies. Duplicating the
+/// copies again (still selected as they were made) offsets the next copies as far from them as the
+/// copies are from what they were copied from, wherever the person moved them meanwhile.
+#[derive(Clone, Debug, Default)]
+pub struct Duplicated {
+    pub uid: u64,
+    pub from: Vec<ShapeId>,
+    pub copies: Vec<ShapeId>,
+}
+
 pub struct Session {
     docs: Vec<DocState>,
     active: Option<usize>,
     pub prefs: Prefs,
     pub journal: Vec<(String, Value)>,
     pub clipboard: Clipboard,
+    /// The person's last Duplicate, whose offset the next one repeats ([`Duplicated`]).
+    pub duplicated: Option<Duplicated>,
     pub ui_requests: Vec<UiRequest>,
     pub tool: tools::ToolState,
     pub(crate) untitled: u32,
@@ -427,6 +439,7 @@ impl Session {
             prefs: Prefs::default(),
             journal: vec![],
             clipboard: Clipboard::default(),
+            duplicated: None,
             ui_requests: vec![],
             tool: tools::ToolState::default(),
             untitled: 0,

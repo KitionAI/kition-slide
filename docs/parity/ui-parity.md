@@ -53,11 +53,11 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Selection handles, rotation handle, yellow adjustment handles | yes | yes: white round handles with a dark ring, a grey rotation handle 18 px above the top edge at any zoom, yellow diamonds, visible on any slide; a handle takes a press 7 px from its centre, the nearest wins, and a press just past one keeps the selection (`web/tests/hand/handles.mjs`, `pointer.mjs`) |
 | Pointer shape: move over objects, a double arrow on each resize handle turned with the object, rotate, adjust, line end, the text cursor only where a press puts the caret, copy with Format Painter loaded | yes | yes (`web/tests/hand/pointer.mjs`) |
 | Marquee, Shift/Cmd multi-select, Tab to cycle | yes | yes |
-| Smart guides (edges, centres, equal spacing) | yes | yes |
-| Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
-| Nudge (arrows), fine nudge (Option+arrows) | yes | yes; an arrow key held on a selection is one undo step (`web/tests/hand/undo.mjs`) |
+| Smart guides (edges, centres, equal spacing) | yes | edges and centres yes, drawn while the shape snaps, off from Grid and Guides (`web/tests/hand/snap.mjs`); no equal-spacing hints |
+| Snap to grid, grid options, drawing guides | yes | yes: View › Grid and Guides… and the slide's context menu set snap to grid, the spacing, the gridlines (drawn at that spacing), the drawing guides and the smart guides, kept on this machine; with snap to grid off a drag follows the pointer; Alt on a handle snaps nothing (`web/tests/hand/snap.mjs`) |
+| Nudge (arrows), fine nudge (Option+arrows) | yes | as WPS: one grid step with snap to grid on, 0.75 pt with it off, Cmd+arrow 10 pt, Shift and Alt the same as the plain key (`web/tests/hand/snap.mjs`); an arrow key held on a selection is one undo step (`web/tests/hand/undo.mjs`) |
 | Undo of typing | a run of typing is one step | the same, as WPS: a run of typing is one step whatever its pauses, Backspaces in a row are one, moving the caret, Enter, a click or another command start a new one, and each commit of an input method is one of its own (`web/tests/hand/undo.mjs`, `ime.mjs`) |
-| Shift-constrained move, Option-drag to duplicate | yes | yes; a Shift drag stays on its axis against the grid and guides |
+| Shift-constrained move, Option-drag to duplicate | yes | yes; a Shift drag stays on its axis against the grid and guides; the Alt copy lands at the pointer, off the grid; Cmd on a handle grows about the centre and Cmd draws a shape from its centre (WPS's keys, `web/tests/hand/snap.mjs`) |
 | Connector glue and rerouting | yes | yes |
 | Edit points on freeforms | yes | **no** |
 | Crop handles, crop to shape, aspect ratio | yes | partial |
@@ -100,7 +100,7 @@ pixel by pixel. Icon consistency across Kition's kits is open.
 |---|---|
 | Format Shape pane depth | 6–10 |
 | Missing dialogs (Font, Bullets and Numbering, Find/Replace, Replace Fonts, Action Settings, Print, Insert Object) | 8–14 |
-| Grid Options, edit points UI, crop depth | 4–7 |
+| Edit points UI, crop depth | 3–6 |
 | A screenshot comparison pass on the most-used tabs | 2–4 |
 | **Total** | **~30–52** |
 

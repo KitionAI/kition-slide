@@ -9,6 +9,11 @@ use serde_json::{Value, json};
 use crate::tools::Mods;
 use crate::{DocState, Result, Selection, Session};
 
+/// Cmd+arrow's nudge, in points (WPS W-D4).
+pub const CMD_NUDGE_PT: f64 = 10.0;
+/// An arrow key's nudge with snap to grid off, in points (WPS W-D2: a pixel at 96 dpi).
+pub const FINE_NUDGE_PT: f64 = 0.75;
+
 /// What a run of keystrokes is (plan stage 2; WPS W-H1, W-H2): characters typed one after
 /// another, Backspace or Delete pressed one after another, arrow-key nudges of one selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,14 +96,15 @@ impl Session {
     /// arrow key that nudges the selected shapes. Any other key ends the run.
     fn run_kind(&self, key: &str, mods: Mods) -> Option<RunKind> {
         let st = self.active()?;
-        if mods.cmd || st.interaction.is_some() {
+        if st.interaction.is_some() {
             return None;
         }
         let k = key.to_ascii_lowercase();
         let k = k.trim_start_matches("arrow");
         if st.selection.text.is_some() {
-            return matches!(k, "backspace" | "delete").then_some(RunKind::Deleting);
+            return (!mods.cmd && matches!(k, "backspace" | "delete")).then_some(RunKind::Deleting);
         }
+        // Cmd+arrow nudges too (by 10 pt), on the same run.
         let nudges = !st.selection.shapes.is_empty() && st.selection.cells.is_none();
         (nudges && matches!(k, "left" | "right" | "up" | "down")).then_some(RunKind::Nudging)
     }
@@ -125,6 +131,20 @@ impl Session {
             }
         }
         r
+    }
+
+    /// How far an arrow key moves the selected shapes, in points (WPS W-D1–W-D4): one grid step
+    /// with snap to grid on, 0.75 pt (a pixel at 96 dpi) with it off, 10 pt with Cmd either way.
+    /// Shift and Alt change nothing.
+    pub fn nudge_step(&self, mods: Mods) -> f64 {
+        let grid = self.prefs.grid_spacing;
+        if mods.cmd {
+            CMD_NUDGE_PT
+        } else if self.prefs.snap_to_grid && grid.is_finite() && grid > 0.0 {
+            grid
+        } else {
+            FINE_NUDGE_PT
+        }
     }
 
     /// Ends the run of typing or nudges under way: the next keystroke is a step of its own.
@@ -213,8 +233,9 @@ impl Session {
                 return Ok(json!({"handled": true}));
             }
         }
-        if !editing && has_shapes && !mods.cmd {
-            let step = if mods.alt { 1.0 } else { 6.0 };
+        let cells = self.active().is_some_and(|d| d.selection.cells.is_some());
+        if !editing && has_shapes && !cells {
+            let step = self.nudge_step(mods);
             let d = match k {
                 "left" => Some((-step, 0.0)),
                 "right" => Some((step, 0.0)),
@@ -226,6 +247,8 @@ impl Session {
                 self.execute("shape.move", &json!({"dx": dx, "dy": dy}))?;
                 return Ok(json!({"handled": true}));
             }
+        }
+        if !editing && has_shapes && !mods.cmd {
             match k {
                 "backspace" | "delete" => {
                     self.execute("edit.delete", &json!({}))?;

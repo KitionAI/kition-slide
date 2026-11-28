@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use kition_slide_geom::Vec2;
 use kition_slide_model::{MediaId, Shape, ShapeId, Slide, SlideId};
 use serde_json::{Value, json};
 
@@ -343,16 +344,19 @@ fn paste_text(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
-    let off = s.prefs.duplicate_offset;
-    s.edit(|doc, sel| {
+    let person = !s.acts_as_agent();
+    let off = if person { repeated_offset(s, &ids) } else { None };
+    let off = off.unwrap_or_else(|| Vec2::new(s.prefs.duplicate_offset, s.prefs.duplicate_offset));
+    let uid = s.doc()?.uid;
+    let r = s.edit(|doc, sel| {
         let list = super::current_shapes(doc, sel).cloned().unwrap_or_default();
         let mut copies: Vec<Shape> = list.iter().filter(|x| ids.contains(&x.id)).cloned().collect();
         let boxes: Vec<_> = copies.iter().map(|c| xfrm_of(doc, sel, c)).collect();
         reid(doc, &mut copies);
         for (c, b) in copies.iter_mut().zip(boxes) {
             let mut x = b;
-            x.x += off;
-            x.y += off;
+            x.x += off.x;
+            x.y += off.y;
             c.xfrm = Some(x);
             if sel.target == crate::Target::Slides {
                 c.ph = None;
@@ -366,7 +370,34 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
         shapes.extend(copies);
         sel.shapes = new_ids.clone();
         Ok(json!({"ids": new_ids}))
-    })
+    })?;
+    if person {
+        let copies: Vec<ShapeId> = r
+            .get("ids")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_u64)
+            .filter_map(|id| u32::try_from(id).ok())
+            .map(ShapeId)
+            .collect();
+        s.duplicated = (!copies.is_empty()).then(|| crate::Duplicated { uid, from: ids, copies });
+    }
+    Ok(r)
+}
+
+/// The offset of the person's last Duplicate when `ids` are its copies (WPS W-I4): how far the
+/// first copy now is from the shape it was copied from.
+fn repeated_offset(s: &Session, ids: &[ShapeId]) -> Option<Vec2> {
+    let last = s.duplicated.as_ref()?;
+    let st = s.doc().ok()?;
+    if last.uid != st.uid || last.copies.as_slice() != ids {
+        return None;
+    }
+    let (from, copy) = last.from.iter().zip(&last.copies).find_map(|(a, b)| Some((st.shape(*a)?, st.shape(*b)?)))?;
+    let (a, b) = (xfrm_of(&st.doc, &st.selection, from), xfrm_of(&st.doc, &st.selection, copy));
+    let off = Vec2::new(b.x - a.x, b.y - a.y);
+    (off.x.is_finite() && off.y.is_finite()).then_some(off)
 }
 
 fn names_shapes(p: &Value) -> bool {

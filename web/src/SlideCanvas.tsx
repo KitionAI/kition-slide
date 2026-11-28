@@ -9,6 +9,8 @@ import { useInputMethod } from './inputMethod'
 import { useFileDrop } from './clipboard'
 import type { OpenMenu } from './ContextMenu'
 import type { ContextTarget } from './contextMenus'
+import { gridStep } from './gridSettings'
+import { useGestureModifiers } from './gestureModifiers'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void; onMenu: (menu: OpenMenu) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled, contextMenu } = useSlides()
@@ -35,6 +37,8 @@ export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: Re
   // Picture files dropped on the slide are inserted where they land (plan stage 5, walkthrough F8).
   const region = useRef<HTMLDivElement>(null)
   const dropping = useFileDrop(region)
+  // A modifier pressed or let go during a drag counts at once (plan stage 8).
+  useGestureModifiers(region)
   const [, setBeat] = useState(0)
   useEffect(() => {
     setCaretShown(true)
@@ -54,10 +58,12 @@ export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: Re
       context.save(); context.beginPath(); context.rect(a.x, a.y, b.x - a.x, b.y - a.y); context.clip()
       context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--kit-text-muted')
       context.lineWidth = 0.5
-      if (view.gridlines) {
+      // The gridlines at the spacing objects snap to (every few of them when they would crowd).
+      const step = view.gridlines ? gridStep(view.grid.gridSpacing, (b.x - a.x) / Math.max(1, area.x1 - area.x0)) : 0
+      if (step > 0) {
         context.globalAlpha = 0.3; context.beginPath()
-        for (let x = area.x0 + 36; x < area.x1; x += 36) { const p = toScreen(x, area.y0); context.moveTo(p.x, a.y); context.lineTo(p.x, b.y) }
-        for (let y = area.y0 + 36; y < area.y1; y += 36) { const p = toScreen(area.x0, y); context.moveTo(a.x, p.y); context.lineTo(b.x, p.y) }
+        for (let x = area.x0 + step; x < area.x1; x += step) { const p = toScreen(x, area.y0); context.moveTo(p.x, a.y); context.lineTo(p.x, b.y) }
+        for (let y = area.y0 + step; y < area.y1; y += step) { const p = toScreen(area.x0, y); context.moveTo(a.x, p.y); context.lineTo(b.x, p.y) }
         context.stroke()
       }
       if (view.guides) {

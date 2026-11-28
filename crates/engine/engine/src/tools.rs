@@ -63,6 +63,13 @@ pub const ROTATE_GAP_PX: f64 = 18.0;
 /// and never clears the selection as a press on the empty slide does (walkthrough D7).
 pub const FRAME_BAND_PX: f64 = 10.0;
 
+/// A press moves its object once the pointer is this far from where it went down (screen pixels;
+/// WPS W-A2: 1–3 px leave it, 4 px move it). Half a pixel under, so a 4 px move is never lost to
+/// rounding.
+pub const DRAG_START_PX: f64 = 3.5;
+/// Free rotation lands on whole degrees (WPS W-B6), Shift on multiples of this.
+pub const ROTATE_STEP_DEG: f64 = 15.0;
+
 /// Points per screen pixel, from a pointer event's tolerance.
 pub fn px_of(tol: f64) -> f64 {
     if tol.is_finite() && tol > 0.0 { tol / TOL_PX } else { 1.0 }
@@ -171,7 +178,11 @@ enum Drag {
         start: Point,
         origs: Vec<(ShapeId, Xfrm)>,
         moved: bool,
+        /// Alt at the press: the drag moves a copy, made when the pointer first moves.
         duplicate: bool,
+        /// The drag moves a copy (Alt at the press): it lands where the pointer puts it, with no
+        /// grid or guide pulling it (WPS W-A7).
+        copy: bool,
         enter_text: Option<(ShapeId, Point)>,
     },
     Resize {
@@ -817,7 +828,7 @@ impl Session {
                     sel.text = None;
                     sel.cells = None;
                 })?;
-                self.tool.drag = Some(Drag::Move { ids, start: p, origs, moved: false, duplicate: mods.alt, enter_text });
+                self.tool.drag = Some(Drag::Move { ids, start: p, origs, moved: false, duplicate: mods.alt, copy: mods.alt, enter_text });
                 // Format Painter applies on click.
                 if self.painter.is_some() && !toggle {
                     let _ = self.execute("format.painterApply", &json!({"ids": [id]}));
@@ -848,9 +859,9 @@ impl Session {
     fn drag(&mut self, p: Point, mods: Mods, tol: f64) -> Result<Value> {
         let Some(drag) = self.tool.drag.clone() else { return Ok(Value::Null) };
         match drag {
-            Drag::Move { ids, start, origs, moved, duplicate, enter_text } => {
+            Drag::Move { ids, start, origs, moved, duplicate, copy, enter_text } => {
                 let mut d = p - start;
-                if !moved && d.hypot() < tol.max(1.0) {
+                if !moved && d.hypot() < DRAG_START_PX * px_of(tol) {
                     return Ok(Value::Null);
                 }
                 if !moved {
@@ -871,7 +882,8 @@ impl Session {
                 // Smart guides on the moved group's bounds.
                 let bounds = origs.iter().map(|(_, x)| x.bounds()).reduce(|a, b| a.union(b)).unwrap_or_default();
                 let moved_b = bounds + d;
-                let (mut snap, mut guides) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !mods.cmd);
+                // Cmd is a plain move that snaps as ever (WPS W-A8); a copy follows the pointer.
+                let (mut snap, mut guides) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !copy);
                 match lock {
                     Some(true) => snap.y = 0.0,
                     Some(false) => snap.x = 0.0,
@@ -902,12 +914,25 @@ impl Session {
                     }
                     Ok(())
                 })?;
-                self.tool.drag =
-                    Some(Drag::Move { ids: ids_now, start, origs: origs2, moved: true, duplicate: false, enter_text: enter_text.filter(|_| false) });
+                self.tool.drag = Some(Drag::Move {
+                    ids: ids_now,
+                    start,
+                    origs: origs2,
+                    moved: true,
+                    duplicate: false,
+                    copy,
+                    enter_text: enter_text.filter(|_| false),
+                });
             }
             Drag::Resize { id, handle, orig, start } => {
-                let nx = resize_box(&orig, handle, p - start, mods.shift || self.is_picture(id), mods.alt);
-                let nx = self.snap_resize(nx, &orig, handle, id, tol);
+                // WPS W-B3–W-B5: Shift keeps the proportions, Cmd grows about the centre, Alt lets
+                // the edges follow the pointer with no grid or guide pulling them.
+                let keep_aspect = mods.shift || self.is_picture(id);
+                let nx = resize_box(&orig, handle, p - start, keep_aspect, mods.cmd);
+                let nx = if mods.alt || keep_aspect { nx } else { self.snap_resize(nx, handle, id, mods.cmd, tol) };
+                if mods.alt || keep_aspect {
+                    self.tool.guides.clear();
+                }
                 self.set_xfrm(id, nx)?;
             }
             Drag::LineEnd { id, end, orig } => {
@@ -934,12 +959,14 @@ impl Session {
             Drag::Rotate { ids, center, start, origs } => {
                 let ang = (p.y - center.y).atan2(p.x - center.x);
                 let mut delta = (ang - start).to_degrees();
+                // Whole degrees, Shift multiples of 15° (WPS W-B6), for the first object's angle;
+                // the others turn by the same amount.
+                let step = if mods.shift { ROTATE_STEP_DEG } else { 1.0 };
+                if let Some((_, first)) = origs.first() {
+                    delta = ((first.rot + delta) / step).round() * step - first.rot;
+                }
                 for (id, o) in &origs {
-                    let mut r = o.rot + delta;
-                    if mods.shift {
-                        r = (r / 15.0).round() * 15.0;
-                        delta = r - o.rot;
-                    }
+                    let r = o.rot + delta;
                     let mut nx = *o;
                     nx.rot = ((r % 360.0) + 360.0) % 360.0;
                     if ids.len() > 1 {
@@ -998,17 +1025,20 @@ impl Session {
                     let s0 = self.glue_at(start, tol).map(|g| g.2).unwrap_or(start);
                     line_xfrm(s0, q, 0.0)
                 } else {
-                    let mut r = Rect::from_points(start, p);
+                    // WPS W-E8: Shift draws a square, Cmd draws from the centre (the press is the
+                    // middle), both together a square about the press.
+                    let d = p - start;
+                    let (mut w, mut h) = (d.x.abs(), d.y.abs());
                     if mods.shift {
-                        let s = r.width().max(r.height());
-                        let sx = if p.x < start.x { -s } else { s };
-                        let sy = if p.y < start.y { -s } else { s };
-                        r = Rect::from_points(start, start + Vec2::new(sx, sy));
+                        w = w.max(h);
+                        h = w;
                     }
-                    if mods.alt {
-                        let d = p - start;
-                        r = Rect::new(start.x - d.x.abs(), start.y - d.y.abs(), start.x + d.x.abs(), start.y + d.y.abs());
-                    }
+                    let r = if mods.cmd {
+                        Rect::new(start.x - w, start.y - h, start.x + w, start.y + h)
+                    } else {
+                        let corner = start + Vec2::new(if d.x < 0.0 { -w } else { w }, if d.y < 0.0 { -h } else { h });
+                        Rect::from_points(start, corner)
+                    };
                     Xfrm::new(r.x0, r.y0, r.width(), r.height())
                 };
                 self.tool.preview = Some(x);
@@ -1362,12 +1392,13 @@ impl Session {
         })
     }
 
-    /// Smart guides: snap `r` edges/centres to the slide and other shapes. Returns the offset to
-    /// apply and the guides to draw.
-    fn snap_rect(&self, r: Rect, exclude: &[ShapeId], tol: f64, enabled: bool) -> (Vec2, Vec<Guide>) {
-        let Some(st) = self.active() else { return (Vec2::ZERO, vec![]) };
-        if !enabled || !self.prefs.smart_guides {
-            return (Vec2::ZERO, vec![]);
+    /// What a moved or resized box's edges and centres snap to, with the box each guide is drawn
+    /// along: the slide's edges and middle and every other visible shape's edges and centres. None
+    /// with smart guides off.
+    fn snap_targets(&self, exclude: &[ShapeId]) -> (Vec<(f64, Rect)>, Vec<(f64, Rect)>) {
+        let Some(st) = self.active() else { return (vec![], vec![]) };
+        if !self.prefs.smart_guides {
+            return (vec![], vec![]);
         }
         let size = st.doc.slide_size;
         let mut xs: Vec<(f64, Rect)> = vec![
@@ -1392,70 +1423,104 @@ impl Session {
                 ys.push((y, b));
             }
         }
-        let mut best_x: Option<(f64, f64, Rect)> = None;
-        for edge in [r.x0, r.center().x, r.x1] {
-            for (x, b) in &xs {
-                let d = x - edge;
-                if d.abs() <= tol && best_x.is_none_or(|(bd, _, _)| d.abs() < bd.abs()) {
-                    best_x = Some((d, *x, *b));
-                }
-            }
+        (xs, ys)
+    }
+
+    /// The grid's pull on `v`: how far to the nearest grid line, with snap to grid on.
+    fn grid_pull(&self, v: f64) -> Option<f64> {
+        let step = self.prefs.grid_spacing;
+        (self.prefs.snap_to_grid && step.is_finite() && step > 0.0).then(|| kition_slide_geom::snap(v, step) - v)
+    }
+
+    /// Smart guides: snap `r` edges/centres to the slide and other shapes, else its top-left corner
+    /// to the grid. Returns the offset to apply and the guides to draw. Off (`enabled` false), the
+    /// box follows the pointer.
+    fn snap_rect(&self, r: Rect, exclude: &[ShapeId], tol: f64, enabled: bool) -> (Vec2, Vec<Guide>) {
+        if !enabled {
+            return (Vec2::ZERO, vec![]);
         }
-        let mut best_y: Option<(f64, f64, Rect)> = None;
-        for edge in [r.y0, r.center().y, r.y1] {
-            for (y, b) in &ys {
-                let d = y - edge;
-                if d.abs() <= tol && best_y.is_none_or(|(bd, _, _)| d.abs() < bd.abs()) {
-                    best_y = Some((d, *y, *b));
-                }
-            }
-        }
+        let (xs, ys) = self.snap_targets(exclude);
         let mut off = Vec2::ZERO;
         let mut guides = vec![];
-        if let Some((d, x, b)) = best_x {
+        if let Some((d, x, b)) = nearest_target(&[r.x0, r.center().x, r.x1], &xs, tol) {
             off.x = d;
             let rr = r + Vec2::new(d, 0.0);
             guides.push(Guide { vertical: true, pos: x, from: b.y0.min(rr.y0), to: b.y1.max(rr.y1) });
-        } else if self.prefs.snap_to_grid {
-            off.x = kition_slide_geom::snap(r.x0, self.prefs.grid_spacing) - r.x0;
+        } else if let Some(d) = self.grid_pull(r.x0) {
+            off.x = d;
         }
-        if let Some((d, y, b)) = best_y {
+        if let Some((d, y, b)) = nearest_target(&[r.y0, r.center().y, r.y1], &ys, tol) {
             off.y = d;
             let rr = r + Vec2::new(0.0, d);
             guides.push(Guide { vertical: false, pos: y, from: b.x0.min(rr.x0), to: b.x1.max(rr.x1) });
-        } else if self.prefs.snap_to_grid {
-            off.y = kition_slide_geom::snap(r.y0, self.prefs.grid_spacing) - r.y0;
+        } else if let Some(d) = self.grid_pull(r.y0) {
+            off.y = d;
         }
         (off, guides)
     }
 
-    fn snap_resize(&mut self, x: Xfrm, _orig: &Xfrm, handle: u8, id: ShapeId, tol: f64) -> Xfrm {
+    /// A resize's snap: only the dragged edges move, each to a guide (another shape's or the
+    /// slide's edge or centre) or else to the grid (WPS W-B2, W-C3). `centred` (Cmd): the opposite
+    /// edge moves the other way by as much, so the centre stays.
+    fn snap_resize(&mut self, x: Xfrm, handle: u8, id: ShapeId, centred: bool, tol: f64) -> Xfrm {
         if x.rot != 0.0 {
             self.tool.guides.clear();
             return x;
         }
         let r = x.rect();
-        let (off, guides) = self.snap_rect(r, &[id], tol * 1.5, true);
+        let (xs, ys) = self.snap_targets(&[id]);
+        let tol = tol * 1.5;
         let mut nx = x;
-        // Only the dragged edges move.
-        let moves_left = matches!(handle, 0 | 6 | 7);
-        let moves_right = matches!(handle, 2..=4);
-        let moves_top = matches!(handle, 0..=2);
-        let moves_bottom = matches!(handle, 4..=6);
-        if moves_left {
-            nx.x += off.x;
-            nx.w -= off.x;
-        } else if moves_right {
-            nx.w += off.x;
+        let mut guides = vec![];
+        // The dragged edge on each axis: -1 the low one (left, top), 1 the high one, 0 none.
+        let side_x = if matches!(handle, 0 | 6 | 7) {
+            -1.0
+        } else if matches!(handle, 2..=4) {
+            1.0
+        } else {
+            0.0
+        };
+        let side_y = if matches!(handle, 0..=2) {
+            -1.0
+        } else if matches!(handle, 4..=6) {
+            1.0
+        } else {
+            0.0
+        };
+        let mut pulls = [None, None];
+        for (axis, side) in [side_x, side_y].into_iter().enumerate() {
+            if side == 0.0 {
+                continue;
+            }
+            let (lo, hi) = if axis == 0 { (r.x0, r.x1) } else { (r.y0, r.y1) };
+            let edge = if side < 0.0 { lo } else { hi };
+            let targets = if axis == 0 { &xs } else { &ys };
+            pulls[axis] = match nearest_target(&[edge], targets, tol) {
+                Some((d, pos, b)) => Some((d, Some((pos, b)))),
+                None => self.grid_pull(edge).map(|d| (d, None)),
+            };
         }
-        if moves_top {
-            nx.y += off.y;
-            nx.h -= off.y;
-        } else if moves_bottom {
-            nx.h += off.y;
+        if let Some((d, _)) = pulls[0] {
+            let (dx, dw) = if side_x < 0.0 { (d, -d) } else { (0.0, d) };
+            let (dx, dw) = if centred { (dx - if side_x < 0.0 { 0.0 } else { d }, dw * 2.0) } else { (dx, dw) };
+            nx.x += dx;
+            nx.w += dw;
+        }
+        if let Some((d, _)) = pulls[1] {
+            let (dy, dh) = if side_y < 0.0 { (d, -d) } else { (0.0, d) };
+            let (dy, dh) = if centred { (dy - if side_y < 0.0 { 0.0 } else { d }, dh * 2.0) } else { (dy, dh) };
+            nx.y += dy;
+            nx.h += dh;
         }
         nx.w = nx.w.max(0.0);
         nx.h = nx.h.max(0.0);
+        let rr = nx.rect();
+        if let Some((_, Some((pos, b)))) = pulls[0] {
+            guides.push(Guide { vertical: true, pos, from: b.y0.min(rr.y0), to: b.y1.max(rr.y1) });
+        }
+        if let Some((_, Some((pos, b)))) = pulls[1] {
+            guides.push(Guide { vertical: false, pos, from: b.x0.min(rr.x0), to: b.x1.max(rr.x1) });
+        }
         self.tool.guides = guides;
         nx
     }
@@ -1557,6 +1622,21 @@ fn over_lines(st: &crate::DocState, sh: &Shape, p: Point, tol: f64, whole: bool)
 
 fn contains_rect(outer: Rect, inner: Rect) -> bool {
     inner.x0 >= outer.x0 && inner.y0 >= outer.y0 && inner.x1 <= outer.x1 && inner.y1 <= outer.y1
+}
+
+/// The target nearest to any of `edges` within `tol`: how far to move, where to, and the box its
+/// guide is drawn along.
+fn nearest_target(edges: &[f64], targets: &[(f64, Rect)], tol: f64) -> Option<(f64, f64, Rect)> {
+    let mut best: Option<(f64, f64, Rect)> = None;
+    for edge in edges {
+        for (at, b) in targets {
+            let d = at - edge;
+            if d.abs() <= tol && best.is_none_or(|(bd, _, _)| d.abs() < bd.abs()) {
+                best = Some((d, *at, *b));
+            }
+        }
+    }
+    best
 }
 
 fn constrain_45(a: Point, b: Point) -> Point {
