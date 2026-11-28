@@ -3,6 +3,7 @@ import type { KitCommentAnchor, KitShownThread } from '@kition/sdk/protocol'
 import { useKitEditorState, useKitSession, usePresence, useRemoteSelections, type HostConnection, type KitEngineInfo, type KitPresence, type KitModuleManifest, type PresenceRect, type Strings } from '@kition/sdk/editor'
 import { useSlideView } from './useSlideView'
 import { canvasColor } from './backdrop'
+import { clipboardCommand } from './clipboard'
 import kit from '../../kit.json'
 
 /**
@@ -310,6 +311,9 @@ function useSlidesState(host: HostConnection, t: Strings) {
       view.present(id === 'show.fromStart' ? 0 : current)
       return null
     }
+    // The ribbon's Copy, Cut and Paste go through the system clipboard (plan stage 5, walkthrough J2).
+    const viaClipboard = clipboardCommand(id, params)
+    if (viaClipboard) return viaClipboard
     if (id === 'spelling.check' || id === 'accessibility.check') {
       view.setPane(id === 'spelling.check' ? 'spelling' : 'accessibility')
       return null
@@ -360,6 +364,8 @@ function useSlidesState(host: HostConnection, t: Strings) {
   return {
     ...editor,
     run,
+    /** The frame's run without the editor's own routes (the clipboard's commands go through it). */
+    plainRun: editor.run,
     session,
     format,
     facts,

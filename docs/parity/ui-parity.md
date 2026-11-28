@@ -68,8 +68,9 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
 | Context menus on shapes, slides, text, thumbnails | yes | yes, shorter |
-| Drag and drop of files and between thumbnails | yes | yes |
-| Image paste from the clipboard | yes | no: the editor does not read pictures from the system clipboard |
+| Drag and drop of files and between thumbnails | yes | partial: picture files dropped on the slide go where they are dropped (`web/tests/hand/clipboard.mjs`); a dropped slide file is not opened (the host opens files); thumbnails reorder by dragging |
+| Copy, cut and paste with other apps | yes | yes, plain text: what Cmd+C copies reaches other apps as text; their text pastes at the caret or as a new text box; Cmd+Alt+Shift+V pastes text only (`web/tests/hand/clipboard.mjs`) |
+| Image paste from the clipboard | yes | yes: 0.75 pt a pixel, in the middle of the slide (`web/tests/hand/clipboard.mjs`) |
 | Font menu: every installed family with its faces | yes | families yes; only Regular/Bold/Italic faces |
 
 ## Keyboard shortcuts

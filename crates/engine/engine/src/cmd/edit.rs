@@ -15,7 +15,9 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("edit.cut", "Cut", ["Home", "Clipboard"], Some("Cmd+X"), "{scope?: slides, ids?, id? (one shape instead of ids)}", has_doc, cut),
         cmd!(noundo "edit.copy", "Copy", ["Home", "Clipboard"], Some("Cmd+C"), "{scope?: slides} → {text}", has_doc, copy),
         cmd!("edit.paste", "Paste", ["Home", "Clipboard"], Some("Cmd+V"), "{text?: plain text to paste, scope?: slides}", has_doc, paste),
-        cmd!("edit.pasteText", "Paste and Match Formatting", ["Edit"], Some("Cmd+Shift+V"), "{text?}", has_doc, paste_text),
+        // Cmd+Shift+V is the Format Painter's Paste Formatting (format.rs), as in WPS; plain text pastes
+        // with Cmd+Alt+Shift+V (walkthrough J2: both used to take Cmd+Shift+V, and this one won).
+        cmd!("edit.pasteText", "Paste and Match Formatting", ["Edit"], Some("Cmd+Alt+Shift+V"), "{text?}", has_doc, paste_text),
         cmd!("edit.duplicate", "Duplicate", ["Edit"], Some("Cmd+D"), "{ids?}", has_selection, duplicate),
         cmd!(
             "edit.delete",

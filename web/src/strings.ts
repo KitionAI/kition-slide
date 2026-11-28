@@ -170,6 +170,9 @@ const enUS: Catalog = {
   'link.slide': 'Slide in this file',
   'link.slideItem': '{slide}. {title}',
   'link.untitled': 'Untitled slide',
+  'picture.pasted': 'Pasted picture',
+  'picture.tooLarge': '{name} is larger than 64 MB and was not inserted',
+  'picture.dropOnly': '{name} is not a picture: only pictures can be dropped on a slide',
 }
 
 const zhCN: Catalog = {
@@ -337,6 +340,9 @@ const zhCN: Catalog = {
   'link.slide': '本文档中的幻灯片',
   'link.slideItem': '{slide}. {title}',
   'link.untitled': '无标题幻灯片',
+  'picture.pasted': '粘贴的图片',
+  'picture.tooLarge': '{name} 超过 64 MB，未插入',
+  'picture.dropOnly': '{name} 不是图片：只能把图片拖到幻灯片上',
 }
 
 export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN, ...formatEN }, 'zh-CN': { ...zhCN, ...ribbonZH, ...formatZH } }

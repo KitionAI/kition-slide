@@ -46,6 +46,7 @@ import { drawSlideHandle } from './handles'
 import { LinkDialog } from './LinkDialog'
 import { ZoomBox } from './ZoomBox'
 import { steppedCanvas } from './zoom'
+import { useSystemClipboard } from './clipboard'
 
 const HOST_TOOLS = { hand: HAND_TOOL }
 
@@ -86,6 +87,8 @@ function Editor({ slides }: { slides: Slides }) {
   const viewMemory = useRef<RasterView | null>(null)
   useSlideWheel(canvasRegion, canvas, viewMemory, slides)
   useEngineBackdrop(doc, canvas)
+  // The system clipboard (plan stage 5): its key listener goes before the keyboard's safety net.
+  useSystemClipboard({ run: slides.plainRun, inOrder: session.inOrder, doc, readOnly: slides.host.readOnly === true, editingText: state?.editingText === true, area: state?.area ?? null, canvas, t })
   useKeyboardFallback()
   usePopupEscape()
   // The slides just opened have the keyboard (walkthrough K1).

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-f8-paste-image
+feature: slide.editor.clipboard
+intent: "Pictures come in by paste and by drop (walkthrough F8; WPS W-I6): a 480 × 320 pixel PNG on the clipboard pastes as a 360 × 240 pt picture in the middle of the slide, and a picture file dropped on the slide goes with its middle where it was dropped, each one undo step. Cmd+V with a picture on the clipboard did nothing, and a dropped file was not taken."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/clipboard.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/clipboard.mjs, chromium, f8-paste-picture, f8-drop-picture]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

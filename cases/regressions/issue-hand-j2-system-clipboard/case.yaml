@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-j2-system-clipboard
+feature: slide.editor.clipboard
+intent: "Copy and paste reach the system clipboard (walkthrough J2): Cmd+C and Cmd+X of selected characters put them on it for other apps; text another app copied pastes at the caret while text is edited and as a new text box with nothing selected, also after a shape was copied here; Cmd+Alt+Shift+V pastes text only while Cmd+Shift+V applies the Format Painter. Copy and paste used to stay in the engine's own clipboard, and both commands claimed Cmd+Shift+V."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/clipboard.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/clipboard.mjs, chromium, j2-text-in-and-out, j1-objects-inside, j2-newer-outside-text-wins, j2-paste-text-only]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

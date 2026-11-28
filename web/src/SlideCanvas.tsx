@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
@@ -6,6 +6,7 @@ import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { slideScrollArea } from './useSlideWheel'
 import { CARET_BLINK_MS, isCaretShown, setCaretShown } from './handles'
 import { useInputMethod } from './inputMethod'
+import { useFileDrop } from './clipboard'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled } = useSlides()
@@ -29,6 +30,9 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
     typing: editing || tools?.wantsText === true,
     answer: overlays,
   })
+  // Picture files dropped on the slide are inserted where they land (plan stage 5, walkthrough F8).
+  const region = useRef<HTMLDivElement>(null)
+  const dropping = useFileDrop(region)
   const [, setBeat] = useState(0)
   useEffect(() => {
     setCaretShown(true)
@@ -111,7 +115,7 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
     if (event.detail !== 3 || !(surface instanceof HTMLCanvasElement) || !surface.classList.contains('kui-canvas-surface')) return
     void runWhenEnabled('text.selectParagraph')
   }
-  return <div className="slides-canvas-view" data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed} onClick={clicked}>
+  return <div ref={region} className="slides-canvas-view" data-dropping={dropping || undefined} data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed} onClick={clicked}>
     {view.ruler ? <>{ruler('x')}{ruler('y')}</> : null}
     <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={area ?? null} panBounds={panBounds} framed={false} decorate={decorate} onView={(raster) => { setPosition(raster); views.set(raster); onZoom(raster.zoom) }} testId="slides-canvas-region">
       {hostComments ? <CanvasMarkers view={position} /> : null}

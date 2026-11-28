@@ -19,6 +19,8 @@
 .slides-canvas-view { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; }
 .slides-canvas-view[data-ruler='true'] { padding: 24px 0 0 24px; }
 .slides-canvas-view[data-grayscale='true'] .kui-canvas-surface { filter: grayscale(1); }
+/* Picture files dragged over the slide (plan stage 5): the canvas says it takes them. */
+.slides-canvas-view[data-dropping='true']::after { content: ''; position: absolute; inset: 4px; border: 2px dashed var(--kit-primary); border-radius: 6px; pointer-events: none; }
 .slides-ruler { position: absolute; background: var(--kit-surface-muted); color: var(--kit-text-muted); font-size: 10px; overflow: hidden; }
 .slides-ruler-x { top: 0; left: 24px; right: 0; height: 23px; border-bottom: 1px solid var(--kit-border); }
 .slides-ruler-y { top: 24px; left: 0; bottom: 0; width: 23px; border-right: 1px solid var(--kit-border); }

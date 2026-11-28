@@ -449,6 +449,34 @@ mod tests {
         assert!(shortcut_matches("Delete", "Delete", m(false, false, false)));
     }
 
+    /// One key, one command: the frame and the engine take a shortcut's first command, so a key
+    /// two commands claim runs only one of them (walkthrough J2: Cmd+Shift+V was both Paste and
+    /// Match Formatting and Paste Formatting, and the Format Painter never got it).
+    #[test]
+    fn no_two_commands_share_a_shortcut() {
+        let mut seen = std::collections::BTreeMap::new();
+        for spec in crate::command_specs() {
+            let Some(shortcut) = spec.shortcut else { continue };
+            let mut parts: Vec<String> = shortcut.split('+').map(str::to_ascii_lowercase).collect();
+            parts.sort();
+            if let Some(other) = seen.insert(parts.join("+"), spec.id) {
+                panic!("{shortcut} is the shortcut of both {other} and {}", spec.id);
+            }
+        }
+    }
+
+    #[test]
+    fn cmd_shift_v_paints_and_cmd_alt_shift_v_pastes_plain_text() {
+        let mut s = Session::with_new();
+        let title = s.doc().unwrap().current_slide().unwrap().shapes[0].id.0;
+        s.execute("edit.select", &json!({"ids": [title]})).unwrap();
+        s.execute("format.painter", &json!({})).unwrap();
+        let painted = s.key("v", Mods { cmd: true, shift: true, ..Default::default() }).unwrap();
+        assert_eq!(painted["command"], "format.painterApply");
+        let pasted = s.key("v", Mods { cmd: true, shift: true, alt: true }).unwrap();
+        assert_eq!(pasted["command"], "edit.pasteText");
+    }
+
     #[test]
     fn keys_drive_editing() {
         let mut s = Session::with_new();
