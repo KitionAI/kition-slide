@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e5-double-click-text-box
+feature: slide.editor.shape-gallery
+intent: "A double-click on the empty slide makes a 320 pt text box there, typed in at once (it did nothing; WPS W-E5)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/insert.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/insert.mjs, chromium, e5-double-click-text-box]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

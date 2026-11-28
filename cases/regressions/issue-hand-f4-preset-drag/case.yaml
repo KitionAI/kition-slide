@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-f4-preset-drag
+feature: slide.editor.shape-gallery
+intent: "Every preset shape in the gallery is drawn by dragging it out to the dragged rectangle, a click makes it 72 x 72 pt with its top left at the click, and the tool goes back to Select with the shape selected (160 presets only went in the slide's middle at 96 x 96, one on another; walkthrough F4; WPS W-E7, W-E9)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/insert.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/insert.mjs, chromium, f4-preset-drag]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

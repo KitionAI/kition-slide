@@ -30,6 +30,7 @@
 import { useEffect, useState, type RefObject } from 'react'
 import { base64, isMac, toast, type KitCanvasHandle, type KitEngine, type Strings } from '@kition/sdk/editor'
 import { composingKey } from './inputMethod'
+import { selectEmptyPlaceholder } from './pictureTarget'
 import { editorRoot, focusEditor, keyboardLost } from './focus'
 
 /** The clipboard type of this editor's mark: which copy of which page the clipboard holds. */
@@ -53,6 +54,8 @@ type Area = { x0: number; y0: number; x1: number; y1: number }
 export type ClipboardEditor = {
   /** The editor's run, not this module's (the frame's error reports, the read-only rules). */
   run: Run
+  /** The engine's read-only commands (`slide.inspect`, `file.inspect`). */
+  query: <T>(command: string, params?: Record<string, unknown>) => Promise<T | null | undefined>
   inOrder: <R>(work: () => Promise<R>) => Promise<R>
   doc: KitEngine | null
   readOnly: boolean
@@ -297,6 +300,9 @@ function insertPicture(editor: ClipboardEditor, image: File, at: { x: number; y:
     const data = base64(new Uint8Array(await image.arrayBuffer()))
     const area = editor.area
     const rect = at && area ? await droppedRect(image, at, area) : null
+    // A pasted picture goes into the slide's empty content or picture placeholder, if it has one
+    // (walkthrough F7); a dropped one stays where it was dropped.
+    if (!at) await selectEmptyPlaceholder(editor.query, (command, params) => editor.run(command, params, { inOrder: true }))
     const name = image.name && image.name !== 'image.png' ? image.name : `${editor.t('picture.pasted')}.${(image.type.split('/')[1] ?? 'png').replace('svg+xml', 'svg').replace('jpeg', 'jpg')}`
     return editor.run('image.insert', { data, name, ...(rect ? { rect } : {}) }, { inOrder: true })
   })

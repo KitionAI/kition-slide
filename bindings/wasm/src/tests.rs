@@ -503,3 +503,31 @@ fn the_slide_panel_selection_is_in_the_editor_state_and_thumbnails_have_no_promp
     let first = &thumbnail[..4];
     assert!(thumbnail.chunks(4).all(|pixel| pixel == first), "an empty slide's thumbnail shows no prompt");
 }
+
+/// Plan stage 9 items 1–3 (walkthrough F4; WPS W-E6, W-E10; case
+/// regressions/issue-hand-f4-preset-drag): every preset in the gallery and the freeform tools are
+/// drawing tools, each preset has an icon drawn from its own geometry, and a shape tool locks.
+#[test]
+fn every_gallery_shape_is_a_tool_with_an_icon_and_shape_tools_lock() {
+    let mut doc = SlideDocument::create("Gallery.kslide", 960, 540).unwrap();
+    let icons = crate::gallery::preset_icons(20.0);
+    for info in kition_slide_geom::preset::CATALOG {
+        assert!(tool_kind(info.name).is_some(), "{} is a tool", info.name);
+        let paths = icons[info.name].as_array().unwrap_or_else(|| panic!("{} has an icon", info.name));
+        assert!(paths.iter().any(|path| path["d"].as_str().is_some_and(|d| d.starts_with('M'))), "{} is drawn", info.name);
+    }
+    assert!(icons["heart"][0]["fill"].as_bool().unwrap(), "a closed shape is filled");
+    assert!(!icons["line"][0]["fill"].as_bool().unwrap(), "a line is not");
+    for name in ["curve", "freeform", "scribble"] {
+        assert!(matches!(tool_kind(name), Some(ToolKind::Shape { .. })), "{name} draws");
+    }
+    assert!(tool_kind("noSuchShape").is_none());
+    // Lock drawing mode: the heart stays chosen; chosen again plainly, it is not locked.
+    assert!(doc.set_tool_lock("heart", true).unwrap());
+    assert_eq!(doc.tool(), "heart");
+    assert!(doc.session.tool.sticky);
+    assert!(!doc.set_tool_lock("heart", false).unwrap());
+    assert!(!doc.session.tool.sticky);
+    assert!(!doc.set_tool_lock("textBox", true).unwrap(), "only shapes lock");
+    assert!(doc.set_tool_lock("noSuchShape", true).is_err());
+}

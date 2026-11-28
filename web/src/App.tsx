@@ -45,6 +45,7 @@ import { slideKeys, usePopupEscape } from './editorKeys'
 import { drawSlideHandle } from './handles'
 import { LinkDialog } from './LinkDialog'
 import { GridDialog } from './GridDialog'
+import { TableDialog } from './ribbon/TableGrid'
 import { useEngineSnapping } from './gridSettings'
 import { ZoomBox } from './ZoomBox'
 import { steppedCanvas } from './zoom'
@@ -94,7 +95,7 @@ function Editor({ slides }: { slides: Slides }) {
   // Grid and guides: the person's settings steer the engine's snapping and arrow keys (plan stage 8).
   useEngineSnapping(doc, view.grid)
   // The system clipboard (plan stage 5): its key listener goes before the keyboard's safety net.
-  useSystemClipboard({ run: slides.plainRun, inOrder: session.inOrder, doc, readOnly: slides.host.readOnly === true, editingText: state?.editingText === true, textSelected: state?.textSelected === true, area: state?.area ?? null, canvas, t })
+  useSystemClipboard({ run: slides.plainRun, query: slides.query, inOrder: session.inOrder, doc, readOnly: slides.host.readOnly === true, editingText: state?.editingText === true, textSelected: state?.textSelected === true, area: state?.area ?? null, canvas, t })
   useKeyboardFallback()
   usePopupEscape()
   // The slides just opened have the keyboard (walkthrough K1).
@@ -234,6 +235,7 @@ function Editor({ slides }: { slides: Slides }) {
         {exporting ? <ExportDialog onClose={() => setExporting(false)} /> : null}
         {slides.linking ? <LinkDialog onClose={() => slides.setLinking(false)} /> : null}
         {view.gridDialog ? <GridDialog onClose={() => view.setGridDialog(false)} /> : null}
+        {view.tableDialog ? <TableDialog onClose={() => view.setTableDialog(false)} /> : null}
         {menu ? <SlideContextMenu menu={menu} onClose={closeMenu} onFormat={formatObject} /> : null}
         {view.showing != null && doc ? <SlideShow doc={doc} from={view.showing.from} slides={state?.slides ?? 1} onEnd={showEnded} hint={t('endShow')} options={view.showing} /> : null}
       </EditorFrame>

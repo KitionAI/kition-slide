@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e1-text-box-width
+feature: slide.editor.shape-gallery
+intent: "A click of the Text Box tool makes a text box 320 pt wide at the click, one line high and wrapping; a drag makes it as wide as the drag; Escape with the tool chosen puts it down (a click made a 20 pt box growing sideways; WPS W-E1, W-E2, W-E4)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/insert.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/insert.mjs, chromium, e1-text-box-width]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

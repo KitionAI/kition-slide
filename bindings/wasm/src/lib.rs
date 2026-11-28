@@ -17,6 +17,7 @@ pub mod check;
 mod collab;
 pub mod described;
 mod files;
+pub mod gallery;
 mod rests_deck;
 mod rests_drawing;
 mod rests_media;
@@ -99,8 +100,8 @@ fn tool_kind(id: &str) -> Option<ToolKind> {
         "pencil" => ToolKind::Ink { mode: "pencil".into(), color: kition_slide_color::Rgba::rgb(90, 90, 90), width: 1.0 },
         "highlighter" => ToolKind::Ink { mode: "highlighter".into(), color: kition_slide_color::Rgba { r: 255, g: 230, b: 0, a: 255 }, width: 12.0 },
         "eraser" => ToolKind::Ink { mode: "eraser".into(), color: kition_slide_color::Rgba::BLACK, width: 2.0 },
-        other if TOOLS.iter().any(|(tool, ..)| *tool == other) => ToolKind::Shape { preset: other.to_owned() },
-        _ => return None,
+        // Any preset shape draws (plan stage 9, walkthrough F4), as do the freeform tools.
+        other => return gallery::shape_tool(other),
     })
 }
 
@@ -447,6 +448,21 @@ impl SlideDocument {
             prefs.smart_guides = on;
         }
         Ok(serde_json::json!({"snapToGrid": prefs.snap_to_grid, "gridSpacing": prefs.grid_spacing, "smartGuides": prefs.smart_guides}))
+    }
+
+    /// Lock drawing mode (plan stage 9, WPS W-E10): with `on`, shape tool `id` stays chosen after
+    /// each shape until Escape or another tool; off, it goes back to Select after one. Chooses the
+    /// tool when it is not the one chosen. Only shape tools lock: answers whether it is locked.
+    pub fn set_tool_lock(&mut self, id: &str, on: bool) -> Result<bool, String> {
+        let kind = tool_kind(id).ok_or_else(|| format!("no tool {id}"))?;
+        if !matches!(kind, ToolKind::Shape { .. }) {
+            return Ok(false);
+        }
+        if self.tool() != id {
+            self.session.set_tool(kind);
+        }
+        self.session.tool.sticky = on;
+        Ok(on)
     }
 
     /// A theme preview rendered from a copy; it never edits the open slides.
@@ -2062,6 +2078,18 @@ pub mod web {
         #[wasm_bindgen(js_name = setSnapping)]
         pub fn set_snapping(&mut self, settings: &str) -> Result<String, JsError> {
             self.0.set_snapping(settings).map(|now| now.to_string()).map_err(error)
+        }
+
+        /// Lock drawing mode for shape tool `id`, or not: see `SlideDocument::set_tool_lock`.
+        #[wasm_bindgen(js_name = setToolLock)]
+        pub fn set_tool_lock(&mut self, id: &str, on: bool) -> Result<bool, JsError> {
+            self.0.set_tool_lock(id, on).map_err(error)
+        }
+
+        /// The shape gallery's icons, `size` points square, as JSON: see `gallery::preset_icons`.
+        #[wasm_bindgen(js_name = presetIcons)]
+        pub fn preset_icons(&self, size: u32) -> String {
+            crate::gallery::preset_icons(f64::from(size)).to_string()
         }
 
         /// What an input method composes in the text being edited, shown at the caret (empty text

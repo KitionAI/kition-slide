@@ -172,6 +172,12 @@ impl Session {
             self.anim_painter = None;
             return Ok(json!({"handled": true}));
         }
+        // Escape puts a drawing tool down (the Text Box tool, a shape locked for drawing one after
+        // another; WPS W-E4, W-E10) before it leaves the selection.
+        if matches!(k, "escape" | "esc") && !matches!(self.tool.kind, crate::tools::ToolKind::Select) {
+            self.set_tool(crate::tools::ToolKind::Select);
+            return Ok(json!({"handled": true}));
+        }
         if !mods.cmd && !mods.alt && matches!(k, "left" | "right" | "up" | "down") && self.table_arrow(k, mods.shift)? {
             return Ok(json!({"handled": true}));
         }

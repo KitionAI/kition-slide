@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-f7-picture-placeholder
+feature: slide.editor.shape-gallery
+intent: "A picture pasted on a slide with an empty content placeholder goes into it whole, keeping its proportions, in its middle, and the placeholder's prompt goes; one Cmd+Z brings the placeholder back (the picture lay over the prompt; walkthrough F7)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/insert.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/insert.mjs, chromium, f7-picture-placeholder]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

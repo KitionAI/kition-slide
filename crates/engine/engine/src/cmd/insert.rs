@@ -308,6 +308,14 @@ fn fitted(s: &Session, bytes: &[u8]) -> (f64, f64) {
     (w * k, h * k)
 }
 
+/// A `w` × `h` picture scaled to fit inside `b`, keeping its proportions, in the middle of `b`.
+fn fit_within(b: Xfrm, w: f64, h: f64) -> Xfrm {
+    let k = (b.w / w.max(1e-9)).min(b.h / h.max(1e-9));
+    let k = if k.is_finite() && k > 0.0 { k } else { 1.0 };
+    let (fw, fh) = (w * k, h * k);
+    Xfrm { x: b.x + (b.w - fw) / 2.0, y: b.y + (b.h - fh) / 2.0, w: fw, h: fh, ..b }
+}
+
 fn picture(s: &mut Session, p: &Value) -> Result<Value> {
     let (name, bytes) = media_bytes(s, p, "image.insert")?;
     let ct = content_type(&name, &bytes);
@@ -327,17 +335,17 @@ fn picture(s: &mut Session, p: &Value) -> Result<Value> {
                     matches!(k, kition_slide_model::PhType::Picture | kition_slide_model::PhType::Obj | kition_slide_model::PhType::Body)
                 }) && x.text.as_ref().is_none_or(|t| t.is_empty())
             })
-            .map(|x| (x.id, xfrm_of(&d.doc, &d.selection, x)))
+            .map(|x| (x.id, xfrm_of(&d.doc, &d.selection, x), x.ph_type() == Some(kition_slide_model::PhType::Picture)))
     });
     let rect = rect_param(p, "rect").unwrap_or_else(|| match target_ph {
-        Some((_, b)) => {
-            // Fill the placeholder, cropping the picture to its aspect.
-            b
-        }
+        // A picture placeholder is filled, the picture cropped to its aspect.
+        Some((_, b, true)) => b,
+        // A content (or text) placeholder holds the picture whole, as large as fits, in its middle.
+        Some((_, b, false)) => fit_within(b, w, h),
         None => default_rect(s, w, h),
     });
     let crop = match (target_ph, rect_param(p, "rect")) {
-        (Some(_), None) => {
+        (Some((_, _, true)), None) => {
             let (ia, ba) = (w / h.max(1e-9), rect.w / rect.h.max(1e-9));
             if ia > ba {
                 let c = (1.0 - ba / ia) / 2.0;
@@ -356,7 +364,7 @@ fn picture(s: &mut Session, p: &Value) -> Result<Value> {
         descr: name.clone(),
         ..Default::default()
     };
-    if let Some((ph_id, _)) = target_ph {
+    if let Some((ph_id, ..)) = target_ph {
         // Replace the placeholder with the picture (it keeps the placeholder link).
         let phv = s.doc()?.shape(ph_id).and_then(|x| x.ph.clone());
         s.edit(|doc, sel| {

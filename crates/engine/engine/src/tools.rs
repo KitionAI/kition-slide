@@ -58,6 +58,11 @@ pub const ROTATE_REACH_PX: f64 = 8.0;
 /// The rotation handle's centre sits this far above the middle of the top edge, in screen pixels
 /// whatever the zoom (WPS W-B1: about 18 px).
 pub const ROTATE_GAP_PX: f64 = 18.0;
+/// The width of the text box a click of the Text Box tool, or a double-click on the empty slide,
+/// makes: WPS's (W-E1, W-E5), wrapping its text and one line high until more is typed.
+pub const TEXT_BOX_WIDTH_PT: f64 = 320.0;
+/// A Text Box tool drag narrower than this (a drag mostly down) makes the clicked box instead.
+const NARROWEST_DRAGGED_BOX_PT: f64 = 10.0;
 /// Around a selected object's frame, a press this close (screen pixels) that hits nothing else is
 /// a press on that object: a handle missed by a little keeps the selection and moves the object,
 /// and never clears the selection as a press on the empty slide does (walkthrough D7).
@@ -268,7 +273,8 @@ pub struct Guide {
 #[derive(Clone, Debug, Default)]
 pub struct ToolState {
     pub kind: ToolKind,
-    /// Keep the tool after one use (double-click on a shape in the gallery: lock drawing mode).
+    /// Keep the tool after one use: lock drawing mode (WPS W-E10, the shape gallery's context
+    /// menu), until Escape or another tool. Choosing a tool ([`Session::set_tool`]) clears it.
     pub sticky: bool,
     drag: Option<Drag>,
     pub marquee: Option<Rect>,
@@ -318,6 +324,7 @@ pub use kition_office_core::edit::{box_handles, resize_box};
 impl Session {
     pub fn set_tool(&mut self, kind: ToolKind) {
         self.tool.kind = kind;
+        self.tool.sticky = false;
         self.tool.drag = None;
         self.tool.preview = None;
         self.tool.marquee = None;
@@ -1182,11 +1189,13 @@ impl Session {
                         r
                     }
                     ToolKind::TextBox => {
-                        let w = preview.filter(|_| dragged).map(|x| x.w).unwrap_or(0.0);
-                        let at = preview.filter(|_| dragged).map(|x| Point::new(x.x, x.y)).unwrap_or(start);
-                        let r = self.execute("textBox.insert", &json!({"rect": [at.x, at.y, w, 30.0]}))?;
-                        self.tool.made_box = r.get("id").and_then(Value::as_u64).and_then(|id| u32::try_from(id).ok()).map(ShapeId);
-                        r
+                        // WPS W-E1, W-E2: a click puts a 320 pt box at the press, a drag makes it as
+                        // wide as the drag; one line high either way, wrapping, growing down.
+                        let (at, w) = match preview.filter(|x| dragged && x.w >= NARROWEST_DRAGGED_BOX_PT) {
+                            Some(x) => (Point::new(x.x, x.y), x.w),
+                            None => (start, TEXT_BOX_WIDTH_PT),
+                        };
+                        self.new_text_box(at, w)?
                     }
                     _ => Value::Null,
                 };
@@ -1252,6 +1261,15 @@ impl Session {
             return self.execute("text.selectWord", &json!({}));
         }
         match self.hit_test(p, tol) {
+            None => {
+                // WPS W-E5: a double-click on the empty slide makes a text box there to type in,
+                // as the Text Box tool's click does (left empty, it goes).
+                let size = st.doc.slide_size;
+                if p.x >= 0.0 && p.y >= 0.0 && p.x < size.width && p.y < size.height {
+                    return self.new_text_box(p, TEXT_BOX_WIDTH_PT);
+                }
+                Ok(Value::Null)
+            }
             Some(Hit::Shape { id, .. }) => {
                 let st = self.doc()?;
                 let Some(sh) = st.shape(id).cloned() else { return Ok(Value::Null) };
@@ -1279,6 +1297,14 @@ impl Session {
             }
             _ => Ok(Value::Null),
         }
+    }
+
+    /// A text box `w` wide at `at` with its top left there, wrapping its text, one line high, with
+    /// the caret in it; it goes if left before anything is typed in it ([`Session::drop_left_box`]).
+    fn new_text_box(&mut self, at: Point, w: f64) -> Result<Value> {
+        let r = self.execute("textBox.insert", &json!({"rect": [at.x, at.y, w, 30.0]}))?;
+        self.tool.made_box = r.get("id").and_then(Value::as_u64).and_then(|id| u32::try_from(id).ok()).map(ShapeId);
+        Ok(r)
     }
 
     fn is_picture(&self, id: ShapeId) -> bool {

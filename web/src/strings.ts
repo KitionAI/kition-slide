@@ -5,6 +5,8 @@ import formatEN from './i18n/locales/en-US/format.json'
 import formatZH from './i18n/locales/zh-CN/format.json'
 import menuEN from './i18n/locales/en-US/menu.json'
 import menuZH from './i18n/locales/zh-CN/menu.json'
+import shapesEN from './i18n/locales/en-US/shapes.json'
+import shapesZH from './i18n/locales/zh-CN/shapes.json'
 
 /** The editor's strings. `en-US` is required (UI protocol section 4); the others fall back to it. */
 const enUS: Catalog = {
@@ -369,6 +371,6 @@ const zhCN: Catalog = {
   'picture.dropOnly': '{name} 不是图片：只能把图片拖到幻灯片上',
 }
 
-export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN, ...formatEN, ...menuEN }, 'zh-CN': { ...zhCN, ...ribbonZH, ...formatZH, ...menuZH } }
+export const CATALOGS = { 'en-US': { ...enUS, ...ribbonEN, ...formatEN, ...menuEN, ...shapesEN }, 'zh-CN': { ...zhCN, ...ribbonZH, ...formatZH, ...menuZH, ...shapesZH } }
 
 export type { Strings as T } from '@kition/sdk/editor'

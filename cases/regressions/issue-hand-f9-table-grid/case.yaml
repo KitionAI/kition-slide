@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-f9-table-grid
+feature: slide.editor.shape-gallery
+intent: "Insert > Table is a grid to sweep over: the cells up to the pointer light up, the heading says the size, a click inserts that table; Insert Table... asks for the rows and columns (six fixed sizes and a parameters form; walkthrough F9)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/insert.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/insert.mjs, chromium, f9-table-grid]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

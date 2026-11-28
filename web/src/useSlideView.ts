@@ -18,6 +18,8 @@ export function useSlideView() {
     return next
   }), [])
   const [gridDialog, setGridDialog] = useState(false)
+  // Insert › Table › Insert Table… (plan stage 9).
+  const [tableDialog, setTableDialog] = useState(false)
   const { gridlines, guides } = grid
   const setGridlines = useCallback((on: boolean) => setGrid({ gridlines: on }), [setGrid])
   const setGuides = useCallback((on: boolean) => setGrid({ guides: on }), [setGrid])
@@ -29,5 +31,5 @@ export function useSlideView() {
   const [mediaAction, setMediaAction] = useState({ kind: 'pause', revision: 0 })
   const present = useCallback((from: number, options: Partial<Omit<SlideShowOptions, 'from'>> = {}) => setShowing({ from, reading: false, presenter, rehearse: false, ...options }), [presenter])
   const endShow = useCallback(() => setShowing(null), [])
-  return { mode, setMode, notesOpen, setNotesOpen, ruler, setRuler, gridlines, setGridlines, guides, setGuides, grid, setGrid, gridDialog, setGridDialog, grayscale, setGrayscale, dark, setDark, presenter, setPresenter, pane, setPane, showing, present, endShow, mediaAction, setMediaAction }
+  return { mode, setMode, notesOpen, setNotesOpen, ruler, setRuler, gridlines, setGridlines, guides, setGuides, grid, setGrid, gridDialog, setGridDialog, tableDialog, setTableDialog, grayscale, setGrayscale, dark, setDark, presenter, setPresenter, pane, setPane, showing, present, endShow, mediaAction, setMediaAction }
 }

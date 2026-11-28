@@ -2447,3 +2447,97 @@ fn a_drag_snaps_to_an_equal_spacing_and_marks_the_gaps() {
     s.pointer(ev(PointerKind::Up, 262.0, 110.0)).unwrap();
     assert_eq!(box_of(&mut s, c)[0], 250.0, "centred between its neighbours");
 }
+
+/// Plan stage 9 item 4 (WPS W-E1, W-E2, W-E4; case regressions/issue-hand-e1-text-box-width): a
+/// click of the Text Box tool makes a 320 pt box at the press, one line high and wrapping; a drag
+/// makes it as wide as the drag; the tool goes back to Select after one box, and Escape puts it down.
+#[test]
+fn the_text_box_tool_makes_320_pt_boxes_and_drags_set_the_width() {
+    let (mut s, _) = stage8(&[]);
+    s.set_tool(ToolKind::TextBox);
+    gesture(&mut s, Mods::default(), &[(100.0, 100.0)]);
+    let id = s.doc().unwrap().selection.text.as_ref().unwrap().shape.0 as u64;
+    let b = box_of(&mut s, id);
+    assert_eq!(b[..3], [100.0, 100.0, 320.0], "320 pt wide, its top left at the click");
+    assert!(b[3] > 10.0 && b[3] < 40.0, "one line high ({})", b[3]);
+    assert!(matches!(s.tool.kind, ToolKind::Select), "one box, then Select");
+    s.type_text("A line long enough to go past the right edge of a box three hundred and twenty points wide").unwrap();
+    let wrapped = box_of(&mut s, id);
+    assert_eq!(wrapped[2], 320.0, "the width stays");
+    assert!(wrapped[3] > b[3] * 1.5, "the text wraps and the box grows down ({} → {})", b[3], wrapped[3]);
+    s.key("Escape", Mods::default()).unwrap();
+    s.key("Escape", Mods::default()).unwrap();
+    s.set_tool(ToolKind::TextBox);
+    gesture(&mut s, Mods::default(), &[(100.0, 300.0), (180.0, 310.0), (230.0, 320.0)]);
+    let dragged = s.doc().unwrap().selection.text.as_ref().unwrap().shape.0 as u64;
+    assert_eq!(box_of(&mut s, dragged)[..3], [100.0, 300.0, 130.0], "the drag's width");
+    s.key("Escape", Mods::default()).unwrap();
+    s.key("Escape", Mods::default()).unwrap();
+    // Escape with the tool chosen and nothing made puts it down.
+    s.set_tool(ToolKind::TextBox);
+    s.key("Escape", Mods::default()).unwrap();
+    assert!(matches!(s.tool.kind, ToolKind::Select));
+}
+
+/// Plan stage 9 item 4 (WPS W-E5; case regressions/issue-hand-e5-double-click-text-box): a
+/// double-click on the empty slide makes a 320 pt text box there to type in; left empty it goes.
+#[test]
+fn a_double_click_on_the_empty_slide_makes_a_text_box() {
+    let (mut s, _) = stage8(&[[600.0, 100.0, 100.0, 100.0]]);
+    let n = s.doc().unwrap().shapes().len();
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+        s.pointer(ev(kind, 200.0, 250.0)).unwrap();
+    }
+    let id = s.doc().unwrap().selection.text.as_ref().expect("typing in a new box").shape.0 as u64;
+    assert_eq!(box_of(&mut s, id)[..3], [200.0, 250.0, 320.0]);
+    assert_eq!(s.doc().unwrap().shapes().len(), n + 1);
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(s.doc().unwrap().shapes().len(), n, "left empty, it goes");
+    // On a shape a double-click still edits its text; off the slide it makes nothing.
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+        s.pointer(ev(kind, 980.0, 250.0)).unwrap();
+    }
+    assert_eq!(s.doc().unwrap().shapes().len(), n, "nothing off the slide");
+}
+
+/// Plan stage 9 item 3 (WPS W-E10): a shape tool locked for drawing stays chosen after each shape;
+/// Escape puts it down; choosing a tool again unlocks it.
+#[test]
+fn a_locked_shape_tool_draws_one_shape_after_another_until_escape() {
+    let (mut s, _) = stage8(&[]);
+    let n = s.doc().unwrap().shapes().len();
+    s.set_tool(ToolKind::Shape { preset: "heart".into() });
+    s.tool.sticky = true;
+    gesture(&mut s, Mods::default(), &[(100.0, 100.0), (150.0, 150.0), (200.0, 180.0)]);
+    gesture(&mut s, Mods::default(), &[(300.0, 100.0)]);
+    assert_eq!(s.doc().unwrap().shapes().len(), n + 2, "two hearts");
+    assert!(matches!(&s.tool.kind, ToolKind::Shape { preset } if preset == "heart"), "the tool stays");
+    s.key("Escape", Mods::default()).unwrap();
+    assert!(matches!(s.tool.kind, ToolKind::Select), "Escape puts it down");
+    s.set_tool(ToolKind::Shape { preset: "heart".into() });
+    assert!(!s.tool.sticky, "chosen again, it is not locked");
+    gesture(&mut s, Mods::default(), &[(500.0, 100.0)]);
+    assert!(matches!(s.tool.kind, ToolKind::Select));
+}
+
+/// Plan stage 9 item 5 (walkthrough F7; case regressions/issue-hand-f7-picture-placeholder): a
+/// picture put in an empty content placeholder fits inside it whole, in its middle, keeping its
+/// proportions; the placeholder becomes the picture (its prompt goes).
+#[test]
+fn a_picture_in_a_content_placeholder_fits_and_keeps_its_proportions() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "titleAndContent"})).unwrap();
+    let content = s.doc().unwrap().shapes().iter().find(|sh| sh.ph_type() == Some(model::PhType::Obj)).unwrap().id;
+    s.execute("edit.select", &json!({"ids": [content.0]})).unwrap();
+    // Two pixels by one.
+    let wide = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg==";
+    let r = s.execute("image.insert", &json!({"data": wide, "name": "wide.png"})).unwrap();
+    assert_eq!(r["id"].as_u64(), Some(u64::from(content.0)), "the placeholder takes it");
+    let b = box_of(&mut s, u64::from(content.0));
+    assert!((b[2] / b[3] - 2.0).abs() < 0.01, "two to one ({} × {})", b[2], b[3]);
+    assert_eq!([b[0], b[1], b[2], b[3]], [137.0, 144.0, 686.0, 343.0], "as high as the placeholder, in its middle");
+    let sh = s.doc().unwrap().shape(content).unwrap();
+    assert!(matches!(&sh.kind, model::ShapeKind::Picture { fill } if fill.crop == [0.0; 4]), "whole, not cropped");
+    assert!(sh.text.is_none(), "no text, so no prompt");
+}

@@ -1,8 +1,6 @@
-import { CircleIcon as Circle, MinusIcon as Minus, MoveRightIcon as MoveRight, PencilIcon as Pencil, SplineIcon as Spline, SquareIcon as Square, StarIcon as Star, TriangleIcon as Triangle, type IconComponent } from '@kition/tessera/icons/react'
 import { CommandButton, MenuItem, RibbonMenu } from '@kition/sdk/editor'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useSlides } from '../slides'
-import { useTools } from '../tools'
 
 /** The theme's colors first (they follow theme changes), then the standard ones. */
 export const THEME_COLORS = ['tx1', 'bg1', 'tx2', 'bg2', 'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6']
@@ -150,38 +148,6 @@ export function ColorPicker({ onPick, testId }: { onPick: (color: PickedColor) =
         </button>
       </div>
     </div>
-  )
-}
-
-/** The shapes the engine draws with its own tools, as a gallery. */
-export const SHAPE_TOOLS: Array<{ id: string; icon: IconComponent; label: string }> = [
-  { id: 'rect', icon: Square, label: 'Rectangle' },
-  { id: 'roundRect', icon: Square, label: 'Rounded Rectangle' },
-  { id: 'ellipse', icon: Circle, label: 'Oval' },
-  { id: 'triangle', icon: Triangle, label: 'Triangle' },
-  { id: 'rightArrow', icon: MoveRight, label: 'Arrow' },
-  { id: 'star5', icon: Star, label: 'Star' },
-  { id: 'line', icon: Minus, label: 'Line' },
-  { id: 'straightConnector1', icon: MoveRight, label: 'Connector' },
-  { id: 'freeform', icon: Spline, label: 'Freeform' },
-  { id: 'scribble', icon: Pencil, label: 'Scribble' },
-]
-
-export function ShapesMenu({ label, size = 'large', primary }: { label: string; size?: 'large' | 'small'; primary?: boolean }) {
-  const tools = useTools()
-  const { query, run, session } = useSlides()
-  const [presets, setPresets] = useState<Array<{ name: string; label: string; category: string }>>([])
-  useEffect(() => { void query<typeof presets>('shape.presets').then((list) => setPresets(list ?? [])) }, [query])
-  return (
-    <RibbonMenu icon={SHAPE_TOOLS[0].icon} label={label} size={size} testId="slides-shapes" primary={primary}>
-      {SHAPE_TOOLS.map((shape) => (
-        <MenuItem key={shape.id} icon={shape.icon} label={shape.label} onSelect={() => tools.select(shape.id)} testId={`slides-shape-${shape.id}`} />
-      ))}
-      {presets.filter((preset) => !SHAPE_TOOLS.some((tool) => tool.id === preset.name)).map((preset) => <MenuItem key={preset.name} label={`${preset.label} (${preset.category})`} onSelect={() => {
-        const area = session.state?.area
-        void run('shape.insert', { preset: preset.name, rect: [area ? (area.x1 - area.x0) / 2 - 48 : 400, area ? (area.y1 - area.y0) / 2 - 48 : 200, 96, 96] })
-      }} />)}
-    </RibbonMenu>
   )
 }
 

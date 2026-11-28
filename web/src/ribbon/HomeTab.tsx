@@ -3,7 +3,9 @@ import { MenuItem, RibbonButton, RibbonGroup, RibbonItem, RibbonRow, RibbonStack
 import { useSlides } from '../slides'
 import { useTools } from '../tools'
 import { releaseField } from '../focus'
-import { ColorGrid, ColorPicker, CommandButton, RibbonMenu, ShapesMenu } from './common'
+import { ColorGrid, ColorPicker, CommandButton, RibbonMenu } from './common'
+import { ShapesMenu } from './ShapeGallery'
+import { selectEmptyPlaceholder } from '../pictureTarget'
 import { ArrangeMenu } from './ArrangeMenu'
 
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
@@ -37,11 +39,14 @@ export function usePicturePick() {
 
 /** Picks a workspace picture through the host and inserts it on the current slide. */
 export function usePictureInsert() {
-  const { run } = useSlides()
+  const { run, query } = useSlides()
   const { can, pick } = usePicturePick()
   const insert = async () => {
     const picked = await pick()
-    if (picked) await run('image.insert', picked)
+    if (!picked) return
+    // Into the slide's empty content or picture placeholder, if it has one (walkthrough F7).
+    await selectEmptyPlaceholder(query, run)
+    await run('image.insert', picked)
   }
   return { can, insert }
 }
