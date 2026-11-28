@@ -187,10 +187,10 @@ struct BatchMedia {
 }
 
 /// The editor's state in [`KitDocument::inspect`], as JSON Pointers: the current slide, the
-/// selection, what is selected, Slide Master view, and text being edited. It describes the editing
-/// session, not the deck, so a headless host leaves it out of what an agent reads
-/// (`kition_headless::KitInfo::volatile`).
-pub const EDITOR_STATE: &[&str] = &["/slide", "/selection", "/selectedKinds", "/target", "/editingText"];
+/// selection, what is selected, Slide Master view, text being edited and whether characters of it
+/// are selected. It describes the editing session, not the deck, so a headless host leaves it out
+/// of what an agent reads (`kition_headless::KitInfo::volatile`).
+pub const EDITOR_STATE: &[&str] = &["/slide", "/selection", "/selectedKinds", "/target", "/editingText", "/textSelected"];
 
 /// `file` commands that only produce bytes or files from the slide, leaving it as it is.
 const FILE_OUTPUTS: &[&str] =
@@ -1635,6 +1635,8 @@ impl KitDocument for SlideDocument {
                 "layouts": master.layouts.iter().enumerate().map(|(index, layout)| json!({ "index": index, "name": layout.name })).collect::<Vec<_>>()
             })).collect::<Vec<_>>(),
             "editingText": st.selection.text.is_some(),
+            // Characters are selected in the text being edited (not only a caret): what a copy takes.
+            "textSelected": st.selection.text.as_ref().is_some_and(|text| text.is_range()),
             "canUndo": !st.history.undo.is_empty(),
             "canRedo": !st.history.redo.is_empty(),
         }))

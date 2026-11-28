@@ -79,13 +79,15 @@ export type SlidesInfo = {
   area: SlideArea | null
   selected: number
   editingText: boolean
+  /** Characters are selected in the text being edited (not only a caret). */
+  textSelected: boolean
   selectedKinds: string[]
   target: { kind: 'slides' | 'master' | 'layout'; master?: number; layout?: number }
   masters: Array<{ index: number; name: string; layouts: Array<{ index: number; name: string }> }>
 }
 
 function describe(info: KitEngineInfo): SlidesInfo {
-  const inspected = info.inspected as { slides?: Array<{ area?: { x: number; y: number; width: number; height: number } | null }>; slide?: number; selection?: number; editingText?: boolean; selectedKinds?: string[]; target?: SlidesInfo['target']; masters?: SlidesInfo['masters'] }
+  const inspected = info.inspected as { slides?: Array<{ area?: { x: number; y: number; width: number; height: number } | null }>; slide?: number; selection?: number; editingText?: boolean; textSelected?: boolean; selectedKinds?: string[]; target?: SlidesInfo['target']; masters?: SlidesInfo['masters'] }
   const slides = inspected.slides ?? []
   const current = inspected.slide ?? 0
   const area = slides[current]?.area
@@ -95,6 +97,7 @@ function describe(info: KitEngineInfo): SlidesInfo {
     area: area ? { x0: area.x, y0: area.y, x1: area.x + area.width, y1: area.y + area.height } : null,
     selected: inspected.selection ?? 0,
     editingText: inspected.editingText === true,
+    textSelected: inspected.textSelected === true,
     selectedKinds: inspected.selectedKinds ?? [],
     target: inspected.target ?? { kind: 'slides' },
     masters: inspected.masters ?? [],

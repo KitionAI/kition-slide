@@ -11,7 +11,8 @@
  * - Copy and Cut run `edit.copy` / `edit.cut`, and put a mark of this copy on the clipboard at
  *   once (its own type, which other apps leave alone); the plain text the command answers (the
  *   selected characters, or the text of the selected shapes) follows on the clipboard for other
- *   apps, written from inside the person's key.
+ *   apps, written from inside the person's key. With only a caret in the text they take nothing
+ *   and the clipboard keeps what it had.
  * - Paste: the clipboard this editor put there (its mark, or the text it wrote) is the engine's own
  *   copy, shapes and formatting and all (`edit.paste`). Else, while text is edited, the clipboard's
  *   text goes in at the caret; else a picture on the clipboard is inserted on the slide (its pixels
@@ -56,6 +57,8 @@ export type ClipboardEditor = {
   doc: KitEngine | null
   readOnly: boolean
   editingText: boolean
+  /** Characters are selected in the text being edited (not only a caret). */
+  textSelected: boolean
   area: Area | null
   canvas: RefObject<KitCanvasHandle | null>
   t: Strings
@@ -149,12 +152,39 @@ function copyWithoutEvent(editor: ClipboardEditor, kind: 'copy' | 'cut') {
   return started
 }
 
+/** Whether text is edited with only a caret in it, as the engine's last answer has it: a copy then takes nothing. */
+function caretOnly(editor: ClipboardEditor) {
+  const inspected = editor.doc?.info?.inspected as { editingText?: unknown; textSelected?: unknown } | undefined
+  return inspected ? inspected.editingText === true && inspected.textSelected !== true : editor.editingText && !editor.textSelected
+}
+
+/**
+ * Copy or Cut with only a caret in the text: the system clipboard keeps what another app put there.
+ * The command still runs, after the keys before it, in case they selected characters after all
+ * (their text then goes on the clipboard).
+ */
+function copyCaretOnly(editor: ClipboardEditor, kind: 'copy' | 'cut') {
+  const started = editor.run(kind === 'cut' ? 'edit.cut' : 'edit.copy', {})
+  const text = started.then(copiedText, () => '')
+  copying = text
+  void text.then((value) => {
+    if (!value) return
+    mine = { mark: '', texts: [] }
+    void writeLater(Promise.resolve(value))
+  })
+  return started
+}
+
 /** A `copy` or `cut` event the editor takes: puts its mark on the clipboard and runs the command. */
 function copyEvent(event: ClipboardEvent, kind: 'copy' | 'cut') {
   window.clearTimeout(waiting[kind])
   delete waiting[kind]
   const editor = latest
   if (!editor || !editorsEvent(event.target) || pageTextSelected()) return
+  if (caretOnly(editor)) {
+    eventCommand = copyCaretOnly(editor, kind)
+    return
+  }
   event.preventDefault()
   // A read-only document keeps the clipboard as it was; the command says why it cannot cut.
   if (kind === 'cut' && editor.readOnly) {
@@ -317,6 +347,7 @@ export function clipboardCommand(id: string, params: Record<string, unknown> | u
   if (!editor?.doc || (params && Object.keys(params).length)) return null
   if (id === 'edit.copy' || id === 'edit.cut') {
     const kind = id === 'edit.copy' ? 'copy' : 'cut'
+    if (caretOnly(editor)) return copyCaretOnly(editor, kind)
     // The browser's copy event, which writes the clipboard (allowed after a person's click or key).
     eventCommand = null
     let sent = false
@@ -355,6 +386,12 @@ function clipboardKeyDown(event: KeyboardEvent) {
   event.stopImmediatePropagation()
   // Words selected in a panel: the browser copies them.
   if ((kind === 'copy' || kind === 'cut') && pageTextSelected()) return
+  // Only a caret in the text: nothing to copy, and the clipboard stays as it is.
+  if ((kind === 'copy' || kind === 'cut') && caretOnly(latest)) {
+    event.preventDefault()
+    void copyCaretOnly(latest, kind)
+    return
+  }
   // The page's body had the keyboard: the editor has it now, and the event goes to it.
   if (keyboardLost()) focusEditor(latest.editingText)
   window.clearTimeout(waiting[kind])

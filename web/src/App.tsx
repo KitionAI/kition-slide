@@ -88,7 +88,7 @@ function Editor({ slides }: { slides: Slides }) {
   useSlideWheel(canvasRegion, canvas, viewMemory, slides)
   useEngineBackdrop(doc, canvas)
   // The system clipboard (plan stage 5): its key listener goes before the keyboard's safety net.
-  useSystemClipboard({ run: slides.plainRun, inOrder: session.inOrder, doc, readOnly: slides.host.readOnly === true, editingText: state?.editingText === true, area: state?.area ?? null, canvas, t })
+  useSystemClipboard({ run: slides.plainRun, inOrder: session.inOrder, doc, readOnly: slides.host.readOnly === true, editingText: state?.editingText === true, textSelected: state?.textSelected === true, area: state?.area ?? null, canvas, t })
   useKeyboardFallback()
   usePopupEscape()
   // The slides just opened have the keyboard (walkthrough K1).

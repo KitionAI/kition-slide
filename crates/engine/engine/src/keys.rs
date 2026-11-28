@@ -477,6 +477,22 @@ mod tests {
         assert_eq!(pasted["command"], "edit.pasteText");
     }
 
+    /// Cut with only a caret in the text cuts nothing (it deleted the next character).
+    #[test]
+    fn cut_with_only_a_caret_leaves_the_text() {
+        let mut s = Session::with_new();
+        let title = s.doc().unwrap().current_slide().unwrap().shapes[0].id.0;
+        s.execute("edit.select", &json!({"ids": [title]})).unwrap();
+        s.type_text("Hi").unwrap();
+        s.key("Home", Mods::default()).unwrap();
+        let cut = s.execute("edit.cut", &json!({})).unwrap();
+        assert_eq!(cut["text"], "");
+        assert_eq!(s.execute("text.get", &json!({"id": title})).unwrap()["text"], "Hi");
+        s.key("Right", Mods { shift: true, ..Default::default() }).unwrap();
+        assert_eq!(s.execute("edit.cut", &json!({})).unwrap()["text"], "H");
+        assert_eq!(s.execute("text.get", &json!({"id": title})).unwrap()["text"], "i");
+    }
+
     #[test]
     fn keys_drive_editing() {
         let mut s = Session::with_new();

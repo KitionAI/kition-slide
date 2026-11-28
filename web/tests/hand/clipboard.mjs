@@ -134,6 +134,14 @@ const both = [
     }
     assert.equal(await becomes(e, () => textOf(e, id), 'worldHello from another app'), 'worldHello from another app', "another app's text went in at the caret")
     assert((await e.state()).editing, 'the text is still being edited')
+    // Only a caret: Cmd+C and Cmd+X take nothing, the clipboard keeps what it had, the text stays.
+    if (chromium) await putText(e, 'kept')
+    const seen = chromium ? 0 : (await copies(e)).length
+    await press(e, 'ControlOrMeta+c', 400)
+    await press(e, 'ControlOrMeta+x', 400)
+    assert.equal(await textOf(e, id), 'worldHello from another app', 'Cmd+X with only a caret cut nothing')
+    if (chromium) assert.equal(await systemText(e), 'kept', 'the system clipboard kept what it had')
+    else assert.equal((await copies(e)).length, seen, 'no copy or cut was sent')
     // Nothing selected: the text becomes a new text box on the slide.
     await press(e, 'Escape', 200)
     await press(e, 'Escape', 200)

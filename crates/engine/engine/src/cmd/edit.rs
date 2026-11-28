@@ -186,6 +186,12 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     // What was copied goes: the slides when the copy took them (Cut's slide scope is still the
     // chosen slides when nothing is selected; Delete's is only `scope: "slides"`).
     let editing = s.doc().is_ok_and(|st| st.selection.text.is_some() || st.selection.cells.is_some());
+    // Only a caret in the text: nothing was copied, and nothing goes (Delete would take the next
+    // character).
+    let caret_only = s.doc().is_ok_and(|st| st.selection.text.as_ref().is_some_and(|t| !t.is_range()));
+    if !names_shapes(p) && caret_only {
+        return Ok(json!({"text": t}));
+    }
     if !names_shapes(p) && !editing && slides_scope(s, p) {
         delete(s, &json!({"scope": "slides"}))?;
     } else {
