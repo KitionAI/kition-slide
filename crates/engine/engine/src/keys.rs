@@ -266,7 +266,17 @@ impl Session {
                     return Ok(json!({"handled": true}));
                 }
                 "escape" | "esc" => {
-                    self.execute("edit.deselectAll", &json!({}))?;
+                    // Out of a group's members to the group (WPS W-A12), then to nothing.
+                    match self.group_of_selection() {
+                        Some(group) => self.select(|_, sel| {
+                            sel.shapes = vec![group];
+                            sel.text = None;
+                            sel.cells = None;
+                        })?,
+                        None => {
+                            self.execute("edit.deselectAll", &json!({}))?;
+                        }
+                    }
                     return Ok(json!({"handled": true}));
                 }
                 "tab" => {

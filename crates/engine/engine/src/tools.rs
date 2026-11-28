@@ -10,7 +10,7 @@ use kition_slide_model::{Shape, ShapeId, ShapeKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::cmd::{self, xfrm_of};
+use crate::cmd::{self, shape_affine, slide_xfrm_of, xfrm_of};
 use crate::{HistoryEntry, Result, Session, TextSel};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,12 +191,18 @@ enum Drag {
         /// grid or guide pulling it (WPS W-A7).
         copy: bool,
         enter_text: Option<(ShapeId, Point)>,
+        /// A press on a member of the group selected alone: a click (no drag) selects that
+        /// member (WPS W-A12); a drag moves the group.
+        pick: Option<ShapeId>,
     },
+    /// A resize handle of `id` (its frame `orig` on the slide when the press came), and the other
+    /// selected objects (`others`), which scale by the same ratio about their own opposite handle.
     Resize {
         id: ShapeId,
         handle: u8,
         orig: Xfrm,
         start: Point,
+        others: Vec<(ShapeId, Xfrm)>,
     },
     LineEnd {
         id: ShapeId,
@@ -331,7 +337,10 @@ impl Session {
     }
 
     /// What's under `p` on the current slide: a selected object's handles first (the nearest
-    /// within reach), then the objects, topmost first, then the band around a selected frame.
+    /// within reach; a locked object's handles take nothing), then the objects, topmost first,
+    /// then the band around a selected frame. A group is one object until one of its members is
+    /// selected: then a press inside it finds its member under the pointer (WPS W-A12; a member
+    /// that is a group is one object again until one of its own members is selected).
     pub fn hit_test(&self, p: Point, tol: f64) -> Option<Hit> {
         let st = self.active()?;
         let px = px_of(tol);
@@ -340,7 +349,10 @@ impl Session {
         if st.selection.text.is_none() || st.selection.shapes.len() == 1 {
             for id in st.selection.shapes.iter().rev() {
                 let Some(sh) = st.shape(*id) else { continue };
-                let x = xfrm_of(&st.doc, &st.selection, sh);
+                if sh.locked {
+                    continue;
+                }
+                let x = slide_xfrm_of(&st.doc, &st.selection, sh);
                 if sh.is_line() {
                     let a = x.affine();
                     let ends = [(0u8, a * Point::new(0.0, 0.0)), (1u8, a * Point::new(x.w, x.h))];
@@ -349,8 +361,9 @@ impl Session {
                     }
                     continue;
                 }
-                let geo = kition_slide_render::shape_geometry(sh, x.w, x.h);
-                let a = x.affine();
+                let own = xfrm_of(&st.doc, &st.selection, sh);
+                let geo = kition_slide_render::shape_geometry(sh, own.w, own.h);
+                let a = shape_affine(st, sh);
                 if let Some((index, _)) = nearest(geo.handles.iter().map(|hd| (hd.index, (a * hd.pos - p).hypot())), reach) {
                     return Some(Hit::Adjust { id: *id, index });
                 }
@@ -363,13 +376,14 @@ impl Session {
                 }
             }
         }
-        // Shapes, topmost first.
+        // Shapes, topmost first; into a group whose member is selected.
         for sh in st.shapes().iter().rev() {
             if sh.hidden || sh.locked {
                 continue;
             }
-            if let Some(h) = hit_shape(st, sh, p, tol) {
-                return Some(h);
+            let x = xfrm_of(&st.doc, &st.selection, sh);
+            if let Some(h) = hit_shape(st, sh, x, Affine::IDENTITY, p, tol) {
+                return Some(member_hit(st, sh, x, Affine::IDENTITY, p, tol, 0).unwrap_or(h));
             }
         }
         // Just outside a selected object's frame: that object, not the empty slide.
@@ -379,13 +393,36 @@ impl Session {
             if sh.is_line() || sh.hidden || sh.locked {
                 continue;
             }
-            let x = xfrm_of(&st.doc, &st.selection, sh);
+            let x = slide_xfrm_of(&st.doc, &st.selection, sh);
             let local = x.affine().inverse() * p;
             if local.x >= -band && local.y >= -band && local.x <= x.w + band && local.y <= x.h + band {
                 return Some(Hit::Shape { id: *id, text: false });
             }
         }
         None
+    }
+
+    /// The group directly holding every selected object, when they are members of one group: what
+    /// Escape goes back to (WPS W-A12).
+    pub fn group_of_selection(&self) -> Option<ShapeId> {
+        let st = self.active()?;
+        let mut parents = st.selection.shapes.iter().map(|id| cmd::groups_holding(st.shapes(), *id).last().copied());
+        let first = parents.next()??;
+        parents.all(|p| p == Some(first)).then_some(first)
+    }
+
+    /// The member of group `id` under `p` (its topmost one), whatever is selected: what a click on
+    /// a selected group selects (WPS W-A12).
+    pub fn member_at(&self, id: ShapeId, p: Point, tol: f64) -> Option<ShapeId> {
+        let st = self.active()?;
+        let group = st.shape(id)?;
+        let (gx, space) = drawn_frame(st, group);
+        member_frames(st, group, gx, space)
+            .into_iter()
+            .rev()
+            .filter(|(c, ..)| !c.hidden && !c.locked)
+            .find(|(c, cx, sp)| hit_shape(st, c, *cx, *sp, p, tol).is_some())
+            .map(|(c, ..)| c.id)
     }
 
     /// What a press at `p` (the pointer's last place on the slide, if it is on it) would do, for
@@ -399,7 +436,7 @@ impl Session {
             return match drag {
                 Drag::Move { moved: true, .. } => Pointing::Move,
                 Drag::Resize { id, handle, .. } => {
-                    st.shape(*id).map_or(Pointing::Default, |sh| resize_pointing(&xfrm_of(&st.doc, &st.selection, sh), *handle))
+                    st.shape(*id).map_or(Pointing::Default, |sh| resize_pointing(&slide_xfrm_of(&st.doc, &st.selection, sh), *handle))
                 }
                 Drag::Rotate { .. } => Pointing::Rotate,
                 Drag::Adjust { .. } => Pointing::Adjust,
@@ -432,7 +469,7 @@ impl Session {
         let hit = self.hit_test(p, tol);
         match hit {
             Some(Hit::Resize { id, handle }) => {
-                st.shape(id).map_or(Pointing::Default, |sh| resize_pointing(&xfrm_of(&st.doc, &st.selection, sh), handle))
+                st.shape(id).map_or(Pointing::Default, |sh| resize_pointing(&slide_xfrm_of(&st.doc, &st.selection, sh), handle))
             }
             Some(Hit::Rotate { .. }) => Pointing::Rotate,
             Some(Hit::Adjust { .. }) => Pointing::Adjust,
@@ -588,7 +625,7 @@ impl Session {
                 Some(cell) => table::hit_cell(st, t.shape, p).and_then(|(r, c)| table_owner(st, t.shape, r, c)) == Some(cell),
                 None => st.shape(t.shape).is_some_and(|sh| {
                     let x = xfrm_of(&st.doc, &st.selection, sh);
-                    let local = x.affine().inverse() * p;
+                    let local = shape_affine(st, sh).inverse() * p;
                     local.x >= -tol && local.y >= -tol && local.x <= x.w + tol && local.y <= x.h + tol
                 }),
             };
@@ -776,19 +813,33 @@ impl Session {
         let st = self.doc()?;
         match hit {
             Some(Hit::Resize { id, handle }) => {
-                let orig = st.shape(id).map(|s| xfrm_of(&st.doc, &st.selection, s)).unwrap_or_default();
+                let orig = st.shape(id).map(|s| slide_xfrm_of(&st.doc, &st.selection, s)).unwrap_or_default();
+                // Several selected: the others scale with it (walkthrough R8), the locked ones stay.
+                let others: Vec<(ShapeId, Xfrm)> = if st.selection.shapes.contains(&id) && st.selection.text.is_none() {
+                    st.selection
+                        .shapes
+                        .iter()
+                        .filter(|o| **o != id)
+                        .filter_map(|o| st.shape(*o))
+                        .filter(|o| !o.locked)
+                        .map(|o| (o.id, slide_xfrm_of(&st.doc, &st.selection, o)))
+                        .collect()
+                } else {
+                    vec![]
+                };
                 self.begin("Size");
-                self.tool.drag = Some(Drag::Resize { id, handle, orig, start: p });
+                self.tool.drag = Some(Drag::Resize { id, handle, orig, start: p, others });
             }
             Some(Hit::LineEnd { id, end }) => {
-                let orig = st.shape(id).map(|s| xfrm_of(&st.doc, &st.selection, s)).unwrap_or_default();
+                let orig = st.shape(id).map(|s| slide_xfrm_of(&st.doc, &st.selection, s)).unwrap_or_default();
                 self.begin("Size");
                 self.tool.drag = Some(Drag::LineEnd { id, end, orig });
             }
             Some(Hit::Rotate { id }) => {
                 let ids: Vec<ShapeId> = if st.selection.shapes.contains(&id) { st.selection.shapes.clone() } else { vec![id] };
-                let origs: Vec<(ShapeId, Xfrm)> = ids.iter().filter_map(|i| st.shape(*i).map(|s| (*i, xfrm_of(&st.doc, &st.selection, s)))).collect();
-                let center = st.shape(id).map(|s| xfrm_of(&st.doc, &st.selection, s).center()).unwrap_or(p);
+                let origs: Vec<(ShapeId, Xfrm)> =
+                    ids.iter().filter_map(|i| st.shape(*i).filter(|s| !s.locked).map(|s| (*i, slide_xfrm_of(&st.doc, &st.selection, s)))).collect();
+                let center = st.shape(id).map(|s| slide_xfrm_of(&st.doc, &st.selection, s).center()).unwrap_or(p);
                 let start = (p.y - center.y).atan2(p.x - center.x);
                 self.begin("Rotate");
                 self.tool.drag = Some(Drag::Rotate { ids, center, start, origs });
@@ -829,7 +880,11 @@ impl Session {
                 } else {
                     vec![id]
                 };
-                let origs: Vec<(ShapeId, Xfrm)> = ids.iter().filter_map(|i| st.shape(*i).map(|s| (*i, xfrm_of(&st.doc, &st.selection, s)))).collect();
+                // A click on a member of the group selected alone selects that member; a drag
+                // moves the whole group (WPS W-A12).
+                let pick = (!toggle && !painting && selected && st.selection.shapes.len() == 1).then(|| self.member_at(id, p, tol)).flatten();
+                let origs: Vec<(ShapeId, Xfrm)> =
+                    ids.iter().filter_map(|i| st.shape(*i).filter(|s| !s.locked).map(|s| (*i, slide_xfrm_of(&st.doc, &st.selection, s)))).collect();
                 let enter_text = on_text.then_some((id, p));
                 let ids2 = ids.clone();
                 self.select(|_, sel| {
@@ -837,7 +892,7 @@ impl Session {
                     sel.text = None;
                     sel.cells = None;
                 })?;
-                self.tool.drag = Some(Drag::Move { ids, start: p, origs, moved: false, duplicate: mods.alt, copy: mods.alt, enter_text });
+                self.tool.drag = Some(Drag::Move { ids, start: p, origs, moved: false, duplicate: mods.alt, copy: mods.alt, enter_text, pick });
                 // Format Painter applies on click.
                 if self.painter.is_some() && !toggle {
                     let _ = self.execute("format.painterApply", &json!({"ids": [id]}));
@@ -868,7 +923,7 @@ impl Session {
     fn drag(&mut self, p: Point, mods: Mods, tol: f64) -> Result<Value> {
         let Some(drag) = self.tool.drag.clone() else { return Ok(Value::Null) };
         match drag {
-            Drag::Move { ids, start, origs, moved, duplicate, copy, enter_text } => {
+            Drag::Move { ids, start, origs, moved, duplicate, copy, enter_text, pick } => {
                 let mut d = p - start;
                 if !moved && d.hypot() < DRAG_START_PX * px_of(tol) {
                     return Ok(Value::Null);
@@ -907,10 +962,13 @@ impl Session {
                 let origs2: Vec<(ShapeId, Xfrm)> =
                     if duplicate { ids_now.iter().copied().zip(origs.iter().map(|o| o.1)).collect() } else { origs.clone() };
                 self.edit(|doc, sel| {
+                    // The frames are on the slide; a group member's goes back into its group.
+                    let stored: Vec<(ShapeId, Xfrm)> =
+                        origs2.iter().map(|(id, o)| (*id, cmd::stored_xfrm_of(doc, sel, *id, Xfrm { x: o.x + d.x, y: o.y + d.y, ..*o }))).collect();
                     let list = crate::shapes_mut(doc, sel).ok_or_else(|| cmd::bad("move", "no slide"))?;
-                    for (id, o) in &origs2 {
-                        if let Some(sh) = kition_slide_model::find_shape_mut(list, *id) {
-                            sh.xfrm = Some(Xfrm { x: o.x + d.x, y: o.y + d.y, ..*o });
+                    for (id, x) in stored {
+                        if let Some(sh) = kition_slide_model::find_shape_mut(list, id) {
+                            sh.xfrm = Some(x);
                         }
                     }
                     // A connector dragged away from shapes that stay put comes unglued at those ends.
@@ -934,18 +992,34 @@ impl Session {
                     duplicate: false,
                     copy,
                     enter_text: enter_text.filter(|_| false),
+                    pick: pick.filter(|_| false),
                 });
             }
-            Drag::Resize { id, handle, orig, start } => {
+            Drag::Resize { id, handle, orig, start, others } => {
                 // WPS W-B3–W-B5: Shift keeps the proportions, Cmd grows about the centre, Alt lets
                 // the edges follow the pointer with no grid or guide pulling them.
                 let keep_aspect = mods.shift || self.is_picture(id);
                 let nx = resize_box(&orig, handle, p - start, keep_aspect, mods.cmd);
-                let nx = if mods.alt || keep_aspect { nx } else { self.snap_resize(nx, handle, id, mods.cmd, tol) };
+                let mut moving: Vec<ShapeId> = others.iter().map(|o| o.0).collect();
+                moving.push(id);
+                let nx = if mods.alt || keep_aspect { nx } else { self.snap_resize(nx, handle, &moving, mods.cmd, tol) };
                 if mods.alt || keep_aspect {
                     self.tool.guides.clear();
                 }
                 self.set_xfrm(id, nx)?;
+                // The other selected objects scale by the same ratio, each about its own opposite
+                // handle (its centre with Cmd); a picture keeps its proportions on a corner.
+                let ratio = |now: f64, was: f64, flipped: bool| if was.abs() > 1e-9 { now / was * if flipped { -1.0 } else { 1.0 } } else { 1.0 };
+                let (kx, ky) = (ratio(nx.w, orig.w, nx.flip_h != orig.flip_h), ratio(nx.h, orig.h, nx.flip_v != orig.flip_v));
+                for (other, o) in &others {
+                    let (kx, ky) = if self.is_picture(*other) && matches!(handle, 0 | 2 | 4 | 6) {
+                        let k = if (kx.abs() - 1.0).abs() >= (ky.abs() - 1.0).abs() { kx.abs() } else { ky.abs() };
+                        (k.copysign(kx), k.copysign(ky))
+                    } else {
+                        (kx, ky)
+                    };
+                    self.set_xfrm(*other, scale_box(o, handle, kx, ky, mods.cmd))?;
+                }
             }
             Drag::LineEnd { id, end, orig } => {
                 let a = orig.affine();
@@ -994,7 +1068,7 @@ impl Session {
             Drag::Adjust { id, index, orig } => {
                 let st = self.doc()?;
                 let Some(sh) = st.shape(id).cloned() else { return Ok(Value::Null) };
-                let local = orig.affine().inverse() * p;
+                let local = shape_affine(st, &sh).inverse() * p;
                 let geo = kition_slide_render::shape_geometry(&sh, orig.w, orig.h);
                 let Some(h) = geo.handles.iter().find(|h| h.index == index) else { return Ok(Value::Null) };
                 let free2d = matches!(sh.geom.preset_name(), Some(n) if n.contains("Callout") && !n.contains("Arrow"));
@@ -1122,6 +1196,15 @@ impl Session {
         self.tool.glue = None;
         let mut out = Value::Null;
         match drag {
+            Some(Drag::Move { moved: false, pick: Some(member), .. }) => {
+                // A click on a member of the selected group: that member alone (WPS W-A12).
+                self.select(|_, sel| {
+                    sel.shapes = vec![member];
+                    sel.text = None;
+                    sel.cells = None;
+                })?;
+                out = json!({"selected": [member]});
+            }
             Some(Drag::Move { moved: false, enter_text: Some((id, at)), .. }) => {
                 // A click on the text of one of several selected shapes: caret at the click.
                 let st = self.doc()?;
@@ -1228,10 +1311,12 @@ impl Session {
                 let n = crate::cmd::ink::erase_strokes(self, &gesture)?;
                 out = json!({ "erased": n });
             }
-            Some(Drag::Resize { id, .. }) => {
+            Some(Drag::Resize { id, others, .. }) => {
                 self.commit();
-                let _ = cmd::text::fit_text_box(self, id);
-                self.refit_after_resize(id)?;
+                for id in std::iter::once(id).chain(others.iter().map(|o| o.0)) {
+                    let _ = cmd::text::fit_text_box(self, id);
+                    self.refit_after_resize(id)?;
+                }
             }
             Some(_) => self.commit(),
             None => {}
@@ -1288,7 +1373,29 @@ impl Session {
                         self.execute("text.edit", &json!({"id": id, "at": [pos.0, pos.1]}))?;
                         self.execute("text.selectWord", &json!({}))
                     }
-                    ShapeKind::Group { .. } => Ok(Value::Null),
+                    ShapeKind::Group { .. } => {
+                        // Into the text of the member under the pointer, through groups in groups
+                        // (the member becomes the selection).
+                        let mut at = id;
+                        for _ in 0..32 {
+                            match self.member_at(at, p, tol) {
+                                Some(member) => at = member,
+                                None => break,
+                            }
+                            if !self.active().and_then(|st| st.shape(at)).is_some_and(|m| matches!(m.kind, ShapeKind::Group { .. })) {
+                                break;
+                            }
+                        }
+                        let st = self.doc()?;
+                        match st.shape(at).filter(|m| at != id && matches!(m.kind, ShapeKind::Shape) && !m.is_line()) {
+                            Some(member) => {
+                                let pos = text_pos(st, member, p);
+                                self.execute("text.edit", &json!({"id": at, "at": [pos.0, pos.1]}))?;
+                                self.execute("text.selectWord", &json!({}))
+                            }
+                            None => Ok(Value::Null),
+                        }
+                    }
                     _ => {
                         self.ui_requests.push(crate::UiRequest::Pane { id: "format".into() });
                         Ok(Value::Null)
@@ -1358,6 +1465,8 @@ impl Session {
             _ => None,
         });
         self.edit(|doc, sel| {
+            // `x` is on the slide; a group member stores it in its group's child space.
+            let x = cmd::stored_xfrm_of(doc, sel, id, x);
             let list = crate::shapes_mut(doc, sel).ok_or_else(|| cmd::bad("tool", "no slide"))?;
             if let Some(sh) = kition_slide_model::find_shape_mut(list, id) {
                 sh.xfrm = Some(x);
@@ -1415,9 +1524,26 @@ impl Session {
                 c.xfrm = Some(b);
                 c.ph = None;
             }
-            let new_ids: Vec<ShapeId> = copies.iter().map(|c| c.id).collect();
+            // A group member's copy goes into the same group, in front of its members.
+            let mut inner: Vec<(ShapeId, Shape)> = vec![];
+            for id in ids.iter().filter(|id| !list.iter().any(|x| x.id == **id)) {
+                let Some(parent) = cmd::groups_holding(&list, *id).last().copied() else { continue };
+                let Some(member) = kition_slide_model::find_shape(&list, *id) else { continue };
+                let mut copy = vec![member.clone()];
+                cmd::edit::reid(doc, &mut copy);
+                inner.extend(copy.into_iter().map(|mut c| {
+                    c.ph = None;
+                    (parent, c)
+                }));
+            }
+            let new_ids: Vec<ShapeId> = copies.iter().map(|c| c.id).chain(inner.iter().map(|(_, c)| c.id)).collect();
             let shapes = crate::shapes_mut(doc, sel).ok_or_else(|| cmd::bad("duplicate", "no slide"))?;
             shapes.extend(copies);
+            for (parent, copy) in inner {
+                if let Some(children) = kition_slide_model::find_shape_mut(shapes, parent).and_then(|g| g.children_mut()) {
+                    children.push(copy);
+                }
+            }
             sel.shapes = new_ids;
             Ok(())
         })
@@ -1442,11 +1568,7 @@ impl Session {
             (size.height / 2.0, Rect::new(0.0, size.height / 2.0, size.width, size.height / 2.0)),
             (size.height, Rect::new(0.0, size.height, size.width, size.height)),
         ];
-        for sh in st.shapes() {
-            if exclude.contains(&sh.id) || sh.hidden {
-                continue;
-            }
-            let b = xfrm_of(&st.doc, &st.selection, sh).bounds();
+        for b in self.snap_boxes(exclude) {
             for x in [b.x0, b.center().x, b.x1] {
                 xs.push((x, b));
             }
@@ -1455,6 +1577,31 @@ impl Session {
             }
         }
         (xs, ys)
+    }
+
+    /// The bounds on the slide of what a moved or resized `exclude` lines up with: every other
+    /// visible shape on the slide; for a group member, not the groups holding it (they follow it)
+    /// but the other members of those groups.
+    fn snap_boxes(&self, exclude: &[ShapeId]) -> Vec<Rect> {
+        let Some(st) = self.active() else { return vec![] };
+        let holding: Vec<ShapeId> = exclude.iter().flat_map(|id| cmd::groups_holding(st.shapes(), *id)).collect();
+        fn walk(st: &crate::DocState, list: &[Shape], exclude: &[ShapeId], holding: &[ShapeId], depth: usize, out: &mut Vec<Rect>) {
+            for sh in list {
+                if exclude.contains(&sh.id) || sh.hidden {
+                    continue;
+                }
+                if holding.contains(&sh.id) {
+                    if depth < 32 {
+                        walk(st, sh.children(), exclude, holding, depth + 1, out);
+                    }
+                    continue;
+                }
+                out.push(slide_xfrm_of(&st.doc, &st.selection, sh).bounds());
+            }
+        }
+        let mut out = vec![];
+        walk(st, st.shapes(), exclude, &holding, 0, &mut out);
+        out
     }
 
     /// The grid's pull on `v`: how far to the nearest grid line, with snap to grid on.
@@ -1510,20 +1657,13 @@ impl Session {
     /// or as far from both neighbours between which it lies, if `tol` or nearer. Answers the move
     /// and the marks to draw: a line across each of the equal gaps with a tick at each end.
     fn equal_gap(&self, r: Rect, exclude: &[ShapeId], axis: usize, tol: f64) -> Option<(f64, Vec<Guide>)> {
-        let st = self.active()?;
-        if !self.prefs.smart_guides {
+        if self.active().is_none() || !self.prefs.smart_guides {
             return None;
         }
         let span = |b: &Rect| if axis == 0 { (b.x0, b.x1) } else { (b.y0, b.y1) };
         let side = |b: &Rect| if axis == 0 { (b.y0, b.y1) } else { (b.x0, b.x1) };
         let ((lo, hi), (c0, c1)) = (span(&r), side(&r));
-        let level: Vec<Rect> = st
-            .shapes()
-            .iter()
-            .filter(|sh| !exclude.contains(&sh.id) && !sh.hidden)
-            .map(|sh| xfrm_of(&st.doc, &st.selection, sh).bounds())
-            .filter(|b| b.is_finite() && side(b).0 < c1 && side(b).1 > c0)
-            .collect();
+        let level: Vec<Rect> = self.snap_boxes(exclude).into_iter().filter(|b| b.is_finite() && side(b).0 < c1 && side(b).1 > c0).collect();
         let mut before: Vec<Rect> = level.iter().filter(|b| span(b).1 <= lo + tol && span(b).0 < lo).copied().collect();
         before.sort_by(|a, b| span(b).1.total_cmp(&span(a).1));
         let mut after: Vec<Rect> = level.iter().filter(|b| span(b).0 >= hi - tol && span(b).1 > hi).copied().collect();
@@ -1585,13 +1725,13 @@ impl Session {
     /// A resize's snap: only the dragged edges move, each to a guide (another shape's or the
     /// slide's edge or centre) or else to the grid (WPS W-B2, W-C3). `centred` (Cmd): the opposite
     /// edge moves the other way by as much, so the centre stays.
-    fn snap_resize(&mut self, x: Xfrm, handle: u8, id: ShapeId, centred: bool, tol: f64) -> Xfrm {
+    fn snap_resize(&mut self, x: Xfrm, handle: u8, ids: &[ShapeId], centred: bool, tol: f64) -> Xfrm {
         if x.rot != 0.0 {
             self.tool.guides.clear();
             return x;
         }
         let r = x.rect();
-        let (xs, ys) = self.snap_targets(&[id]);
+        let (xs, ys) = self.snap_targets(ids);
         let tol = tol * 1.5;
         let mut nx = x;
         let mut guides = vec![];
@@ -1676,7 +1816,7 @@ pub(crate) fn text_press(st: &crate::DocState, id: ShapeId, p: Point, tol: f64) 
         return false;
     }
     let x = xfrm_of(&st.doc, &st.selection, sh);
-    let local = x.affine().inverse() * p;
+    let local = shape_affine(st, sh).inverse() * p;
     if !(local.x >= tol && local.y >= tol && local.x <= x.w - tol && local.y <= x.h - tol) {
         return false;
     }
@@ -1714,6 +1854,33 @@ fn in_several(st: &crate::DocState, id: ShapeId) -> bool {
     st.selection.text.is_none() && st.selection.shapes.len() > 1 && st.selection.shapes.contains(&id)
 }
 
+/// Frame `o` scaled by `kx` across and `ky` down (negative: turned over) as resize handle `handle`
+/// pulls it, its opposite handle staying where it is (its centre with `centred`): how each of
+/// several selected objects follows the one whose handle is dragged (walkthrough R8).
+pub fn scale_box(o: &Xfrm, handle: u8, kx: f64, ky: f64, centred: bool) -> Xfrm {
+    let finite = |k: f64| if k.is_finite() { k } else { 1.0 };
+    let (kx, ky) = (finite(kx), finite(ky));
+    // The edges the handle pulls, in the frame's own axes: the anchor is the other side.
+    let (kx, ax) = match handle {
+        0 | 6 | 7 => (kx, 1.0),
+        2..=4 => (kx, 0.0),
+        _ => (1.0, 0.5),
+    };
+    let (ky, ay) = match handle {
+        0..=2 => (ky, 1.0),
+        4..=6 => (ky, 0.0),
+        _ => (1.0, 0.5),
+    };
+    let (ax, ay) = if centred { (0.5, 0.5) } else { (ax, ay) };
+    let anchor = o.affine() * Point::new(ax * o.w, ay * o.h);
+    let mut n =
+        Xfrm { x: 0.0, y: 0.0, w: o.w * kx.abs(), h: o.h * ky.abs(), rot: o.rot, flip_h: o.flip_h != (kx < 0.0), flip_v: o.flip_v != (ky < 0.0) };
+    let at = n.affine() * Point::new(ax * n.w, ay * n.h);
+    n.x = anchor.x - at.x;
+    n.y = anchor.y - at.y;
+    n
+}
+
 /// The key of the nearest of `items` (key, distance) within `reach`.
 fn nearest<K: Copy>(items: impl Iterator<Item = (K, f64)>, reach: f64) -> Option<(K, f64)> {
     items.filter(|(_, d)| d.is_finite() && *d <= reach).min_by(|a, b| a.1.total_cmp(&b.1))
@@ -1736,7 +1903,7 @@ fn over_lines(st: &crate::DocState, sh: &Shape, p: Point, tol: f64, whole: bool)
     let Some(layout) = cmd::text::layout_for(st, &t) else { return false };
     let x = xfrm_of(&st.doc, &st.selection, sh);
     let rect = kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect;
-    let local = kition_slide_render::text_transform(x.affine(), rect, layout.rotation).inverse() * p;
+    let local = kition_slide_render::text_transform(shape_affine(st, sh), rect, layout.rotation).inverse() * p;
     layout.lines.iter().any(|l| {
         let (x0, x1) = if whole { (layout.inner.x0, layout.inner.x1) } else { l.extent };
         x1 > x0 && Rect::new(x0, l.top, x1, l.bottom).inflate(tol, tol).contains(local)
@@ -1776,29 +1943,86 @@ pub fn line_xfrm(a: Point, b: Point, _rot: f64) -> Xfrm {
     Xfrm { x: r.x0, y: r.y0, w: r.width(), h: r.height(), rot: 0.0, flip_h: b.x < a.x, flip_v: b.y < a.y }
 }
 
-fn hit_shape(st: &crate::DocState, sh: &Shape, p: Point, tol: f64) -> Option<Hit> {
-    let x = xfrm_of(&st.doc, &st.selection, sh);
-    let inv = x.affine().inverse();
+/// The frame shape `sh` is drawn in and the transform from that frame's parent space to the slide
+/// (identity for a shape on the slide itself), as the renderer draws a group's members.
+fn drawn_frame(st: &crate::DocState, sh: &Shape) -> (Xfrm, Affine) {
+    let own = (xfrm_of(&st.doc, &st.selection, sh), Affine::IDENTITY);
+    let holders = cmd::groups_holding(st.shapes(), sh.id);
+    let Some(mut group) = holders.first().and_then(|g| st.shapes().iter().find(|s| s.id == *g)) else { return own };
+    let mut gx = xfrm_of(&st.doc, &st.selection, group);
+    let mut space = Affine::IDENTITY;
+    for next in holders.iter().skip(1).copied().chain(std::iter::once(sh.id)) {
+        let Some((c, cx, sp)) = member_frames(st, group, gx, space).into_iter().find(|(c, ..)| c.id == next) else { break };
+        if next == sh.id {
+            return (cx, sp);
+        }
+        (group, gx, space) = (c, cx, sp);
+    }
+    own
+}
+
+/// Group `group`'s members, each with the frame it is drawn in and the transform from that frame's
+/// parent space to the slide, for `gx` the group's frame in `space`. As the renderer draws them: a
+/// group that scales its child space scales each member's frame, not its contents.
+fn member_frames<'a>(st: &crate::DocState, group: &'a Shape, gx: Xfrm, space: Affine) -> Vec<(&'a Shape, Xfrm, Affine)> {
+    let ShapeKind::Group { children, child } = &group.kind else { return vec![] };
+    let ch = Rect::new(child.x, child.y, child.x + child.w, child.y + child.h);
+    let unscaled = (child.w.abs() < 1e-9 || (gx.w / child.w - 1.0).abs() < 1e-9) && (child.h.abs() < 1e-9 || (gx.h / child.h - 1.0).abs() < 1e-9);
+    children
+        .iter()
+        .map(|c| {
+            let cx = xfrm_of(&st.doc, &st.selection, c);
+            if unscaled || matches!(c.kind, ShapeKind::Ink { .. }) {
+                (c, cx, space * kition_slide_geom::group_child_affine(&gx, ch))
+            } else {
+                (c, kition_slide_geom::group_child_xfrm(&gx, ch, &cx), space * gx.affine())
+            }
+        })
+        .collect()
+}
+
+/// The member of group `group` (drawn in frame `gx` in `space`) a press at `p` takes once one of
+/// the group's members is selected: the topmost member under `p`, and inside a member that is a
+/// group the same again. `None` while nothing inside the group is selected (the group is one
+/// object then) or no member is under `p`.
+fn member_hit(st: &crate::DocState, group: &Shape, gx: Xfrm, space: Affine, p: Point, tol: f64, depth: usize) -> Option<Hit> {
+    if depth > 32 || !matches!(group.kind, ShapeKind::Group { .. }) {
+        return None;
+    }
+    let entered = st.selection.shapes.iter().any(|id| cmd::groups_holding(st.shapes(), *id).contains(&group.id));
+    if !entered {
+        return None;
+    }
+    for (c, cx, sp) in member_frames(st, group, gx, space).into_iter().rev() {
+        if c.hidden || c.locked {
+            continue;
+        }
+        if let Some(h) = hit_shape(st, c, cx, sp, p, tol) {
+            return Some(member_hit(st, c, cx, sp, p, tol, depth + 1).unwrap_or(h));
+        }
+    }
+    None
+}
+
+/// What a press at `p` hits of shape `sh`, drawn in frame `x` in `space` (see [`member_frames`]).
+fn hit_shape(st: &crate::DocState, sh: &Shape, x: Xfrm, space: Affine, p: Point, tol: f64) -> Option<Hit> {
+    let inv = (space * x.affine()).inverse();
     let local = inv * p;
     match &sh.kind {
-        ShapeKind::Group { children, child } => {
+        ShapeKind::Group { .. } => {
             // A group is hit when any child is hit; the group is what gets selected.
-            let ch = Rect::new(child.x, child.y, child.x + child.w, child.y + child.h);
-            let m = kition_slide_geom::group_child_affine(&x, ch);
-            let q = m.inverse() * p;
-            for c in children.iter().rev() {
-                if let Some(cx) = c.xfrm {
-                    let cl = cx.affine().inverse() * q;
-                    if cl.x >= -tol && cl.y >= -tol && cl.x <= cx.w + tol && cl.y <= cx.h + tol {
-                        return Some(Hit::Shape { id: sh.id, text: false });
-                    }
+            for (_, cx, sp) in member_frames(st, sh, x, space).into_iter().rev() {
+                let cl = (sp * cx.affine()).inverse() * p;
+                if cl.x >= -tol && cl.y >= -tol && cl.x <= cx.w + tol && cl.y <= cx.h + tol {
+                    return Some(Hit::Shape { id: sh.id, text: false });
                 }
             }
             None
         }
         ShapeKind::Ink { strokes } => {
+            let q = space.inverse() * p;
             for s in strokes {
-                if s.points.iter().any(|(px, py, _)| (Point::new(*px, *py) - p).hypot() <= tol + s.width) {
+                if s.points.iter().any(|(px, py, _)| (Point::new(*px, *py) - q).hypot() <= tol + s.width) {
                     return Some(Hit::Shape { id: sh.id, text: false });
                 }
             }
@@ -1852,7 +2076,7 @@ pub fn text_pos(st: &crate::DocState, sh: &Shape, p: Point) -> (usize, usize) {
             let tr = cell
                 .and_then(|cell| cmd::table::cell_rect(st, sh.id, cell))
                 .unwrap_or_else(|| kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect);
-            let local = kition_slide_render::text_transform(x.affine(), tr, l.rotation).inverse() * p;
+            let local = kition_slide_render::text_transform(shape_affine(st, sh), tr, l.rotation).inverse() * p;
             let h = l.hit(local);
             (h.para, h.ch)
         }

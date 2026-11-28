@@ -3,8 +3,9 @@
  * (`bindings/wasm` `overlays`, anchors in its own colours) and this draws them so they show on any
  * slide: the eight resize handles and a line's ends as white circles 9 px across with a dark ring,
  * the rotation handle as a grey circle with a turning arrow, a shape's adjust handles as yellow
- * diamonds. They sit on the slide's own colours, not the editor's, so they keep fixed colours that
- * read on white and on black alike, as the selection outline does. The caret blinks (plan stage
+ * diamonds, a locked object's handles as grey circles (they take no press; plan stage 10). They
+ * sit on the slide's own colours, not the editor's, so they keep fixed colours that read on white
+ * and on black alike, as the selection outline does. The caret blinks (plan stage
  * 3, walkthrough E13): [`setCaretShown`] hides it every other beat, and only the overlays are
  * drawn again, never the slide. Everything else is kit-editor's default drawing.
  */
@@ -15,6 +16,8 @@ const RING = 'rgba(64, 64, 64, 1)'
 const WHITE = 'rgba(255, 255, 255, 1)'
 const ROTATE_FILL = 'rgba(112, 112, 112, 1)'
 const ADJUST_FILL = 'rgba(255, 210, 63, 1)'
+/** A locked object's handles: the engine's grey (bindings/wasm LOCKED_HANDLE). */
+const LOCKED_FILL = 'rgba(160, 160, 160, 1)'
 /** Diameter of a resize handle and of an adjust diamond, in CSS pixels. */
 const HANDLE = 9
 /** Diameter of the rotation handle, in CSS pixels. */
@@ -40,11 +43,11 @@ export const drawSlideHandle: OverlayDrawer = (overlay, { context, toScreen }) =
   context.save()
   context.lineWidth = 1
   context.strokeStyle = RING
-  if (overlay.filled && isColor(overlay.color, 255, 255, 255)) {
-    // A resize handle, or a line's end.
+  if (overlay.filled && (isColor(overlay.color, 255, 255, 255) || isColor(overlay.color, 160, 160, 160))) {
+    // A resize handle, or a line's end; grey on a locked object.
     context.beginPath()
     context.arc(x, y, HANDLE / 2, 0, Math.PI * 2)
-    context.fillStyle = WHITE
+    context.fillStyle = isColor(overlay.color, 160, 160, 160) ? LOCKED_FILL : WHITE
     context.fill()
     context.stroke()
   } else if (overlay.filled) {

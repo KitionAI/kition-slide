@@ -34,7 +34,7 @@ use std::sync::{Arc, Mutex, Weak};
 use kition_kit::raster::{self, Frame};
 use kition_kit::tools::{KitTools, PointerAction, ToolInfo, ToolMods, ToolOverlay, ToolPointer, ToolRequest, ToolResponse};
 use kition_kit::{CallContext, KitCommand, KitDocument, MAX_RENDER_SIDE};
-use kition_slide_engine::cmd::{self, xfrm_of};
+use kition_slide_engine::cmd::{self, shape_affine, slide_xfrm_of, xfrm_of};
 use kition_slide_engine::tools::{Mods, PointerEvent, PointerKind, Pointing, TOL_PX, ToolKind, handles};
 use kition_slide_engine::{CallSlide, DocState, Session, Target, UiRequest};
 use kition_slide_geom::{Point, Xfrm};
@@ -67,6 +67,10 @@ const CARET: [u8; 4] = [20, 20, 20, 255];
 /// The line under what an input method composes: dark, and not the caret's colour, which blinks.
 const PREEDIT_UNDERLINE: [u8; 4] = [64, 64, 64, 255];
 const GUIDE: [u8; 4] = [234, 67, 53, 255];
+/// A locked object's handles (WPS, PowerPoint): grey, and they take no press.
+const LOCKED_HANDLE: [u8; 4] = [160, 160, 160, 255];
+/// The thin frame around the group whose member is selected (WPS W-A12).
+const GROUP_FRAME: [u8; 4] = [128, 128, 128, 255];
 
 /// The tools on the rail: (id, label, shortcut, icon, group).
 const TOOLS: &[(&str, &str, Option<&str>, &str, usize)] = &[
@@ -942,13 +946,31 @@ impl SlideDocument {
         let Some(st) = self.session.active() else { return out };
         let editing = st.selection.text.clone();
         let anchor = |(x, y): (f64, f64), color: [u8; 4], size: f32| ToolOverlay::Anchor { x, y, color, filled: true, size };
+        // A group whose member is selected keeps a thin frame around it (WPS W-A12).
+        let mut framed: Vec<kition_slide_model::ShapeId> = vec![];
+        for id in &st.selection.shapes {
+            let Some(group) = cmd::groups_holding(st.shapes(), *id).last().and_then(|g| st.shape(*g)) else { continue };
+            if framed.contains(&group.id) {
+                continue;
+            }
+            framed.push(group.id);
+            let x = slide_xfrm_of(&st.doc, &st.selection, group);
+            out.push(ToolOverlay::Path {
+                d: self.quad(&x, [(0.0, 0.0), (x.w, 0.0), (x.w, x.h), (0.0, x.h)]),
+                color: GROUP_FRAME,
+                width: 1.0,
+                dashed: true,
+            });
+        }
         for id in &st.selection.shapes {
             let Some(sh) = st.shape(*id) else { continue };
-            let x = xfrm_of(&st.doc, &st.selection, sh);
+            // On the slide: a group member's frame carried out of its group.
+            let x = slide_xfrm_of(&st.doc, &st.selection, sh);
             let a = x.affine();
+            let handle = if sh.locked { LOCKED_HANDLE } else { HANDLE };
             if sh.is_line() {
                 for end in [Point::new(0.0, 0.0), Point::new(x.w, x.h)] {
-                    out.push(anchor(self.to_canvas(a * end), HANDLE, 9.0));
+                    out.push(anchor(self.to_canvas(a * end), handle, 9.0));
                 }
                 continue;
             }
@@ -962,6 +984,13 @@ impl SlideDocument {
             if st.selection.shapes.len() == 1 || !editing_this {
                 // Where the engine's hit test finds them, at this zoom (one source for both).
                 let (handles, rotate) = handles(&x, 1.0 / self.zoom);
+                if sh.locked {
+                    // A locked object's handles are grey and nothing else is offered.
+                    for at in handles {
+                        out.push(anchor(self.to_canvas(at), LOCKED_HANDLE, 9.0));
+                    }
+                    continue;
+                }
                 if !editing_this {
                     let (tx, ty) = self.to_canvas(handles[1]);
                     let (rx, ry) = self.to_canvas(rotate);
@@ -971,8 +1000,10 @@ impl SlideDocument {
                 for handle in handles {
                     out.push(anchor(self.to_canvas(handle), HANDLE, 9.0));
                 }
-                for adjust in &kition_slide_render::shape_geometry(sh, x.w, x.h).handles {
-                    out.push(anchor(self.to_canvas(a * adjust.pos), ADJUST, 9.0));
+                let own = xfrm_of(&st.doc, &st.selection, sh);
+                let space = shape_affine(st, sh);
+                for adjust in &kition_slide_render::shape_geometry(sh, own.w, own.h).handles {
+                    out.push(anchor(self.to_canvas(space * adjust.pos), ADJUST, 9.0));
                 }
             }
         }
@@ -1089,7 +1120,7 @@ impl SlideDocument {
             .cell
             .and_then(|cell| cmd::table::cell_rect(st, ts.shape, cell))
             .unwrap_or_else(|| kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect);
-        let m = kition_slide_render::text_transform(x.affine(), rect, layout.rotation);
+        let m = kition_slide_render::text_transform(shape_affine(st, sh), rect, layout.rotation);
         Some((layout, m))
     }
 
@@ -1223,7 +1254,7 @@ impl SlideDocument {
         let st = self.session.active()?;
         let mut bounds: Option<(f64, f64, f64, f64)> = None;
         for shape in st.selected_shapes() {
-            let x = xfrm_of(&st.doc, &st.selection, shape);
+            let x = slide_xfrm_of(&st.doc, &st.selection, shape);
             let a = x.affine();
             for corner in [Point::new(0.0, 0.0), Point::new(x.w, 0.0), Point::new(0.0, x.h), Point::new(x.w, x.h)] {
                 let q = a * corner;

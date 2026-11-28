@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-r8-multi-resize
+feature: slide.editor.group-members
+intent: "Dragging a resize handle of one of several selected objects scales every one of them by the same ratio, each about its own opposite corner, in one undo step; a locked object's handles are grey, it has no rotation handle, and a drag from its corner changes nothing (walkthrough root cause R8: only the object whose handle was dragged changed size)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/groups.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/groups.mjs, chromium, r8-multi-resize, locked-grey-handles]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-28"

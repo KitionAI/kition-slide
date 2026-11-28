@@ -2558,3 +2558,239 @@ fn a_picture_in_a_content_placeholder_fits_and_keeps_its_proportions() {
     assert!(matches!(&sh.kind, model::ShapeKind::Picture { fill } if fill.crop == [0.0; 4]), "whole, not cropped");
     assert!(sh.text.is_none(), "no text, so no prompt");
 }
+
+/// A shape's frame on the slide (a group member's carried out of its group).
+fn on_slide(s: &Session, id: u64) -> kition_slide_geom::Xfrm {
+    let st = s.doc().unwrap();
+    let sh = st.shape(model::ShapeId(id as u32)).unwrap();
+    cmd::slide_xfrm_of(&st.doc, &st.selection, sh)
+}
+
+fn selected(s: &Session) -> Vec<u64> {
+    s.doc().unwrap().selection.shapes.iter().map(|id| u64::from(id.0)).collect()
+}
+
+/// Plan stage 10 item 1 (walkthrough C9; WPS W-A12; case regressions/issue-hand-c9-group-child): a
+/// click selects the group; a click on a member of the selected group selects that member, which a
+/// drag then moves alone in one undo step (the group grows to hold it); a drag on the selected
+/// group moves the whole group; Escape goes back to the group, then to nothing.
+#[test]
+fn a_click_on_a_member_of_the_selected_group_selects_that_member() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [300, 200, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    let click = |s: &mut Session, x: f64, y: f64| {
+        s.pointer(ev(PointerKind::Down, x, y)).unwrap();
+        s.pointer(ev(PointerKind::Up, x, y)).unwrap();
+    };
+    let drag = |s: &mut Session, (x, y): (f64, f64), (dx, dy): (f64, f64)| {
+        s.pointer(ev(PointerKind::Down, x, y)).unwrap();
+        s.pointer(ev(PointerKind::Drag, x + dx / 2.0, y + dy / 2.0)).unwrap();
+        s.pointer(ev(PointerKind::Drag, x + dx, y + dy)).unwrap();
+        s.pointer(ev(PointerKind::Up, x + dx, y + dy)).unwrap();
+    };
+    click(&mut s, 150.0, 125.0);
+    assert_eq!(selected(&s), vec![g], "the first click selects the group");
+    click(&mut s, 150.0, 125.0);
+    assert_eq!(selected(&s), vec![a], "a click on its member selects the member");
+    click(&mut s, 350.0, 225.0);
+    assert_eq!(selected(&s), vec![b], "and a click on another member that one");
+    // The member has its own handles: its corner resizes it, not the group.
+    let steps = s.doc().unwrap().history.undo.len();
+    drag(&mut s, (400.0, 250.0), (20.0, 10.0));
+    assert_eq!(on_slide(&s, b).w, 120.0, "the member's corner handle resizes the member");
+    assert_eq!(on_slide(&s, a).w, 100.0, "and nothing else");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().history.undo.len(), steps, "one undo step");
+    // A drag moves the member alone; the group grows to hold it.
+    drag(&mut s, (350.0, 225.0), (40.0, 20.0));
+    let moved = on_slide(&s, b);
+    assert_eq!((moved.x, moved.y), (340.0, 220.0), "the member moves");
+    assert_eq!((on_slide(&s, a).x, on_slide(&s, a).y), (100.0, 100.0), "the other member stays");
+    let gb = on_slide(&s, g);
+    assert_eq!((gb.x, gb.y, gb.w, gb.h), (100.0, 100.0, 340.0, 170.0), "the group holds both");
+    assert_eq!(selected(&s), vec![b], "the member stays selected");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((on_slide(&s, b).x, on_slide(&s, b).y), (300.0, 200.0), "one undo puts it back");
+    assert_eq!(s.doc().unwrap().history.undo.len(), steps);
+    // Escape: back to the group, then nothing.
+    s.execute("edit.select", &json!({"ids": [b]})).unwrap();
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(selected(&s), vec![g], "Escape goes back to the group");
+    // A drag on the selected group moves all of it.
+    drag(&mut s, (150.0, 125.0), (10.0, 10.0));
+    assert_eq!(selected(&s), vec![g], "a drag keeps the group selected");
+    assert_eq!((on_slide(&s, a).x, on_slide(&s, b).x), (110.0, 310.0), "and moves all of it");
+    s.key("Escape", Mods::default()).unwrap();
+    assert!(selected(&s).is_empty(), "then Escape selects nothing");
+}
+
+/// Plan stage 10 item 1 (walkthrough C9): in a group that scales its child space, a member is
+/// pressed, moved and resized where it is drawn on the slide.
+#[test]
+fn a_member_of_a_scaled_group_moves_where_it_is_drawn() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [300, 200, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+    // Twice as large: a is drawn at (100, 100) 200 × 100, b at (500, 300) 200 × 100.
+    s.execute("shape.setBounds", &json!({"id": g, "x": 100, "y": 100, "w": 600, "h": 300})).unwrap();
+    let drawn = on_slide(&s, b);
+    assert_eq!((drawn.x, drawn.y, drawn.w, drawn.h), (500.0, 300.0, 200.0, 100.0));
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up] {
+        s.pointer(ev(kind, 600.0, 350.0)).unwrap();
+    }
+    assert_eq!(selected(&s), vec![b], "two clicks where b is drawn select b");
+    s.pointer(ev(PointerKind::Down, 600.0, 350.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 610.0, 355.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 620.0, 360.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 620.0, 360.0)).unwrap();
+    let moved = on_slide(&s, b);
+    assert!((moved.x - 520.0).abs() < 1e-6 && (moved.y - 310.0).abs() < 1e-6, "moved as far as the pointer on the slide: {moved:?}");
+    assert!((moved.w - 200.0).abs() < 1e-6, "at its drawn size: {moved:?}");
+    // Its own corner handle, where it is drawn.
+    s.pointer(ev(PointerKind::Down, 720.0, 410.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 730.0, 420.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 740.0, 430.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 740.0, 430.0)).unwrap();
+    let sized = on_slide(&s, b);
+    assert!((sized.w - 220.0).abs() < 1e-6 && (sized.h - 120.0).abs() < 1e-6, "its corner follows the pointer: {sized:?}");
+    assert!((sized.x - 520.0).abs() < 1e-6, "the opposite corner stays: {sized:?}");
+}
+
+/// Plan stage 10 item 1 (walkthrough C9; R-E5): a double-click on a member's words edits that
+/// member's text with the word selected, whether or not the group was selected; Escape leaves the
+/// text with the member selected, then goes back to the group.
+#[test]
+fn a_double_click_on_a_members_words_edits_its_text() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 300, 100], "text": "Hello"})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [500, 100, 100, 100]})).unwrap()["id"].as_u64().unwrap();
+    let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let ev = |kind| PointerEvent { kind, x: 250.0, y: 150.0, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+        s.pointer(ev(kind)).unwrap();
+    }
+    let t = s.doc().unwrap().selection.text.clone().expect("editing");
+    assert_eq!(u64::from(t.shape.0), a, "the member's text is edited");
+    assert!(t.is_range(), "with the word selected: {t:?}");
+    s.type_text("Hi").unwrap();
+    assert_eq!(s.execute("text.get", &json!({"id": a})).unwrap()["text"], "Hi");
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(selected(&s), vec![a], "Escape leaves the text, the member selected");
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(selected(&s), vec![g], "then the group");
+    // Straight from nothing selected: the double-click event alone reaches the member's text.
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    s.pointer(ev(PointerKind::DoubleClick)).unwrap();
+    assert_eq!(s.doc().unwrap().selection.text.as_ref().map(|t| u64::from(t.shape.0)), Some(a));
+    let _ = b;
+}
+
+/// Plan stage 10 item 2 (walkthrough R8; R-D17): dragging a handle of one of several selected
+/// objects scales every one by the same ratio, each about its own opposite handle (its centre with
+/// Cmd), in one undo step.
+#[test]
+fn dragging_a_handle_of_several_selected_scales_them_all() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [400, 200, 60, 120]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a, b]})).unwrap();
+    let steps = s.doc().unwrap().history.undo.len();
+    let gesture = |s: &mut Session, mods: Mods, from: (f64, f64), to: (f64, f64)| {
+        let ev = |kind, (x, y): (f64, f64)| PointerEvent { kind, x, y, mods, tol: crate::tools::TOL_PX };
+        s.pointer(ev(PointerKind::Down, from)).unwrap();
+        s.pointer(ev(PointerKind::Drag, ((from.0 + to.0) / 2.0, (from.1 + to.1) / 2.0))).unwrap();
+        s.pointer(ev(PointerKind::Drag, to)).unwrap();
+        s.pointer(ev(PointerKind::Up, to)).unwrap();
+    };
+    // a's SE corner by (50, 25): a grows 1.5 ×; b too, its top left staying.
+    gesture(&mut s, Mods::default(), (200.0, 150.0), (250.0, 175.0));
+    let (na, nb) = (on_slide(&s, a), on_slide(&s, b));
+    assert_eq!((na.x, na.y, na.w, na.h), (100.0, 100.0, 150.0, 75.0));
+    assert_eq!((nb.x, nb.y, nb.w, nb.h), (400.0, 200.0, 90.0, 180.0), "the other scales by the same ratio");
+    assert_eq!(selected(&s), vec![a, b], "both stay selected");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().history.undo.len(), steps, "one undo step");
+    let nb = on_slide(&s, b);
+    assert_eq!((nb.x, nb.y, nb.w, nb.h), (400.0, 200.0, 60.0, 120.0), "undone for both");
+    // The W edge by -50 (a 1.5 × wider): b keeps its right edge; Cmd keeps each centre.
+    s.execute("edit.select", &json!({"ids": [a, b]})).unwrap();
+    gesture(&mut s, Mods::default(), (100.0, 125.0), (50.0, 125.0));
+    let nb = on_slide(&s, b);
+    assert_eq!((nb.x, nb.w, nb.h), (370.0, 90.0, 120.0), "an edge scales one way, about the other edge");
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("edit.select", &json!({"ids": [a, b]})).unwrap();
+    gesture(&mut s, Mods { cmd: true, ..Default::default() }, (200.0, 150.0), (250.0, 175.0));
+    let nb = on_slide(&s, b);
+    assert!((nb.x + nb.w / 2.0 - 430.0).abs() < 1e-6 && (nb.y + nb.h / 2.0 - 260.0).abs() < 1e-6, "Cmd: about each centre ({nb:?})");
+    assert!((nb.w - 120.0).abs() < 1e-6 && (nb.h - 240.0).abs() < 1e-6, "twice the size, as a is ({nb:?})");
+}
+
+/// Plan stage 10 item 3 (R-C25): a locked object's handles are grey and take no press.
+#[test]
+fn a_locked_objects_handles_take_no_press() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("shape.lock", &json!({"ids": [a], "locked": true})).unwrap();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    assert_eq!(s.hit_test(kition_slide_geom::Point::new(200.0, 150.0), crate::tools::TOL_PX), None, "its corner handle is not hit");
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    s.pointer(ev(PointerKind::Down, 200.0, 150.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 230.0, 170.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 230.0, 170.0)).unwrap();
+    let x = on_slide(&s, a);
+    assert_eq!((x.w, x.h), (100.0, 50.0), "a drag from it changes nothing");
+}
+
+/// Plan stage 10 item 1: an Alt drag on a selected member leaves it and drags a copy of it, made in
+/// the same group, in one undo step.
+#[test]
+fn an_alt_drag_on_a_member_copies_it_into_its_group() {
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [300, 200, 100, 50]})).unwrap()["id"].as_u64().unwrap();
+    let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    let steps = s.doc().unwrap().history.undo.len();
+    let alt = Mods { alt: true, ..Default::default() };
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: alt, tol: crate::tools::TOL_PX };
+    s.pointer(ev(PointerKind::Down, 150.0, 125.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 160.0, 130.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 170.0, 225.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 170.0, 225.0)).unwrap();
+    let copy = selected(&s);
+    assert_eq!(copy.len(), 1, "the copy is selected");
+    assert_ne!(copy[0], a);
+    let holding = cmd::groups_holding(s.doc().unwrap().shapes(), model::ShapeId(copy[0] as u32));
+    assert_eq!(holding, vec![model::ShapeId(g as u32)], "in the same group");
+    let moved = on_slide(&s, copy[0]);
+    assert_eq!((moved.x, moved.y), (120.0, 200.0), "where the pointer took it");
+    assert_eq!((on_slide(&s, a).x, on_slide(&s, a).y), (100.0, 100.0), "the member stays");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().history.undo.len(), steps, "one undo step");
+    assert!(s.doc().unwrap().shape(model::ShapeId(copy[0] as u32)).is_none(), "undone, the copy goes");
+    let _ = b;
+}

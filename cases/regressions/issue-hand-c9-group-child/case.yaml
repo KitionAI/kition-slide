@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-c9-group-child
+feature: slide.editor.group-members
+intent: "A click selects a group; a click on a member of the selected group selects that member, drawn with its own handles inside a thin grey frame around the group; the member is dragged alone (the other member stays, the group holds both, one undo step) and formatted alone from Shape Format; a double-click on a member's words edits them; Escape goes from the text to the member, to the group, to nothing (walkthrough C9: a second click and a double-click both kept the whole group; WPS W-A12)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/groups.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/groups.mjs, chromium, c9-click-member, c9-drag-member, c9-format-member, c9-double-click-text]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-28"

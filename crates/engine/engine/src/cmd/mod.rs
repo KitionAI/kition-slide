@@ -300,7 +300,9 @@ pub fn xfrm_of(doc: &kition_slide_model::SlideFile, sel: &crate::Selection, shap
     x
 }
 
-pub(crate) fn slide_xfrm_of(doc: &kition_slide_model::SlideFile, sel: &crate::Selection, shape: &kition_slide_model::Shape) -> Xfrm {
+/// Shape `shape`'s box on the slide: a group member's box carried out of its groups' child spaces
+/// (as slide.inspect lists it and its handles are drawn), any other shape's own box.
+pub fn slide_xfrm_of(doc: &kition_slide_model::SlideFile, sel: &crate::Selection, shape: &kition_slide_model::Shape) -> Xfrm {
     let x = xfrm_of(doc, sel, shape);
     current_shapes(doc, sel)
         .and_then(|shapes| group_chain(shapes, shape.id, 0))
@@ -375,6 +377,49 @@ pub(crate) fn edit_shapes(s: &mut Session, p: &Value, cmd: &str, f: impl Fn(&mut
         }
         Ok(Value::from(n))
     })
+}
+
+/// A box on the slide as the box shape `id` stores: in its group's child space for a group member
+/// (the inverse of [`slide_xfrm_of`]), the box itself for a shape on the slide.
+pub(crate) fn stored_xfrm_of(doc: &kition_slide_model::SlideFile, sel: &crate::Selection, id: ShapeId, x: Xfrm) -> Xfrm {
+    current_shapes(doc, sel).and_then(|v| group_chain(v, id, 0)).unwrap_or_default().iter().fold(x, |c, (g, ch)| arrange::parent_to_child(g, ch, &c))
+}
+
+/// The transform from shape `sh`'s own space (`0..w`, `0..h` of its box) to the slide, as it is
+/// drawn and its text is laid out: inside its groups for a group member.
+pub fn shape_affine(st: &crate::DocState, sh: &kition_slide_model::Shape) -> kition_slide_geom::Affine {
+    let x = xfrm_of(&st.doc, &st.selection, sh);
+    if st.shapes().iter().any(|s| s.id == sh.id) {
+        return x.affine();
+    }
+    text::ctx_for(&st.doc, &st.selection)
+        .and_then(|ctx| text::text_shape_transform(&ctx, st.shapes(), sh.id, kition_slide_geom::Affine::IDENTITY, 0))
+        .unwrap_or_else(|| x.affine())
+}
+
+/// The groups holding shape `id` on the edited slide, outermost first: empty for a shape on the
+/// slide itself (or one that is not there).
+pub fn groups_holding(shapes: &[kition_slide_model::Shape], id: ShapeId) -> Vec<ShapeId> {
+    fn walk(shapes: &[kition_slide_model::Shape], id: ShapeId, depth: usize, out: &mut Vec<ShapeId>) -> bool {
+        if depth > 32 {
+            return false;
+        }
+        for sh in shapes {
+            if sh.id == id {
+                return true;
+            }
+            if let kition_slide_model::ShapeKind::Group { children, .. } = &sh.kind {
+                out.push(sh.id);
+                if walk(children, id, depth + 1, out) {
+                    return true;
+                }
+                out.pop();
+            }
+        }
+        false
+    }
+    let mut out = vec![];
+    if walk(shapes, id, 0, &mut out) { out } else { vec![] }
 }
 
 /// The groups holding shape `id`, outermost first, as (group box, group child space); empty for a
