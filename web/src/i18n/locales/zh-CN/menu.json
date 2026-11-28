@@ -51,5 +51,7 @@
   "sp.addSection": "新增节",
   "sp.renameSection": "重命名节",
   "sp.sectionName": "节名称",
-  "sp.newSection": "无标题节"
+  "sp.newSection": "无标题节",
+  "mini.text": "文字格式",
+  "mini.objects": "对齐对象"
 }

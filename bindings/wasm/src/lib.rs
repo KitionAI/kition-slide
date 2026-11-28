@@ -1183,6 +1183,43 @@ impl SlideDocument {
 
     /// The middle of the selected objects' bounds on the current slide, in canvas points.
     fn selection_middle(&self) -> Option<(f64, f64)> {
+        let [x0, y0, x1, y1] = self.selection_bounds()?;
+        Some(((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+    }
+
+    /// The floating toolbar the selection has (plan stage 6B, WPS W-J1, W-A13), as JSON: `text`
+    /// while characters of the text being edited on a slide are selected (not only a caret), with
+    /// `box` the bounds of their highlight; else `objects` while two or more objects are selected,
+    /// with `box` their bounds and `ids` the objects; both boxes in canvas points `[x0, y0, x1,
+    /// y1]`. `None` otherwise: a single object has no bar beside it, and neither have a caret, the
+    /// notes or a gesture under way.
+    pub fn floating_bar(&self) -> Option<Value> {
+        if self.session.tool.dragging() {
+            return None;
+        }
+        let st = self.session.active()?;
+        if let Some(ts) = st.selection.text.as_ref() {
+            if !ts.is_range() {
+                return None;
+            }
+            let (layout, m) = self.text_space(st, ts)?;
+            let (s0, s1) = ts.ordered();
+            let mut bounds: Option<[f64; 4]> = None;
+            for r in layout.selection_rects(kition_slide_text::Pos { para: s0.0, ch: s0.1 }, kition_slide_text::Pos { para: s1.0, ch: s1.1 }) {
+                for (px, py) in [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)] {
+                    bounds = grow(bounds, self.to_canvas(m * Point::new(px, py)));
+                }
+            }
+            return bounds.map(|b| json!({ "kind": "text", "box": b }));
+        }
+        if st.selection.shapes.len() < 2 {
+            return None;
+        }
+        self.selection_bounds().map(|b| json!({ "kind": "objects", "box": b, "ids": st.selection.shapes }))
+    }
+
+    /// The bounds of the selected objects on the current slide, in canvas points `[x0, y0, x1, y1]`.
+    fn selection_bounds(&self) -> Option<[f64; 4]> {
         let st = self.session.active()?;
         let mut bounds: Option<(f64, f64, f64, f64)> = None;
         for shape in st.selected_shapes() {
@@ -1200,7 +1237,9 @@ impl SlideDocument {
             }
         }
         let (x0, y0, x1, y1) = bounds?;
-        Some(self.to_canvas(Point::new((x0 + x1) / 2.0, (y0 + y1) / 2.0)))
+        let (ax, ay) = self.to_canvas(Point::new(x0, y0));
+        let (bx, by) = self.to_canvas(Point::new(x1, y1));
+        Some([ax, ay, bx, by])
     }
 
     fn respond(&mut self) -> ToolResponse {
@@ -1241,6 +1280,17 @@ impl SlideDocument {
 /// The CSS cursor for what the pointer would do (plan 0B, walkthrough C3): the engine decides
 /// from its own hit test; this only names the shape. A resize handle's arrow follows the
 /// object's rotation and flips, to the nearest of the four double arrows.
+/// `bounds` grown to hold point (`x`, `y`) when it is a number.
+fn grow(bounds: Option<[f64; 4]>, (x, y): (f64, f64)) -> Option<[f64; 4]> {
+    if !(x.is_finite() && y.is_finite()) {
+        return bounds;
+    }
+    Some(match bounds {
+        Some([x0, y0, x1, y1]) => [x0.min(x), y0.min(y), x1.max(x), y1.max(y)],
+        None => [x, y, x, y],
+    })
+}
+
 fn cursor(pointing: Pointing) -> String {
     match pointing {
         Pointing::Default => "default",
@@ -2112,6 +2162,13 @@ pub mod web {
         pub fn context_menu(&mut self, x: f64, y: f64, zoom: f64) -> Result<String, JsError> {
             let point = (x.is_finite() && y.is_finite()).then_some((x, y));
             self.0.context_menu(point, zoom).map(|answer| answer.to_string()).map_err(error)
+        }
+
+        /// The floating toolbar the selection has, as JSON (`{kind, box}`), or `null`: see
+        /// `SlideDocument::floating_bar`.
+        #[wasm_bindgen(js_name = floatingBar)]
+        pub fn floating_bar(&self) -> String {
+            self.0.floating_bar().unwrap_or(serde_json::Value::Null).to_string()
         }
 
         /// The canvas around the slides in `#rrggbb` (the editor's canvas color).

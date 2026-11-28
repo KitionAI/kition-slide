@@ -11,6 +11,7 @@ import type { OpenMenu } from './ContextMenu'
 import type { ContextTarget } from './contextMenus'
 import { gridStep } from './gridSettings'
 import { useGestureModifiers } from './gestureModifiers'
+import { MiniToolbar, useFloatingBar } from './MiniToolbar'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void; onMenu: (menu: OpenMenu) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled, contextMenu } = useSlides()
@@ -39,6 +40,13 @@ export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: Re
   const dropping = useFileDrop(region)
   // A modifier pressed or let go during a drag counts at once (plan stage 8).
   useGestureModifiers(region)
+  // The floating toolbars over selected words and over several objects (plan stage 6B).
+  const floating = useFloatingBar(region, position)
+  /** A canvas point on the page, as the view shows it now. */
+  const toClient = (x: number, y: number) => {
+    const box = region.current?.querySelector('.kui-canvas-surface')?.getBoundingClientRect()
+    return box ? { x: box.left + (x - position.x) * position.zoom, y: box.top + (y - position.y) * position.zoom } : null
+  }
   const [, setBeat] = useState(0)
   useEffect(() => {
     setCaretShown(true)
@@ -186,6 +194,7 @@ export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: Re
       {/* The scrollbars: there only while the slide and its margin are longer than the view. */}
       <CanvasScrollbars views={views} content={(shown) => slideScrollArea(area, shown.zoom)} canvas={canvas} />
     </KitDocumentCanvas>
+    {floating.bar ? <MiniToolbar bar={floating.bar} element={floating.element} toClient={toClient} region={region} /> : null}
   </div>
 }
 

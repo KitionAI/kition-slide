@@ -51,5 +51,7 @@
   "sp.addSection": "Add Section",
   "sp.renameSection": "Rename Section",
   "sp.sectionName": "Section name",
-  "sp.newSection": "Untitled Section"
+  "sp.newSection": "Untitled Section",
+  "mini.text": "Text formatting",
+  "mini.objects": "Align objects"
 }

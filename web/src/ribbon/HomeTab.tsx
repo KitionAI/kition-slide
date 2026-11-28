@@ -1,6 +1,6 @@
 import { AArrowDownIcon as AArrowDown, AArrowUpIcon as AArrowUp, TextAlignCenterIcon as AlignCenter, TextAlignJustifyIcon as AlignJustify, TextAlignStartIcon as AlignLeft, TextAlignEndIcon as AlignRight, BaselineIcon as Baseline, BoldIcon as Bold, ClipboardPasteIcon as ClipboardPaste, CopyIcon as Copy, CaseSensitiveIcon as CaseSensitive, Columns2Icon as Columns2, SparklesIcon as Sparkles, HighlighterIcon as Highlighter, ImageIcon as Image, ListIndentDecreaseIcon as IndentDecrease, ListIndentIncreaseIcon as IndentIncrease, ItalicIcon as Italic, LayoutTemplateIcon as LayoutTemplate, ListIcon as List, ListOrderedIcon as ListOrdered, PaintBucketIcon as PaintBucket, PaintbrushIcon as Paintbrush, PenLineIcon as PenLine, RemoveFormattingIcon as RemoveFormatting, RotateCcwIcon as RotateCcw, Rows3Icon as Rows3, ScissorsIcon as Scissors, SquarePlusIcon as SquarePlus, StrikethroughIcon as Strikethrough, SubscriptIcon as Subscript, SuperscriptIcon as Superscript, TextCursorInputIcon as TextCursorInput, UnderlineIcon as Underline, MoveHorizontalIcon, MoveVerticalIcon, AlignVerticalJustifyCenterIcon, ShapesIcon as Shapes } from '@kition/tessera/icons/react'
 import { MenuItem, RibbonButton, RibbonGroup, RibbonItem, RibbonRow, RibbonStack, toast } from '@kition/sdk/editor'
-import { useSlides } from '../slides'
+import { useSlides, type DocumentFacts, type FormatState } from '../slides'
 import { useTools } from '../tools'
 import { releaseField } from '../focus'
 import { ColorGrid, ColorPicker, CommandButton, RibbonMenu } from './common'
@@ -8,7 +8,8 @@ import { ShapesMenu } from './ShapeGallery'
 import { selectEmptyPlaceholder } from '../pictureTarget'
 import { ArrangeMenu } from './ArrangeMenu'
 
-const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
+/** The font sizes the size lists offer, in points. */
+export const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
 const SPACINGS = [1, 1.15, 1.5, 2, 2.5, 3]
 const PICTURES = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
 
@@ -71,11 +72,16 @@ export function FormatPainterButton({ primary }: { primary?: boolean }) {
   )
 }
 
+/** The fonts the font lists offer: the theme's two, the one at the selection, then common ones. */
+export function fontChoices(facts: DocumentFacts, format: FormatState) {
+  return Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.font, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
+}
+
 export function HomeTab() {
   const { run, enabled, format, facts, t, view, session } = useSlides()
   const tools = useTools()
   const picture = usePictureInsert()
-  const fonts = Array.from(new Set([facts.fonts?.major, facts.fonts?.minor, format.font, 'Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New'].filter((font): font is string => Boolean(font))))
+  const fonts = fontChoices(facts, format)
   const textOn = enabled('format.bold')
   const align = format.align ?? ''
   return (

@@ -41,7 +41,7 @@ export const ALIGN_EDGES: Array<{ edge: string; icon: IconComponent }> = [
   { edge: 'middle', icon: AlignCenterHorizontalIcon },
   { edge: 'bottom', icon: AlignEndHorizontalIcon },
 ]
-const DISTRIBUTE: Array<{ dir: string; icon: IconComponent }> = [
+export const DISTRIBUTE: Array<{ dir: string; icon: IconComponent }> = [
   { dir: 'horizontal', icon: AlignHorizontalJustifyCenterIcon },
   { dir: 'vertical', icon: AlignVerticalJustifyCenterIcon },
 ]

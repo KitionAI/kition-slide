@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-g9-align-bar
+feature: slide.editor.mini-toolbar
+intent: "Two or more objects selected bring WPS's floating align bar up above them (walkthrough G9; W-A13): six aligns, two distributes and Group, each running on the selection; a single object has no bar, a key puts it away for those objects, Select All brings it up again. There was no floating bar."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/context-menu.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/context-menu.mjs, chromium, w-a13-align-bar]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-28"

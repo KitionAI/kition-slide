@@ -322,8 +322,12 @@ pub(crate) fn insert_text(s: &mut Session, text: &str, props: Option<RunProps>) 
     };
     let pos = edit_text(s, |body, t| {
         let (a, b) = t.ordered();
+        // Typed over selected text, the characters take the formatting of its first one, as in WPS
+        // and PowerPoint (a word made bold from the floating toolbar, then typed over, stays bold).
+        let len = body.paragraphs.get(a.0).map_or(0, |p| p.char_len());
+        let replaced = (a != b && a.1 < len).then(|| ed::props_at(body, (a.0, a.1 + 1)));
         let at = ed::delete(body, a, b);
-        let props = props.clone().or_else(|| if a != b { Some(ed::props_at(body, at)) } else { unlinked_at_link_end(body, at) });
+        let props = props.clone().or(replaced).or_else(|| if a != b { Some(ed::props_at(body, at)) } else { unlinked_at_link_end(body, at) });
         let c = ed::insert(body, at, &text, props);
         t.anchor = c;
         t.caret = c;

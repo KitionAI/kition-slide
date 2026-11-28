@@ -1,6 +1,6 @@
 # UI parity with PowerPoint
 
-> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-27 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-28 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
 How Kition Slide looks and feels next to PowerPoint: the shell, the ribbon, menus, panes, dialogs,
 direct manipulation, keyboard and precision. Observations of PowerPoint are kept locally in
@@ -68,6 +68,7 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
 | Context menus on shapes, slides, text, thumbnails | yes | yes: on the slide a right-click (Ctrl+click on the Mac) selects what it is on first and opens WPS's rows for a shape, a picture, text, a table cell or the empty slide; Shift+F10 opens it for the selection (`web/tests/hand/context-menu.mjs`); the thumbnails' menu has Copy, Cut, Paste, New, Duplicate, Delete, Hide, Add and Rename Section, Layout and Reset (`web/tests/hand/thumbnails.mjs`) |
+| Floating toolbar on selected text, align bar on several objects | yes (Mini Toolbar) | yes: words selected with the mouse bring font, size, bold, italic, underline, color, alignment and bullets up above them without taking the keyboard; several objects bring the six aligns, two distributes and Group (`web/tests/hand/context-menu.mjs`) |
 | Drag and drop of files and between thumbnails | yes | partial: picture files dropped on the slide go where they are dropped (`web/tests/hand/clipboard.mjs`); a dropped slide file is not opened (the host opens files); thumbnails reorder by dragging, several at once, the others making room live with no insertion line (`web/tests/hand/thumbnails.mjs`) |
 | Copy, cut and paste with other apps | yes | yes, plain text: what Cmd+C copies reaches other apps as text; their text pastes at the caret or as a new text box; Cmd+Alt+Shift+V pastes text only (`web/tests/hand/clipboard.mjs`) |
 | Image paste from the clipboard | yes | yes: 0.75 pt a pixel, in the middle of the slide (`web/tests/hand/clipboard.mjs`), or into the slide's empty content placeholder, whole and as large as fits (`web/tests/hand/insert.mjs`) |

@@ -1592,6 +1592,23 @@ fn typing_is_one_undo_step() {
 }
 
 #[test]
+fn text_typed_over_a_selection_takes_its_first_characters_formatting() {
+    // Plan stage 6B (WPS W-J1): a word made bold from the floating toolbar, then typed over, stays
+    // bold; the typed characters used to take the formatting of the text before the selection.
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "Hello world");
+    s.execute("text.selectWord", &json!({"at": [0, 8]})).unwrap();
+    s.execute("format.bold", &json!({})).unwrap();
+    type_keys(&mut s, "Zed");
+    assert_eq!(text_of(&mut s, id), "Hello Zed");
+    let shape = s.execute("shape.inspect", &json!({"id": id})).unwrap();
+    let runs = shape["shape"]["text"]["paragraphs"][0]["runs"].as_array().cloned().unwrap_or_default();
+    let bold: String = runs.iter().filter(|r| r["props"]["bold"] == json!(true)).filter_map(|r| r["text"].as_str()).collect();
+    assert_eq!(bold, "Zed", "{runs:?}");
+}
+
+#[test]
 fn a_run_longer_than_the_replicas_step_limit_is_still_one_step() {
     let mut s = session();
     let id = typing_box(&mut s);

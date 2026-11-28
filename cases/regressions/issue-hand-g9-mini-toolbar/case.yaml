@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-g9-mini-toolbar
+feature: slide.editor.mini-toolbar
+intent: "A double click on a word brings WPS's floating text toolbar up over it (walkthrough G9; W-F6, W-J1); its Bold makes the word bold while the text keeps the keyboard and its selection, and the characters typed next replace the word in bold. There was no floating toolbar, and text typed over a selection took the formatting of the text before it."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/context-menu.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/context-menu.mjs, chromium, w-j1-mini-bold]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-28"

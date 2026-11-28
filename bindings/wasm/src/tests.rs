@@ -458,6 +458,34 @@ fn a_right_click_chooses_the_menu_in_the_engine_and_opens_it_where_it_was_presse
     assert_eq!(doc.inspect().unwrap()["slide"], 0);
 }
 
+#[test]
+fn the_floating_toolbar_follows_the_selection() {
+    // Plan stage 6B (WPS W-J1, W-A13): selected words have the text toolbar, over their highlight;
+    // two or more objects the align bar, over their bounds; one object, a caret, nothing.
+    let mut doc = SlideDocument::create("Bar.kslide", 960, 540).unwrap();
+    doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
+    let area = doc.area(1);
+    let a = doc.execute("shape.insert", json!({ "preset": "rect", "rect": [100, 100, 200, 100], "text": "Hello world" })).unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(doc.floating_bar(), None, "one object has no bar beside it");
+    doc.execute("text.edit", json!({ "id": a, "end": true })).unwrap();
+    assert_eq!(doc.floating_bar(), None, "a caret has none");
+    doc.execute("text.selectWord", json!({ "at": [0, 8] })).unwrap();
+    let bar = doc.floating_bar().unwrap();
+    assert_eq!(bar["kind"], "text", "{bar}");
+    let b: Vec<f64> = bar["box"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+    assert!(b[0] < b[2] && b[1] < b[3], "{bar}");
+    assert!(b[0] >= area.x + 100.0 && b[2] <= area.x + 300.0 && b[1] >= area.y + 100.0 && b[3] <= area.y + 200.0, "inside the shape: {bar}");
+    doc.execute("edit.deselectAll", json!({})).unwrap();
+    let c = doc.execute("shape.insert", json!({ "preset": "ellipse", "rect": [400, 300, 100, 50] })).unwrap()["id"].as_u64().unwrap();
+    doc.execute("edit.select", json!({ "ids": [a, c] })).unwrap();
+    let bar = doc.floating_bar().unwrap();
+    assert_eq!(bar["kind"], "objects", "{bar}");
+    assert_eq!(bar["box"], json!([area.x + 100.0, area.y + 100.0, area.x + 500.0, area.y + 350.0]));
+    assert_eq!(bar["ids"], json!([a, c]));
+}
+
 /// The stamp of each slide in `stamps` (`[id, stamp, …]`), in deck order.
 fn stamps_of(stamps: &[u32]) -> Vec<u32> {
     stamps.chunks(2).map(|pair| pair[1]).collect()
