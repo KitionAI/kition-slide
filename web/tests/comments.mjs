@@ -104,7 +104,8 @@ try {
   step('marks it at that point', pinned && near(pinned.x, empty.x) && near(pinned.y + pinned.height, empty.y), JSON.stringify({ pinned, empty }))
 
   // The shape is deleted: the thread stays on its slide, and the host hears it is not found.
-  const movedShape = await slideToScreen(255, 280)
+  // A click on the shape away from its words selects it (on its words it would edit them, WPS W-F2).
+  const movedShape = await slideToScreen(185, 232)
   await page.mouse.click(movedShape.x, movedShape.y)
   await until(async () => (await kit.locator('.kui-status-bar').textContent())?.includes('selected'))
   await command('edit.delete')

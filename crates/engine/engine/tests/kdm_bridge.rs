@@ -11,6 +11,8 @@ use kition_slide_engine::{MemoryBlobs, Mods, Origin, PointerEvent, PointerKind, 
 use serde_json::{Value, json};
 
 /// A session with a three-slide slide file: a title slide, a slide with two shapes, a slide with a table.
+/// The tests' drags press on the rectangle at y 110, above its word "A" (a press on the word edits
+/// the text, WPS W-F3).
 fn new_session() -> Session {
     let mut s = Session::with_new();
     s.prefs.snap_to_grid = false;
@@ -118,10 +120,10 @@ fn one_command_one_transaction_reproduces_in_a_peer() {
             s.type_text("x").unwrap();
         }),
         ("shape move (drag)", |s| {
-            s.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
-            s.pointer(ev(PointerKind::Drag, 160.0, 150.0)).unwrap();
-            s.pointer(ev(PointerKind::Drag, 170.0, 160.0)).unwrap();
-            s.pointer(ev(PointerKind::Up, 170.0, 160.0)).unwrap();
+            s.pointer(ev(PointerKind::Down, 150.0, 110.0)).unwrap();
+            s.pointer(ev(PointerKind::Drag, 160.0, 120.0)).unwrap();
+            s.pointer(ev(PointerKind::Drag, 170.0, 130.0)).unwrap();
+            s.pointer(ev(PointerKind::Up, 170.0, 130.0)).unwrap();
         }),
         ("table row insert", |s| {
             let id = first_table(s);
@@ -178,11 +180,11 @@ fn a_drag_is_one_undo_step() {
     let mut s = new_session();
     let before = canonical(doc(&s));
     let entries = s.active().unwrap().history.undo.len();
-    s.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
+    s.pointer(ev(PointerKind::Down, 150.0, 110.0)).unwrap();
     for i in 1..6 {
-        s.pointer(ev(PointerKind::Drag, 150.0 + 10.0 * i as f64, 140.0)).unwrap();
+        s.pointer(ev(PointerKind::Drag, 150.0 + 10.0 * i as f64, 110.0)).unwrap();
     }
-    s.pointer(ev(PointerKind::Up, 200.0, 140.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 200.0, 110.0)).unwrap();
     assert_eq!(s.active().unwrap().history.undo.len(), entries + 1, "one history step");
     assert_eq!(last_steps(&s), 1, "one replica step");
     s.execute("edit.undo", &json!({})).unwrap();
@@ -215,13 +217,13 @@ fn first_x(s: &Session) -> f64 {
 fn a_remote_edit_in_the_middle_of_a_drag_keeps_both() {
     let mut a = new_session();
     let mut b = peer(&mut a);
-    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Down, 150.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 110.0)).unwrap();
     b.execute("slide.rename", &json!({"name": "Remote", "index": 1})).unwrap();
     send(&mut b, &mut a);
     assert_eq!(doc(&a).slides[1].name, "Remote");
-    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 190.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 110.0)).unwrap();
     assert_holds(&a, "after the drag");
     assert_eq!(first_x(&a), 140.0);
     assert_eq!(doc(&a).slides[1].name, "Remote");
@@ -245,12 +247,12 @@ fn an_agents_edit_in_the_middle_of_a_drag_is_its_own_step() {
     let agent = Origin::agent("test");
     let name = doc(&a).slides[1].name.clone();
     let entries = a.active().unwrap().history.undo.len();
-    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Down, 150.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 110.0)).unwrap();
     a.execute_as("slide.rename", &json!({"name": "Agent", "index": 1}), &agent).unwrap();
     assert_eq!(doc(&a).slides[1].name, "Agent");
-    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 190.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 110.0)).unwrap();
     assert_holds(&a, "after the drag");
     assert_eq!(first_x(&a), 140.0);
     let history = &a.active().unwrap().history;
@@ -286,14 +288,14 @@ fn a_draft_merged_in_the_middle_of_a_drag_ends_the_drag_as_its_own_step() {
     draft.execute("slide.rename", &json!({"name": "Draft", "index": 1})).unwrap();
     let changes = draft.export_changes(&base).unwrap();
     let entries = a.active().unwrap().history.undo.len();
-    a.pointer(ev(PointerKind::Down, 150.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Drag, 170.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Down, 150.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 170.0, 110.0)).unwrap();
     let moved = first_x(&a);
     assert_ne!(moved, 100.0, "the drag moved the shape");
     a.merge_changes(&changes, &Origin::agent("agent:drafter")).unwrap();
     assert_eq!(doc(&a).slides[1].name, "Draft");
-    a.pointer(ev(PointerKind::Drag, 190.0, 140.0)).unwrap();
-    a.pointer(ev(PointerKind::Up, 190.0, 140.0)).unwrap();
+    a.pointer(ev(PointerKind::Drag, 190.0, 110.0)).unwrap();
+    a.pointer(ev(PointerKind::Up, 190.0, 110.0)).unwrap();
     assert_eq!(first_x(&a), moved, "the drag ended at the merge");
     assert_holds(&a, "after the merge");
     let history = &a.active().unwrap().history;

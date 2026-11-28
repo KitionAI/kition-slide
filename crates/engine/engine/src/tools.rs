@@ -648,22 +648,21 @@ impl Session {
             && !t.notes
             && t.cell.is_none()
             && let Some(sh) = st.shape(t.shape)
+            && text_press(st, t.shape, p, tol)
+            && !matches!(self.hit_test(p, tol), Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. }))
         {
-            if text_press(st, t.shape, p, tol) && !matches!(self.hit_test(p, tol), Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. }))
-            {
-                let pos = text_pos(st, sh, p);
-                let shift = mods.shift;
-                self.select(|_, sel| {
-                    if let Some(tt) = sel.text.as_mut() {
-                        tt.caret = pos;
-                        if !shift {
-                            tt.anchor = pos;
-                        }
+            let pos = text_pos(st, sh, p);
+            let shift = mods.shift;
+            self.select(|_, sel| {
+                if let Some(tt) = sel.text.as_mut() {
+                    tt.caret = pos;
+                    if !shift {
+                        tt.anchor = pos;
                     }
-                })?;
-                self.tool.drag = Some(Drag::TextSelect { shape: t.shape });
-                return Ok(json!({"caret": [pos.0, pos.1]}));
-            }
+                }
+            })?;
+            self.tool.drag = Some(Drag::TextSelect { shape: t.shape });
+            return Ok(json!({"caret": [pos.0, pos.1]}));
         }
         let hit = self.hit_test(p, tol);
         let st = self.doc()?;
