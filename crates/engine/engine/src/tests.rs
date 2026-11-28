@@ -2177,3 +2177,54 @@ fn a_right_click_with_a_drawing_tool_changes_nothing() {
     right_click(&mut s, 800.0, 480.0);
     assert_eq!(selected_ids(&s), vec![a]);
 }
+
+/// The titles of the deck's slides, in order.
+fn deck_titles(s: &Session) -> Vec<String> {
+    s.doc().unwrap().doc.slides.iter().map(|slide| slide.title()).collect()
+}
+
+/// A deck of slides titled "1" to "n".
+fn titled(n: usize) -> Session {
+    let mut s = session();
+    let first = s.doc().unwrap().doc.slides[0].id.0;
+    for k in 1..=n {
+        s.execute("slide.new", &json!({"at": k, "layout": "titleOnly", "title": k.to_string()})).unwrap();
+    }
+    s.execute("slide.delete", &json!({"ids": [first]})).unwrap();
+    s
+}
+
+#[test]
+fn several_slides_move_together_in_deck_order_as_one_step() {
+    // Plan stage 7 (walkthrough B4): the slide panel drags slides 2 to 4 after slide 6.
+    let mut s = titled(7);
+    assert_eq!(deck_titles(&s), ["1", "2", "3", "4", "5", "6", "7"]);
+    let ids: Vec<u32> = s.doc().unwrap().doc.slides[1..4].iter().map(|slide| slide.id.0).collect();
+    // Selected in another order: they stay in deck order.
+    let given = [ids[2], ids[0], ids[1]];
+    s.execute("slide.go", &json!({"index": 2})).unwrap();
+    s.execute("slide.move", &json!({"ids": given, "to": 3})).unwrap();
+    assert_eq!(deck_titles(&s), ["1", "5", "6", "2", "3", "4", "7"]);
+    let st = s.doc().unwrap();
+    assert_eq!(st.selection.slide, 4, "the current slide follows its slide");
+    assert_eq!(st.selection.slides.iter().map(|id| id.0).collect::<Vec<_>>(), ids, "the moved slides stay selected");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(deck_titles(&s), ["1", "2", "3", "4", "5", "6", "7"], "one undo step");
+    // Past the end: after the last slide.
+    s.execute("slide.move", &json!({"ids": [ids[0]], "to": 99})).unwrap();
+    assert_eq!(deck_titles(&s), ["1", "3", "4", "5", "6", "7", "2"]);
+    assert!(s.execute("slide.move", &json!({"ids": [], "to": 0})).is_err());
+    assert!(s.execute("slide.move", &json!({"ids": [999_999], "to": 0})).is_err());
+    assert!(s.execute("slide.move", &json!({"ids": [ids[0]], "from": 0, "to": 0})).is_err());
+}
+
+#[test]
+fn slides_copied_together_paste_in_deck_order() {
+    // Plan stage 7: slides selected 3 then 1 paste as 1, 3.
+    let mut s = titled(3);
+    s.execute("slide.selectSlides", &json!({"indices": [2, 0]})).unwrap();
+    s.execute("edit.copy", &json!({"scope": "slides"})).unwrap();
+    s.execute("slide.go", &json!({"index": 2})).unwrap();
+    s.execute("edit.paste", &json!({"scope": "slides"})).unwrap();
+    assert_eq!(deck_titles(&s), ["1", "2", "3", "1", "3"]);
+}

@@ -82,12 +82,14 @@ export type SlidesInfo = {
   /** Characters are selected in the text being edited (not only a caret). */
   textSelected: boolean
   selectedKinds: string[]
+  /** The slides selected in the slide panel (indexes from 0, in deck order); the current one alone unless several are. */
+  selectedSlides: number[]
   target: { kind: 'slides' | 'master' | 'layout'; master?: number; layout?: number }
   masters: Array<{ index: number; name: string; layouts: Array<{ index: number; name: string }> }>
 }
 
 function describe(info: KitEngineInfo): SlidesInfo {
-  const inspected = info.inspected as { slides?: Array<{ area?: { x: number; y: number; width: number; height: number } | null }>; slide?: number; selection?: number; editingText?: boolean; textSelected?: boolean; selectedKinds?: string[]; target?: SlidesInfo['target']; masters?: SlidesInfo['masters'] }
+  const inspected = info.inspected as { slides?: Array<{ area?: { x: number; y: number; width: number; height: number } | null }>; slide?: number; selection?: number; editingText?: boolean; textSelected?: boolean; selectedKinds?: string[]; selectedSlides?: number[]; target?: SlidesInfo['target']; masters?: SlidesInfo['masters'] }
   const slides = inspected.slides ?? []
   const current = inspected.slide ?? 0
   const area = slides[current]?.area
@@ -99,6 +101,7 @@ function describe(info: KitEngineInfo): SlidesInfo {
     editingText: inspected.editingText === true,
     textSelected: inspected.textSelected === true,
     selectedKinds: inspected.selectedKinds ?? [],
+    selectedSlides: Array.isArray(inspected.selectedSlides) ? inspected.selectedSlides : [current],
     target: inspected.target ?? { kind: 'slides' },
     masters: inspected.masters ?? [],
   }
@@ -124,7 +127,8 @@ export type FormatState = {
 export type DocumentFacts = {
   layouts: Array<{ id: number; name: string }>
   slides: Array<{ id: number; index: number; hidden: boolean; layout?: string; title?: string }>
-  sections: Array<{ name: string; start?: number; slides?: number[] }>
+  /** The sections in deck order, each with how many slides it has. */
+  sections: Array<{ name: string; slides?: number }>
   fonts?: { major: string; minor: string }
   selection?: { shapes: number[] }
 }

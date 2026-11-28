@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-b4-drag-reflow
+feature: slide.editor.slide-panel
+intent: "A thumbnail dragged follows the pointer while the others make room live, with no insertion line, as in WPS (walkthrough B4; W-K5): three selected slides dragged together land after the slide dropped past, in deck order and still selected, in one undo step; a drop past the last slide puts it at the end, the panel scrolling at its bottom edge and no further; Escape during the drag leaves the order and no undo step; the sorter drags the same way. The drag used to be the browser's, with nothing moving aside, one slide at a time, and a drop between two thumbnails did nothing."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/thumbnails.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/thumbnails.mjs, chromium, b4-drag-reflow, b4-drag-to-end, b4-escape-cancels, a14-sorter]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-b9-duplicate-key
+feature: slide.editor.slide-panel
+intent: "Cmd+D and Cmd+Shift+D in the slide panel duplicate the selected slides, every one of them in one undo step, the copy after the slide and current (walkthrough B9; W-K7). Cmd+D in the panel used to do nothing."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/thumbnails.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/thumbnails.mjs, chromium, b9-duplicate-key]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

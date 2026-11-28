@@ -39,5 +39,14 @@
   "cm.gridlines": "Gridlines",
   "cm.guides": "Guides",
   "cm.ruler": "Ruler",
-  "cm.newComment": "New Comment"
+  "cm.newComment": "New Comment",
+  "sp.label": "Slide menu",
+  "sp.newSlide": "New Slide",
+  "sp.duplicate": "Duplicate Slide",
+  "sp.delete": "Delete Slide",
+  "sp.hide": "Hide Slide",
+  "sp.addSection": "Add Section",
+  "sp.renameSection": "Rename Section",
+  "sp.sectionName": "Section name",
+  "sp.newSection": "Untitled Section"
 }

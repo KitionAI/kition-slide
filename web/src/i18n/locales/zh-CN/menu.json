@@ -39,5 +39,14 @@
   "cm.gridlines": "网格线",
   "cm.guides": "参考线",
   "cm.ruler": "标尺",
-  "cm.newComment": "新建批注"
+  "cm.newComment": "新建批注",
+  "sp.label": "幻灯片菜单",
+  "sp.newSlide": "新建幻灯片",
+  "sp.duplicate": "复制幻灯片",
+  "sp.delete": "删除幻灯片",
+  "sp.hide": "隐藏幻灯片",
+  "sp.addSection": "新增节",
+  "sp.renameSection": "重命名节",
+  "sp.sectionName": "节名称",
+  "sp.newSection": "无标题节"
 }

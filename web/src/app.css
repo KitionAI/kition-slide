@@ -113,9 +113,48 @@
   width: 100%;
 }
 
+.slides-slide[data-selected='true'] .slides-thumb,
 .slides-slide[data-current='true'] .slides-thumb {
   border-color: var(--kit-primary);
   box-shadow: 0 0 0 2px var(--kit-primary-soft);
+}
+
+/* The slide list takes the pointer itself (a drag moves thumbnails): no text selection, no browser drag. */
+.slides-slides-list {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* While dragging (plan stage 7, WPS W-K5): the others make room smoothly, the dragged ones follow the pointer above them. */
+.slides-slides-list .slides-slide { transition: transform 140ms ease-out; }
+.slides-slides-list[data-settling='true'] .slides-slide { transition: none; }
+.slides-slide[data-dragged] { position: relative; z-index: 3; transition: none !important; cursor: grabbing; }
+.slides-slide[data-dragged='stacked'] { z-index: 2; }
+.slides-slide[data-dragged] .slides-thumb { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
+.slides-slide[data-drag-count]::after {
+  content: attr(data-drag-count);
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--kit-primary);
+  color: var(--kit-primary-text, #fff);
+  font: 600 11px/18px system-ui, sans-serif;
+  text-align: center;
+}
+
+.slides-section-name {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 6px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .slides-slide[data-hidden='true'] .slides-thumb {

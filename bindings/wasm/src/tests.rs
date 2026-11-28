@@ -457,3 +457,49 @@ fn a_right_click_chooses_the_menu_in_the_engine_and_opens_it_where_it_was_presse
     assert_eq!(answer["menu"], "slide", "{answer}");
     assert_eq!(doc.inspect().unwrap()["slide"], 0);
 }
+
+/// The stamp of each slide in `stamps` (`[id, stamp, …]`), in deck order.
+fn stamps_of(stamps: &[u32]) -> Vec<u32> {
+    stamps.chunks(2).map(|pair| pair[1]).collect()
+}
+
+#[test]
+fn a_thumbnails_stamp_changes_only_when_its_slide_does() {
+    // Plan stage 7 (walkthrough B11): the slide panel draws again only the thumbnails that changed.
+    let mut doc = SlideDocument::create("Stamps.kslide", 960, 540).unwrap();
+    doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
+    doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
+    let first = doc.slide_stamps();
+    assert_eq!(first.len(), 6, "an id and a stamp per slide");
+    assert_eq!(doc.slide_stamps(), first, "nothing changed, nothing to draw");
+    // A shape on the current (third) slide: its stamp alone changes.
+    doc.execute("shape.insert", json!({ "preset": "rect", "rect": [100, 100, 80, 80] })).unwrap();
+    let edited = doc.slide_stamps();
+    let (before, after) = (stamps_of(&first), stamps_of(&edited));
+    assert_eq!((before[0], before[1]), (after[0], after[1]));
+    assert_ne!(before[2], after[2]);
+    // Selecting changes no picture.
+    doc.execute("slide.go", json!({ "index": 0 })).unwrap();
+    assert_eq!(doc.slide_stamps(), edited);
+    // A theme changes every slide's picture.
+    let theme = kition_slide_model::theme::builtin_themes().get(1).unwrap().name.clone();
+    doc.execute("theme.set", json!({ "name": theme })).unwrap();
+    let themed = stamps_of(&doc.slide_stamps());
+    assert!(themed.iter().zip(&after).all(|(a, b)| a != b), "{themed:?} {after:?}");
+}
+
+#[test]
+fn the_slide_panel_selection_is_in_the_editor_state_and_thumbnails_have_no_prompts() {
+    let mut doc = SlideDocument::create("Panel.kslide", 960, 540).unwrap();
+    doc.execute("slide.new", json!({})).unwrap();
+    doc.execute("slide.new", json!({})).unwrap();
+    assert_eq!(doc.inspect().unwrap()["selectedSlides"], json!([2]), "the current slide alone");
+    doc.execute("slide.selectSlides", json!({ "indices": [2, 0] })).unwrap();
+    assert_eq!(doc.inspect().unwrap()["selectedSlides"], json!([0, 2]), "in deck order");
+    assert_eq!(doc.inspect().unwrap()["slide"], 0, "the last one chosen is current");
+    // The new slides' placeholders are empty: their prompts and outlines are the canvas's marks,
+    // not the thumbnail's (walkthrough B12), so the thumbnail is one color.
+    let thumbnail = doc.render_slide(1, 192).unwrap();
+    let first = &thumbnail[..4];
+    assert!(thumbnail.chunks(4).all(|pixel| pixel == first), "an empty slide's thumbnail shows no prompt");
+}

@@ -133,8 +133,10 @@ fn copy_inner(s: &mut Session, p: &Value) -> Result<String> {
         return Ok(String::new());
     }
     if slides_scope(s, p) {
-        let ids: Vec<SlideId> =
+        let mut ids: Vec<SlideId> =
             if st.selection.slides.is_empty() { st.current_slide().map(|x| vec![x.id]).unwrap_or_default() } else { st.selection.slides.clone() };
+        // In deck order, whatever order they were selected in: they paste as they were.
+        ids.sort_by_key(|id| st.doc.slide_index(*id).unwrap_or(usize::MAX));
         let slides: Vec<Slide> = ids.iter().filter_map(|id| st.doc.slide(*id).cloned()).collect();
         let mut mids = vec![];
         for sl in &slides {

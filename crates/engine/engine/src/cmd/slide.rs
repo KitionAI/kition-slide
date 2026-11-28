@@ -30,7 +30,15 @@ pub fn specs() -> Vec<CommandSpec> {
             has_slide,
             delete
         ),
-        cmd!("slide.move", "Move Slide", [], None, "{from?: index, to: index}", has_slide, move_slide),
+        cmd!(
+            "slide.move",
+            "Move Slide",
+            [],
+            None,
+            "{from?: index, ids?: [slide id] (several slides at once, kept in deck order), to: index}",
+            has_slide,
+            move_slide
+        ),
         cmd!(noundo "slide.go", "Go to Slide", [], None, "{index} | {id}", has_slide, go),
         cmd!(noundo "slide.next", "Next Slide", [], Some("PageDown"), "{}", has_slide, next),
         cmd!(noundo "slide.previous", "Previous Slide", [], Some("PageUp"), "{}", has_slide, prev),
@@ -260,9 +268,74 @@ fn delete(s: &mut Session, p: &Value) -> Result<Value> {
     })
 }
 
+/// The slide ids `p` names in `key` (numbers, or `"slide:<n>"` strings).
+fn slide_ids(p: &Value, key: &str) -> Option<Vec<SlideId>> {
+    let list = p.get(key)?.as_array()?;
+    Some(
+        list.iter()
+            .filter_map(|v| v.as_u64().or_else(|| v.as_str().and_then(|t| t.strip_prefix("slide:").unwrap_or(t).trim().parse().ok())))
+            .filter_map(|v| u32::try_from(v).ok())
+            .map(SlideId)
+            .collect(),
+    )
+}
+
+/// Several slides moved at once (the slide panel's drag of a multiple selection): they leave the
+/// deck, keep their deck order, and go in together at `to` of what is left. One undo step; they
+/// stay selected, the current slide following its slide when it is one of them.
+fn move_slides(s: &mut Session, ids: Vec<SlideId>, to: usize) -> Result<Value> {
+    s.edit(|doc, sel| {
+        let mut moving: Vec<usize> = ids.iter().filter_map(|id| doc.slide_index(*id)).collect();
+        moving.sort_unstable();
+        moving.dedup();
+        if moving.is_empty() {
+            return Err(bad("slide.move", "`ids` names no slide of this deck"));
+        }
+        let current = doc.slides.get(sel.slide).map(|x| x.id);
+        let mut block = Vec::with_capacity(moving.len());
+        for at in moving.iter().rev() {
+            if *at < doc.slides.len() {
+                block.push(doc.slides.remove(*at));
+            }
+        }
+        block.reverse();
+        let at = to.min(doc.slides.len());
+        let moved: Vec<SlideId> = block.iter().map(|x| x.id).collect();
+        for (k, slide) in block.into_iter().enumerate() {
+            doc.slides.insert(at + k, slide);
+        }
+        // Sections follow the order: each moved slide joins the section of the slide before the block.
+        if !doc.sections.is_empty() {
+            for sec in &mut doc.sections {
+                sec.slides.retain(|x| !moved.contains(x));
+            }
+            let neighbour = at.checked_sub(1).and_then(|i| doc.slides.get(i)).map(|x| x.id);
+            let si = neighbour.and_then(|n| doc.section_of(n)).unwrap_or(0);
+            let order: Vec<SlideId> = doc.slides.iter().map(|x| x.id).collect();
+            if let Some(sec) = doc.sections.get_mut(si) {
+                sec.slides.extend(moved.iter().copied());
+                sec.slides.sort_by_key(|x| order.iter().position(|o| o == x).unwrap_or(usize::MAX));
+            }
+        }
+        let keep = current.filter(|id| moved.contains(id)).or_else(|| moved.first().copied());
+        sel.slide = keep.and_then(|id| doc.slide_index(id)).unwrap_or(at);
+        sel.slides = moved.clone();
+        Ok(json!({"index": at, "ids": moved}))
+    })
+}
+
 fn move_slide(s: &mut Session, p: &Value) -> Result<Value> {
-    let from = usize_param(p, "from").unwrap_or(s.doc()?.selection.slide);
     let to = usize_param(p, "to").ok_or_else(|| bad("slide.move", "missing `to`"))?;
+    if let Some(ids) = slide_ids(p, "ids") {
+        if p.get("from").is_some() {
+            return Err(bad("slide.move", "give `from` or `ids`, not both"));
+        }
+        if ids.is_empty() {
+            return Err(bad("slide.move", "`ids` is empty: name the slides to move by their ids (from inspect)"));
+        }
+        return move_slides(s, ids, to);
+    }
+    let from = usize_param(p, "from").unwrap_or(s.doc()?.selection.slide);
     s.edit(|doc, sel| {
         if from >= doc.slides.len() {
             return Err(bad("slide.move", format!("no slide {from}")));

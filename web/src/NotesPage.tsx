@@ -1,4 +1,4 @@
-import { Thumb } from './SlidesPanel'
+import { Thumb } from './thumbnails'
 import { useEffect, useState } from 'react'
 import { useSlides } from './slides'
 import { NotesPane } from './NotesPane'

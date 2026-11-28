@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-b2-multi-select
+feature: slide.editor.slide-panel
+intent: "Several slides are selected in the slide panel as in WPS (walkthrough B2; W-K4): Shift+click selects the run from the slide last clicked, Cmd+click (Ctrl+click off the Mac) adds a slide or takes it away and the slide added is current, Shift+Down extends the run, Cmd+A in the panel selects every slide and no object, a click alone selects one again; Delete takes every selected slide in one undo step. Shift+click and Cmd+click used to only go to the slide, and Cmd+A in the panel selected the objects on the slide."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/thumbnails.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/thumbnails.mjs, chromium, b2-multi-select, delete-several]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

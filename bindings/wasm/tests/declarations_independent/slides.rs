@@ -43,7 +43,7 @@ pub(super) const ROWS: &[Row] = &[
     },
     Row {
         id: "slide.move",
-        targets: None,
+        targets: Some("ids"),
         objects: &[],
         places: &["from", "to"],
         reads: &["part"],
@@ -51,6 +51,7 @@ pub(super) const ROWS: &[Row] = &[
         blind: true,
         paths: &[
             "from zero-based slide or current slide; to zero-based insertion after removal; read source identity, slide order, destination predecessor, all section membership; remove source section membership and insert into predecessor section (first at start); move/select slide",
+            "ids given (plan stage 7, written from the handler): slide persistent ids wherever they are, kept in deck order; from refused beside them, empty or unknown ids refused; to zero-based among the slides that stay; read named slides, slide order, destination predecessor, all section membership; remove them from every section and insert into predecessor section (first at start); select moved slides, current follows its slide",
         ],
     },
     Row {

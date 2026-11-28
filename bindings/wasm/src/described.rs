@@ -77,7 +77,9 @@ pub fn describe(id: &str) -> &'static str {
         "slide.delete" => {
             "Deletes slide `index` (from 0, else the current one), or the slides in `ids`. To delete several slides use `ids`: indexes shift after each deletion."
         }
-        "slide.move" => "Moves slide `from` (from 0, else the current one) to position `to`.",
+        "slide.move" => {
+            "Moves slide `from` (from 0, else the current one) to position `to`, or the slides in `ids` together: they keep their deck order and start at position `to` of the slides that stay."
+        }
         "slide.go" => "Makes slide `index` (from 0) or slide id `id` the current slide, which selection-based commands act on.",
         "slide.next" => "Makes the next slide current and answers its index.",
         "slide.previous" => "Makes the previous slide current and answers its index.",

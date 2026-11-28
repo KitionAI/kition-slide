@@ -543,6 +543,31 @@ pub(super) fn settle(doc: &SlideDocument, command: &str, params: &Value, found: 
             }
             memberships(deck, &mut holds);
         }
+        // Several slides named by id: each is read wherever it is, and the slide that stays at
+        // `to` (the moved ones go before it, into its neighbour's section).
+        "slide.move" if params.get("ids").and_then(Value::as_array).is_some() => {
+            let moving: Vec<u64> = params
+                .get("ids")
+                .and_then(Value::as_array)
+                .map(|ids| {
+                    ids.iter()
+                        .filter_map(|id| {
+                            id.as_u64().or_else(|| id.as_str().and_then(|text| text.strip_prefix("slide:").unwrap_or(text).parse().ok()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            for slide in deck.slides.iter().filter(|slide| moving.contains(&u64::from(slide.id.0))) {
+                holds.read(&slide_id(slide), &[]);
+            }
+            if let Some(to) = index(params, "to")
+                && let Some(slide) = deck.slides.iter().filter(|slide| !moving.contains(&u64::from(slide.id.0))).nth(to)
+            {
+                holds.read(&slide_id(slide), &[]);
+                holds.placed(&slide_id(slide));
+            }
+            memberships(deck, &mut holds);
+        }
         "slide.move" => {
             let from = index(params, "from").unwrap_or(state.selection.slide);
             if let Some(slide) = deck.slides.get(from) {

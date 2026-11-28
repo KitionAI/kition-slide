@@ -7,7 +7,7 @@
  * Enter or Space, and closes on Left. When it closes the slide has the keyboard again: the text
  * being edited, else the editor's frame (`onClose`), before a choice runs.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CheckIcon, ChevronRightIcon } from '@kition/tessera/icons/react'
 import { isMac, menuKeyDown, type IconComponent } from '@kition/sdk/editor'
 import { useSlides } from './slides'
@@ -31,8 +31,12 @@ function Glyph({ icon: Icon, checked }: { icon?: IconComponent; checked?: boolea
 
 type Pick = (act: () => void) => void
 
+/** The start of a menu's row test ids: the slide's menu has `slides-cm-`, the slide panel's its own. */
+const RowIds = createContext('slides-cm-')
+
 /** One row's button: a choice. */
 function Row({ action, pick, onEnter, compact = false }: { action: MenuAction; pick: Pick; onEnter: () => void; compact?: boolean }) {
+  const ids = useContext(RowIds)
   return (
     <button
       type="button"
@@ -42,7 +46,7 @@ function Row({ action, pick, onEnter, compact = false }: { action: MenuAction; p
       title={compact ? action.label : undefined}
       className={compact ? 'kui-menu-item slides-cm-icon' : 'kui-menu-item'}
       disabled={action.disabled}
-      data-testid={`slides-cm-${action.id}`}
+      data-testid={`${ids}${action.id}`}
       onPointerEnter={onEnter}
       onClick={() => pick(action.run)}
     >
@@ -55,6 +59,7 @@ function Row({ action, pick, onEnter, compact = false }: { action: MenuAction; p
 
 /** One level of the menu: its rows, and the submenu open from one of them. */
 function Level({ entries, bar, pick, label, testId, style, levelRef }: { entries: MenuEntry[]; bar?: MenuAction[]; pick: Pick; label?: string; testId?: string; style: React.CSSProperties; levelRef?: React.Ref<HTMLDivElement> }) {
+  const ids = useContext(RowIds)
   const [open, setOpen] = useState<string | null>(null)
   const rows = useRef(new Map<string, HTMLButtonElement>())
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
@@ -125,7 +130,7 @@ function Level({ entries, bar, pick, label, testId, style, levelRef }: { entries
             className="kui-menu-item"
             disabled={item.disabled || item.entries.length === 0}
             data-submenu={item.id}
-            data-testid={`slides-cm-${item.id}`}
+            data-testid={`${ids}${item.id}`}
             onPointerEnter={() => openSub(item.id, false)}
             onClick={() => (open === item.id ? setOpen(null) : openSub(item.id, true))}
           >
@@ -156,15 +161,18 @@ function Level({ entries, bar, pick, label, testId, style, levelRef }: { entries
       {entries.map(entry)}
       {opened ? (
         <div onKeyDown={onSubKey}>
-          <Level entries={opened.entries} pick={pick} testId={`slides-cm-${opened.id}-menu`} style={place ? { left: place.left, top: place.top } : { left: 0, top: 0, visibility: 'hidden' }} levelRef={sub} />
+          <Level entries={opened.entries} pick={pick} testId={`${ids}${opened.id}-menu`} style={place ? { left: place.left, top: place.top } : { left: 0, top: 0, visibility: 'hidden' }} levelRef={sub} />
         </div>
       ) : null}
     </div>
   )
 }
 
-/** A menu of `model`'s rows at page point `at`. */
-export function CanvasMenu({ at, model, label, onClose }: { at: { x: number; y: number }; model: MenuModel; label: string; onClose: () => void }) {
+/**
+ * A menu of `model`'s rows at page point `at`. `testId` names it and `rowIds` starts its rows' test
+ * ids (the slide's menu by default; the slide panel's menu has its own).
+ */
+export function CanvasMenu({ at, model, label, onClose, testId = 'slides-context-menu', rowIds = 'slides-cm-' }: { at: { x: number; y: number }; model: MenuModel; label: string; onClose: () => void; testId?: string; rowIds?: string }) {
   const box = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
   const latest = useRef(onClose)
@@ -234,6 +242,7 @@ export function CanvasMenu({ at, model, label, onClose }: { at: { x: number; y: 
     act()
   }
   return (
+    <RowIds.Provider value={rowIds}>
     <div
       onContextMenu={(event) => event.preventDefault()}
       // Keys in the menu are the menu's, never the editor's shortcuts or the tool's.
@@ -245,10 +254,11 @@ export function CanvasMenu({ at, model, label, onClose }: { at: { x: number; y: 
         bar={model.bar}
         pick={pick}
         label={label}
-        testId="slides-context-menu"
+        testId={testId}
         style={place ? { left: place.left, top: place.top } : { left: at.x, top: at.y, visibility: 'hidden' }}
       />
     </div>
+    </RowIds.Provider>
   )
 }
 

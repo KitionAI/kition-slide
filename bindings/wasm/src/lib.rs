@@ -137,6 +137,31 @@ struct Cached {
     used: u64,
 }
 
+/// What a slide's thumbnail was drawn from ([`SlideDocument::slide_stamps`]): the slide itself,
+/// the masters (with their layouts and theme), its number, the slide size and the footer settings.
+/// The slide and masters are held, not only their addresses, so a freed slide's address taken by
+/// another is never taken for it.
+struct Drawn {
+    slide: Arc<kition_slide_model::Slide>,
+    masters: Vec<Arc<kition_slide_model::Master>>,
+    number: u32,
+    size: (u64, u64),
+    footer: kition_slide_model::HeaderFooter,
+    stamp: u32,
+}
+
+/// The slide panel's slides selected (indexes from 0, in deck order): the current one alone when
+/// none were chosen.
+fn selected_slides(st: &DocState) -> Vec<usize> {
+    let mut at: Vec<usize> = st.selection.slides.iter().filter_map(|id| st.doc.slide_index(*id)).collect();
+    at.sort_unstable();
+    at.dedup();
+    if at.is_empty() && st.selection.slide < st.doc.slides.len() {
+        at.push(st.selection.slide);
+    }
+    at
+}
+
 /// Drops the least recently drawn images until the cache holds at most `budget` bytes, keeping
 /// every image the current `frame` drew (a frame may need more than the budget).
 fn evict(cache: &mut HashMap<usize, Cached>, frame: u64, budget: usize) {
@@ -175,6 +200,10 @@ pub struct SlideDocument {
     pasteboard: [u8; 4],
     /// Where the pointer last was on the current slide (slide points), for its cursor.
     pointer_at: Option<Point>,
+    /// What each slide's thumbnail shows now, by slide id ([`SlideDocument::slide_stamps`]).
+    drawn: RefCell<HashMap<kition_slide_model::SlideId, Drawn>>,
+    /// The last stamp given.
+    stamps: Cell<u32>,
 }
 
 #[derive(Default)]
@@ -187,10 +216,11 @@ struct BatchMedia {
 }
 
 /// The editor's state in [`KitDocument::inspect`], as JSON Pointers: the current slide, the
-/// selection, what is selected, Slide Master view, text being edited and whether characters of it
-/// are selected. It describes the editing session, not the deck, so a headless host leaves it out
-/// of what an agent reads (`kition_headless::KitInfo::volatile`).
-pub const EDITOR_STATE: &[&str] = &["/slide", "/selection", "/selectedKinds", "/target", "/editingText", "/textSelected"];
+/// selection, what is selected, Slide Master view, text being edited, whether characters of it
+/// are selected, and the slides selected in the slide panel. It describes the editing session, not
+/// the deck, so a headless host leaves it out of what an agent reads
+/// (`kition_headless::KitInfo::volatile`).
+pub const EDITOR_STATE: &[&str] = &["/slide", "/selection", "/selectedKinds", "/target", "/editingText", "/textSelected", "/selectedSlides"];
 
 /// `file` commands that only produce bytes or files from the slide, leaving it as it is.
 const FILE_OUTPUTS: &[&str] =
@@ -356,6 +386,8 @@ impl SlideDocument {
             single: false,
             pasteboard: PASTEBOARD,
             pointer_at: None,
+            drawn: RefCell::new(HashMap::new()),
+            stamps: Cell::new(0),
         }
     }
 
@@ -420,7 +452,9 @@ impl SlideDocument {
     }
 
     /// Straight RGBA8 of slide `index` at `width` pixels wide (its height keeps the slide's
-    /// proportions), for thumbnails; drawn directly at that scale, so text stays sharp.
+    /// proportions), for thumbnails, the slide show and the notes page; drawn directly at that
+    /// scale, so text stays sharp. As the slide shows: an empty placeholder's prompt and dashed
+    /// outline are the editor's marks on the canvas, not part of the slide (walkthrough B12).
     pub fn render_slide(&self, index: usize, width: u32) -> Result<Vec<u8>, String> {
         let pres = self.pres().ok_or("no slides are open")?;
         if index >= pres.slides.len() {
@@ -431,11 +465,48 @@ impl SlideDocument {
         let scale = f64::from(width) / w.max(1.0);
         let height = ((h * scale).round() as u32).clamp(1, MAX_RENDER_SIDE);
         let image =
-            kition_slide_render::render_slide(pres, index, &RenderOpts { scale, edit: true, size: Some((width, height)), ..RenderOpts::default() });
+            kition_slide_render::render_slide(pres, index, &RenderOpts { scale, edit: false, size: Some((width, height)), ..RenderOpts::default() });
         let mut out = self.pasteboard.repeat(width as usize * height as usize);
         over(&mut out, &image.pixels);
         straight(&mut out);
         Ok(out)
+    }
+
+    /// Each slide's id and a stamp of what its thumbnail shows, in deck order (`[id, stamp, id,
+    /// stamp, …]`): the stamp changes when the slide's picture may have (the slide, its layout,
+    /// master or theme, its number, the slide size, the footers changed), and only then, so the
+    /// slide panel draws again only the thumbnails that changed (plan stage 7, walkthrough B11).
+    pub fn slide_stamps(&self) -> Vec<u32> {
+        let Some(pres) = self.pres() else {
+            self.drawn.borrow_mut().clear();
+            return Vec::new();
+        };
+        let size = (pres.slide_size.width.to_bits(), pres.slide_size.height.to_bits());
+        let mut drawn = self.drawn.borrow_mut();
+        drawn.retain(|id, _| pres.slides.iter().any(|slide| slide.id == *id));
+        let mut out = Vec::with_capacity(pres.slides.len() * 2);
+        for (index, slide) in pres.slides.iter().enumerate() {
+            let number = pres.slide_number(index);
+            let same = drawn.get(&slide.id).is_some_and(|was| {
+                Arc::ptr_eq(&was.slide, slide)
+                    && was.number == number
+                    && was.size == size
+                    && was.masters.len() == pres.masters.len()
+                    && was.masters.iter().zip(&pres.masters).all(|(a, b)| Arc::ptr_eq(a, b))
+                    && was.footer == pres.header_footer
+            });
+            if !same {
+                let stamp = self.stamps.get().wrapping_add(1);
+                self.stamps.set(stamp);
+                drawn.insert(
+                    slide.id,
+                    Drawn { slide: Arc::clone(slide), masters: pres.masters.clone(), number, size, footer: pres.header_footer.clone(), stamp },
+                );
+            }
+            out.push(slide.id.0);
+            out.push(drawn.get(&slide.id).map_or(0, |was| was.stamp));
+        }
+        out
     }
 
     /// Straight RGBA8 of slide `index` drawn as a slide show shows it, at exactly `width` x
@@ -1587,6 +1658,31 @@ impl KitDocument for SlideDocument {
                     }
                 }
             }
+            // Slides named by id are those slides wherever they are (their premises above); where
+            // they go is the gap before the `to`-th of the slides that stay (after the last).
+            "slide.move" if params.get("ids").and_then(Value::as_array).is_some() => {
+                if let Some(to) = index("to") {
+                    let moving: Vec<u64> = params
+                        .get("ids")
+                        .and_then(Value::as_array)
+                        .map(|ids| {
+                            ids.iter()
+                                .filter_map(|id| {
+                                    id.as_u64().or_else(|| id.as_str().and_then(|text| text.strip_prefix("slide:").unwrap_or(text).parse().ok()))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let at = deck
+                        .slides
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, slide)| !moving.contains(&u64::from(slide.id.0)))
+                        .nth(to)
+                        .map_or(count, |(at, _)| at);
+                    found.within.push(window(at, at));
+                }
+            }
             "slide.move" => {
                 let from = index("from").unwrap_or_else(|| self.current_slide());
                 slide_at(from, &mut found)?;
@@ -1713,6 +1809,9 @@ impl KitDocument for SlideDocument {
             "editingText": st.selection.text.is_some(),
             // Characters are selected in the text being edited (not only a caret): what a copy takes.
             "textSelected": st.selection.text.as_ref().is_some_and(|text| text.is_range()),
+            // The slides selected in the slide panel (indexes from 0, in deck order): the current
+            // one alone unless several were chosen.
+            "selectedSlides": selected_slides(st),
             "canUndo": !st.history.undo.is_empty(),
             "canRedo": !st.history.redo.is_empty(),
         }))
@@ -1953,6 +2052,13 @@ pub mod web {
         #[wasm_bindgen(js_name = setBackdrop)]
         pub fn set_backdrop(&mut self, color: &str) -> Result<(), JsError> {
             self.0.set_backdrop(color).map_err(error)
+        }
+
+        /// Each slide's id and a stamp of what its thumbnail shows (`[id, stamp, …]`): see
+        /// `SlideDocument::slide_stamps`.
+        #[wasm_bindgen(js_name = slideStamps)]
+        pub fn slide_stamps(&self) -> Vec<u32> {
+            self.0.slide_stamps()
         }
 
         /// RGBA8 of one slide at `width` pixels wide, for thumbnails.
