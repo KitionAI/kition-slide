@@ -290,12 +290,19 @@ impl Session {
     /// Type text: into the text being edited, or (a shape selected) start editing it.
     ///
     /// One character typed goes on with the run of typing under way (one undo step, WPS W-H1);
-    /// more at once (an input method's commit, W-R2) or a line break is a step of its own and ends
-    /// the run.
+    /// more at once or a line break is a step of its own and ends the run. So is what an input
+    /// method commits while composing ([`crate::ime`], W-R2), however long: it ends the
+    /// composition, and the typing after it is a step of its own.
     pub fn type_text(&mut self, text: &str) -> Result<Value> {
+        let committed = self.end_preedit();
         let mut chars = text.chars();
         let one = chars.next().is_some_and(|c| !matches!(c, '\n' | '\r' | '\u{b}')) && chars.next().is_none();
-        let r = if one {
+        let r = if committed {
+            self.end_run();
+            let r = self.type_into(text);
+            self.end_run();
+            r
+        } else if one {
             self.in_run(RunKind::Typing, |s| s.type_into(text))
         } else {
             self.end_run();

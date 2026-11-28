@@ -14,6 +14,7 @@ pub mod context;
 pub mod design;
 pub mod disk;
 pub mod guard;
+pub mod ime;
 pub mod kdm_bridge;
 pub mod keys;
 pub mod recovery;
@@ -195,6 +196,9 @@ pub struct DocState {
     /// Where the caret of each shape's text last was (WPS W-F5): typing on the selected shape
     /// goes on there. Session state, never written.
     pub(crate) carets: std::collections::HashMap<ShapeId, (usize, usize)>,
+    /// What an input method is composing in the text being edited ([`ime`]). Session state, never
+    /// written.
+    pub(crate) preedit: Option<ime::Preedit>,
 }
 
 static NEXT_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -214,6 +218,7 @@ impl DocState {
             interaction: None,
             run: None,
             carets: std::collections::HashMap::new(),
+            preedit: None,
             uid: NEXT_UID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             title,
         }
@@ -233,13 +238,7 @@ impl DocState {
     }
     /// Shapes of the edited tree (current slide, or the master/layout in Slide Master view).
     pub fn shapes(&self) -> &[Shape] {
-        match self.selection.target {
-            Target::Slides => self.current_slide().map(|s| s.shapes.as_slice()).unwrap_or(&[]),
-            Target::Master { master } => self.doc.masters.get(master).map(|m| m.shapes.as_slice()).unwrap_or(&[]),
-            Target::Layout { master, layout } => {
-                self.doc.masters.get(master).and_then(|m| m.layouts.get(layout)).map(|l| l.shapes.as_slice()).unwrap_or(&[])
-            }
-        }
+        shapes_of(&self.doc, &self.selection)
     }
     pub fn shape(&self, id: ShapeId) -> Option<&Shape> {
         kition_slide_model::find_shape(self.shapes(), id)
@@ -265,6 +264,15 @@ impl DocState {
         let body = self.shape(id)?.text.as_ref()?;
         let len = body.paragraphs.get(para)?.char_len();
         Some((para, ch.min(len)))
+    }
+}
+
+/// The edited shape tree: the current slide's, or the master's or layout's in Slide Master view.
+pub fn shapes_of<'a>(doc: &'a SlideFile, sel: &Selection) -> &'a [Shape] {
+    match sel.target {
+        Target::Slides => doc.slides.get(sel.slide).map(|s| s.shapes.as_slice()).unwrap_or(&[]),
+        Target::Master { master } => doc.masters.get(master).map(|m| m.shapes.as_slice()).unwrap_or(&[]),
+        Target::Layout { master, layout } => doc.masters.get(master).and_then(|m| m.layouts.get(layout)).map(|l| l.shapes.as_slice()).unwrap_or(&[]),
     }
 }
 

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e10-ime-composition
+feature: slide.editor.input-method
+intent: "What an input method composes (\"n\", \"ni\", \"ni hao\") shows in the text box at the caret, underlined, the caret at its end, while the text stays \"ab\"; the hidden field the input method types into sits where the composition starts, so its candidate window opens under that line; the commit \"你好\" is typed, and a single committed character between typing is an undo step of its own (nothing showed while composing, the field sat in the canvas's corner, and one committed character joined the typing around it; walkthrough E10, WPS W-R1, W-R2)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/ime.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/ime.mjs, chromium, e10-sink-at-caret, e10-ime-composition]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

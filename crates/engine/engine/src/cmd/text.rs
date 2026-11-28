@@ -55,7 +55,7 @@ pub fn body_of<'a>(st: &'a DocState, t: &TextSel) -> Option<&'a TextBody> {
     sh.text.as_ref()
 }
 
-fn body_mut<'a>(doc: &'a mut SlideFile, sel: &Selection, t: &TextSel) -> Option<&'a mut TextBody> {
+pub(crate) fn body_mut<'a>(doc: &'a mut SlideFile, sel: &Selection, t: &TextSel) -> Option<&'a mut TextBody> {
     if t.notes {
         return doc.slides.get_mut(sel.slide).map(|s| &mut Arc::make_mut(s).notes);
     }
@@ -90,46 +90,7 @@ pub(crate) fn edit_text<T>(s: &mut Session, f: impl FnOnce(&mut TextBody, &mut T
 /// Grow/shrink an auto-sizing text box (Resize shape to fit text) to its text.
 pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
     let st = s.doc()?;
-    let Some(sh) = st.shape(id).cloned() else { return Ok(()) };
-    let Some(body) = sh.text.clone() else { return Ok(()) };
-    let doc = st.doc.clone();
-    let sel = st.selection.clone();
-    let Some(ctx) = ctx_for(&doc, &sel) else { return Ok(()) };
-    let bp = resolve::body(&ctx, &sh);
-    if bp.autofit != Some(AutoFit::Shape) {
-        return Ok(());
-    }
-    let x = xfrm_of(&doc, &sel, &sh);
-    let geo = kition_slide_render::shape_geometry(&sh, x.w, x.h);
-    let fields = kition_slide_text::NoFields;
-    let mut nx = x;
-    // Vertical text runs down the box: its lines are as long as the box is high, and the box
-    // grows sideways to hold its columns (PowerPoint keeps the height and fits the width).
-    if matches!(bp.vert, Some(TextDir::Vertical | TextDir::Vertical270 | TextDir::Stacked | TextDir::EaVertical)) {
-        if bp.wrap == Some(false) {
-            // fit_width measures along the lines, which run down the box.
-            nx.h = kition_slide_text::fit_width(&ctx, &sh, &body, geo.text_rect, &fields).max(20.0);
-        }
-        let geo = kition_slide_render::shape_geometry(&sh, nx.w, nx.h);
-        let need = kition_slide_text::fit_height(&ctx, &sh, &body, geo.text_rect, &fields);
-        let extra = (nx.w - geo.text_rect.width()).max(0.0);
-        nx.w = (need + extra).max(8.0);
-    } else {
-        if bp.wrap == Some(false) {
-            nx.w = kition_slide_text::fit_width(&ctx, &sh, &body, geo.text_rect, &fields).max(20.0);
-        }
-        let geo = kition_slide_render::shape_geometry(&sh, nx.w, nx.h);
-        let need = kition_slide_text::fit_height(&ctx, &sh, &body, geo.text_rect, &fields);
-        let extra = (nx.h - geo.text_rect.height()).max(0.0);
-        nx.h = (need + extra).max(8.0);
-    }
-    // The box as the file stores it (C8-slide-5): a grown height of 93.59999999999998 pt is
-    // saved as 93.6 pt and must be that in the model too.
-    nx.w = kition_slide_geom::stored::extent(nx.w);
-    nx.h = kition_slide_geom::stored::extent(nx.h);
-    if (nx.h - x.h).abs() < 0.01 && (nx.w - x.w).abs() < 0.01 && sh.xfrm.is_some() {
-        return Ok(());
-    }
+    let Some(nx) = fitted_box(&st.doc, &st.selection, id) else { return Ok(()) };
     // Change the box in place without an extra undo step (it is part of the edit).
     let st = s.doc_mut()?;
     let mut d = (*st.doc).clone();
@@ -141,6 +102,50 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
     st.doc = Arc::new(d);
     st.revision += 1;
     Ok(())
+}
+
+/// The box of shape `id` (on the part `sel` edits in `doc`) fitted to its text, when it sizes
+/// itself to its text (Resize shape to fit text) and that changes it.
+pub(crate) fn fitted_box(doc: &SlideFile, sel: &Selection, id: ShapeId) -> Option<kition_slide_geom::Xfrm> {
+    let sh = kition_slide_model::find_shape(crate::shapes_of(doc, sel), id)?;
+    let body = sh.text.as_ref()?;
+    let ctx = ctx_for(doc, sel)?;
+    let bp = resolve::body(&ctx, sh);
+    if bp.autofit != Some(AutoFit::Shape) {
+        return None;
+    }
+    let x = xfrm_of(doc, sel, sh);
+    let geo = kition_slide_render::shape_geometry(sh, x.w, x.h);
+    let fields = kition_slide_text::NoFields;
+    let mut nx = x;
+    // Vertical text runs down the box: its lines are as long as the box is high, and the box
+    // grows sideways to hold its columns (PowerPoint keeps the height and fits the width).
+    if matches!(bp.vert, Some(TextDir::Vertical | TextDir::Vertical270 | TextDir::Stacked | TextDir::EaVertical)) {
+        if bp.wrap == Some(false) {
+            // fit_width measures along the lines, which run down the box.
+            nx.h = kition_slide_text::fit_width(&ctx, sh, body, geo.text_rect, &fields).max(20.0);
+        }
+        let geo = kition_slide_render::shape_geometry(sh, nx.w, nx.h);
+        let need = kition_slide_text::fit_height(&ctx, sh, body, geo.text_rect, &fields);
+        let extra = (nx.w - geo.text_rect.width()).max(0.0);
+        nx.w = (need + extra).max(8.0);
+    } else {
+        if bp.wrap == Some(false) {
+            nx.w = kition_slide_text::fit_width(&ctx, sh, body, geo.text_rect, &fields).max(20.0);
+        }
+        let geo = kition_slide_render::shape_geometry(sh, nx.w, nx.h);
+        let need = kition_slide_text::fit_height(&ctx, sh, body, geo.text_rect, &fields);
+        let extra = (nx.h - geo.text_rect.height()).max(0.0);
+        nx.h = (need + extra).max(8.0);
+    }
+    // The box as the file stores it (C8-slide-5): a grown height of 93.59999999999998 pt is
+    // saved as 93.6 pt and must be that in the model too.
+    nx.w = kition_slide_geom::stored::extent(nx.w);
+    nx.h = kition_slide_geom::stored::extent(nx.h);
+    if (nx.h - x.h).abs() < 0.01 && (nx.w - x.w).abs() < 0.01 && sh.xfrm.is_some() {
+        return None;
+    }
+    Some(nx)
 }
 
 pub(crate) fn ctx_for<'a>(doc: &'a SlideFile, sel: &Selection) -> Option<Ctx<'a>> {
@@ -330,7 +335,7 @@ pub(crate) fn insert_text(s: &mut Session, text: &str, props: Option<RunProps>) 
 
 /// Typing right after a hyperlink doesn't extend it (as in PowerPoint): at the end of a linked
 /// run, the props to type with are the run's without the link. `None` elsewhere.
-fn unlinked_at_link_end(body: &TextBody, at: Pos) -> Option<RunProps> {
+pub(crate) fn unlinked_at_link_end(body: &TextBody, at: Pos) -> Option<RunProps> {
     let mut props = ed::props_at(body, at);
     props.link.as_ref()?;
     let len = body.paragraphs.get(at.0).map_or(0, |p| p.text().chars().count());

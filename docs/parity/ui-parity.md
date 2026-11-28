@@ -56,12 +56,13 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Smart guides (edges, centres, equal spacing) | yes | yes |
 | Snap to grid, grid options, drawing guides | yes | gridlines, guides and snap to grid (engine setting); no Grid Options dialog or menu toggle |
 | Nudge (arrows), fine nudge (Option+arrows) | yes | yes; an arrow key held on a selection is one undo step (`web/tests/hand/undo.mjs`) |
-| Undo of typing | a run of typing is one step | the same, as WPS: a run of typing is one step whatever its pauses, Backspaces in a row are one, moving the caret, Enter, a click or another command start a new one (`web/tests/hand/undo.mjs`) |
+| Undo of typing | a run of typing is one step | the same, as WPS: a run of typing is one step whatever its pauses, Backspaces in a row are one, moving the caret, Enter, a click or another command start a new one, and each commit of an input method is one of its own (`web/tests/hand/undo.mjs`, `ime.mjs`) |
 | Shift-constrained move, Option-drag to duplicate | yes | yes; a Shift drag stays on its axis against the grid and guides |
 | Connector glue and rerouting | yes | yes |
 | Edit points on freeforms | yes | **no** |
 | Crop handles, crop to shape, aspect ratio | yes | partial |
 | Text caret, selection, double/triple click, drag-select | yes | yes (three clicks select the paragraph, `web/tests/hand/pointer.mjs`); Tab in text boxes ends editing; the caret blinks (`web/tests/hand/text.mjs`) |
+| Chinese input (input methods) | composition shows at the caret, underlined; candidate window by the caret | the same, as WPS: the composition shows in the text at the caret, underlined and laid out with it, without changing the document; the candidate window opens under the caret's line where the composition starts; the input method's keys stay its own; each commit is one undo step (`web/tests/hand/ime.mjs`; a real input method not yet checked by hand) |
 | Entering text by hand | a click on text edits it; Enter or F2 on a selected shape edits it | as WPS: one click on a shape's words puts the caret there, a press elsewhere on the shape selects it and a drag there moves it, a drag on words selects them, the band along an edited box's frame moves the box; Enter and F2 select all the text; typing on a selected shape goes on where its caret last was; an empty text box left goes (`web/tests/hand/text.mjs`) |
 | Exact size/position, lock aspect | yes | yes: Shape Format's height, width and rotation fields take a typed value (centimetres, or with its unit), with the aspect ratio locked on demand (`web/tests/hand/format.mjs`) |
 | Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |

@@ -1964,3 +1964,118 @@ fn an_empty_bullet_keeps_its_place_and_backspace_takes_it_away() {
     s.key("Backspace", Mods::default()).unwrap();
     assert_eq!(paras(&s).len(), 1, "the next joins it to the one before");
 }
+
+// Stage 4 of the slide-by-hand plan: an input method's composition (walkthrough E10; WPS W-R1,
+// W-R2). It shows in the text being edited without changing the document; what it commits is one
+// undo step of its own.
+
+/// The text of shape `id` in the slide file as the editor shows it while composing.
+fn shown_text(s: &Session, id: u64) -> String {
+    let p = s.preedit().expect("a composition shows");
+    let st = s.doc().unwrap();
+    let shape = kition_slide_model::find_shape(shapes_of(&p.shown, &st.selection), kition_slide_model::ShapeId(id as u32)).unwrap();
+    shape.text.as_ref().unwrap().paragraphs.iter().map(|p| p.text()).collect::<Vec<_>>().join("\n")
+}
+
+#[test]
+fn a_composition_shows_in_the_text_without_changing_the_document() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    let (doc, steps, dirty) = (s.doc().unwrap().doc.clone(), undo_steps(&s), s.doc().unwrap().is_dirty());
+    for (typed, cursor) in [("n", 1), ("ni", 2), ("ni hao", 6)] {
+        assert!(s.set_preedit(typed, cursor).unwrap(), "composing {typed} shows");
+        assert_eq!(shown_text(&s, id), format!("ab{typed}"), "at the caret");
+    }
+    let p = s.preedit().unwrap();
+    assert_eq!((p.start, p.end, p.cursor), ((0, 2), (0, 8), (0, 8)));
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().doc, &doc), "the document is as it was");
+    assert_eq!(undo_steps(&s), steps, "no undo step");
+    assert_eq!(s.doc().unwrap().is_dirty(), dirty, "nor unsaved");
+    assert_eq!(text_of(&mut s, id), "ab");
+    // While it is drawn, the caret is at the input method's cursor in the shown text.
+    let shown = s.show_preedit().unwrap();
+    let caret = s.doc().unwrap().selection.text.as_ref().map(|t| t.caret);
+    s.unshow_preedit(shown);
+    assert_eq!(caret, Some((0, 8)));
+    assert_eq!(s.doc().unwrap().selection.text.as_ref().map(|t| t.caret), Some((0, 2)), "and back after it");
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().doc, &doc));
+    // Escape in the input method empties the composition: nothing was typed.
+    assert!(!s.set_preedit("", 0).unwrap());
+    assert!(s.preedit().is_none());
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().doc, &doc));
+    assert_eq!(undo_steps(&s), steps);
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "", "the one undo step is still the typing before");
+}
+
+#[test]
+fn a_committed_character_is_its_own_undo_step_between_typing() {
+    // WPS W-H1 and W-R2: "ab" typed, "中" committed by an input method, "cd" typed: three steps.
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    s.set_preedit("zhong", 5).unwrap();
+    s.type_text("中").unwrap();
+    assert!(s.preedit().is_none(), "the commit ends the composition");
+    type_keys(&mut s, "cd");
+    assert_eq!(text_of(&mut s, id), "ab中cd");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "ab中");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "ab");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "");
+}
+
+#[test]
+fn a_composition_replaces_the_selected_text_only_when_committed() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "hello");
+    s.execute("text.selectAll", &json!({})).unwrap();
+    s.set_preedit("ni", 2).unwrap();
+    assert_eq!(shown_text(&s, id), "ni");
+    assert_eq!(text_of(&mut s, id), "hello");
+    s.type_text("你").unwrap();
+    assert_eq!(text_of(&mut s, id), "你");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "hello");
+}
+
+#[test]
+fn a_composition_hides_when_the_caret_moves_and_leaves_out_line_breaks() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "ab");
+    assert!(s.set_preedit("x\ny\u{b}z", 9).unwrap());
+    let p = s.preedit().unwrap();
+    assert_eq!((p.text.as_str(), p.cursor), ("xyz", (0, 5)), "no line breaks; the cursor within the composition");
+    press(&mut s, "ArrowLeft");
+    assert!(s.preedit().is_none(), "a moved caret hides it until the input method sends it again");
+    assert!(s.set_preedit(&"字".repeat(ime::MOST + 10), 0).unwrap());
+    assert_eq!(s.preedit().unwrap().text.chars().count(), ime::MOST);
+    assert_eq!(text_of(&mut s, id), "ab");
+}
+
+#[test]
+fn composing_on_a_selected_shape_edits_its_text_and_with_nothing_to_type_into_shows_nothing() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    type_keys(&mut s, "abc");
+    press(&mut s, "ArrowLeft");
+    press(&mut s, "Escape");
+    assert!(s.doc().unwrap().selection.text.is_none());
+    // WPS W-F5: at the shape's last caret.
+    assert!(s.set_preedit("ni", 2).unwrap());
+    assert_eq!(shown_text(&s, id), "abnic");
+    s.type_text("你").unwrap();
+    assert_eq!(text_of(&mut s, id), "ab你c");
+    press(&mut s, "Escape");
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    // WPS W-R4: nothing selected, nothing edited: no composition shows, nothing changes.
+    let doc = s.doc().unwrap().doc.clone();
+    assert!(!s.set_preedit("ni", 2).unwrap());
+    assert!(s.preedit().is_none());
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().doc, &doc));
+}

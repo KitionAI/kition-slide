@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e10-ime-keys
+feature: slide.editor.input-method
+intent: "Escape, Enter, the arrows, Backspace and Delete pressed while an input method composes are the input method's: the text box keeps its text and its place and stays in editing, and the compositions leave no undo step (Backspace used to delete a character of the text while composing; walkthrough E10)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/ime.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/ime.mjs, chromium, e10-ime-keys]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-27"

@@ -5,6 +5,7 @@ import { CanvasMarkers } from './HostComments'
 import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { slideScrollArea } from './useSlideWheel'
 import { CARET_BLINK_MS, isCaretShown, setCaretShown } from './handles'
+import { useInputMethod } from './inputMethod'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled } = useSlides()
@@ -18,6 +19,16 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
   // the slide already drawn. It shows at once after every answer of the tool (a key, a click).
   const editing = session.state?.editingText === true
   const overlays = tools?.decorate
+  // An input method composes in the text at the caret, its candidate window under the caret's line
+  // (plan stage 4, walkthrough E10).
+  const inputMethod = useInputMethod({
+    doc: session.doc,
+    inOrder: session.inOrder,
+    canvas,
+    refresh: () => tools?.refresh(),
+    typing: editing || tools?.wantsText === true,
+    answer: overlays,
+  })
   const [, setBeat] = useState(0)
   useEffect(() => {
     setCaretShown(true)
@@ -72,6 +83,8 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
       drawPresence(context, { selections }, toScreen)
     }
     tools?.decorate?.(context, toScreen, raster)
+    // The text sink follows the caret as this frame draws it (the view may have moved).
+    inputMethod.place(toScreen)
   }
   const ruler = (axis: 'x' | 'y') => {
     if (!area) return null

@@ -60,6 +60,8 @@ const HANDLE: [u8; 4] = [255, 255, 255, 255];
 const ADJUST: [u8; 4] = [255, 210, 63, 255];
 const TEXT_SELECTION: [u8; 4] = [192, 85, 13, 64];
 const CARET: [u8; 4] = [20, 20, 20, 255];
+/// The line under what an input method composes: dark, and not the caret's colour, which blinks.
+const PREEDIT_UNDERLINE: [u8; 4] = [64, 64, 64, 255];
 const GUIDE: [u8; 4] = [234, 67, 53, 255];
 
 /// The tools on the rail: (id, label, shortcut, icon, group).
@@ -470,6 +472,15 @@ impl SlideDocument {
         self.session.active().map(|state| &*state.doc)
     }
 
+    /// The slide file as the canvas draws it: with what an input method is composing typed in at
+    /// the caret (plan stage 4, walkthrough E10), else the document.
+    fn drawn(&self) -> Option<&SlideFile> {
+        match self.session.preedit() {
+            Some(preedit) => Some(&*preedit.shown),
+            None => self.pres(),
+        }
+    }
+
     fn addressed_shapes(&self, command: &str, params: &Value) -> Vec<(u32, u32)> {
         let Some(deck) = self.pres() else { return Vec::new() };
         let mut local = params.clone();
@@ -681,7 +692,7 @@ impl SlideDocument {
     /// it touches drawn into place on the pasteboard.
     fn compose(&self, x: f64, y: f64, scale: f64, width: u32, height: u32) -> Vec<u8> {
         let mut out = self.pasteboard.repeat(width as usize * height as usize);
-        let Some(pres) = self.pres() else { return out };
+        let Some(pres) = self.drawn() else { return out };
         let (x1, y1) = (x + f64::from(width) / scale, y + f64::from(height) / scale);
         for index in self.shown() {
             let area = self.area(index);
@@ -710,7 +721,7 @@ impl SlideDocument {
     /// A slide at 1:1, from the cache when the slide, its layout and master, and its number are
     /// unchanged.
     fn slide_image(&self, index: usize) -> Option<std::cell::Ref<'_, Image>> {
-        let pres = self.pres()?;
+        let pres = self.drawn()?;
         let slide = pres.slides.get(index)?;
         let masters = pres.masters.iter().fold(0usize, |hash, master| hash.rotate_left(5) ^ (std::sync::Arc::as_ptr(master) as usize));
         let editing = self.editing_on(index);
@@ -808,7 +819,7 @@ impl SlideDocument {
 
     /// The selection, text editing, and tool previews, ported from upstream's desktop UI canvas
     /// (`crates/ui-egui/src/canvas.rs` `overlays`, before that UI was removed).
-    fn overlays(&self) -> Vec<ToolOverlay> {
+    fn overlays(&self, preedit: Option<&kition_slide_engine::ime::Preedit>) -> Vec<ToolOverlay> {
         let mut out = Vec::new();
         let Some(st) = self.session.active() else { return out };
         let editing = st.selection.text.clone();
@@ -868,18 +879,10 @@ impl SlideDocument {
                 }
             }
         }
-        // The caret and the text selection.
+        // The caret and the text selection; what an input method composes, underlined.
         if let Some(ts) = &editing
-            && !ts.notes
-            && let Some(sh) = st.shape(ts.shape)
-            && let Some(layout) = cmd::text::layout_for(st, ts)
+            && let Some((layout, m)) = self.text_space(st, ts)
         {
-            let x = xfrm_of(&st.doc, &st.selection, sh);
-            let rect = ts
-                .cell
-                .and_then(|cell| cmd::table::cell_rect(st, ts.shape, cell))
-                .unwrap_or_else(|| kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect);
-            let m = kition_slide_render::text_transform(x.affine(), rect, layout.rotation);
             let (s0, s1) = ts.ordered();
             for r in layout.selection_rects(kition_slide_text::Pos { para: s0.0, ch: s0.1 }, kition_slide_text::Pos { para: s1.0, ch: s1.1 }) {
                 let quad = [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)].map(|(px, py)| {
@@ -894,6 +897,14 @@ impl SlideDocument {
                 let (ax, ay) = self.to_canvas(m * Point::new(cx, top));
                 let (bx, by) = self.to_canvas(m * Point::new(cx, bottom));
                 out.push(ToolOverlay::Line { ax, ay, bx, by, color: CARET, dashed: false });
+            }
+            if let Some(p) = preedit {
+                let (a, b) = (kition_slide_text::Pos { para: p.start.0, ch: p.start.1 }, kition_slide_text::Pos { para: p.end.0, ch: p.end.1 });
+                for r in layout.selection_rects(a, b) {
+                    let (ax, ay) = self.to_canvas(m * Point::new(r.x0, r.y1));
+                    let (bx, by) = self.to_canvas(m * Point::new(r.x1, r.y1));
+                    out.push(ToolOverlay::Line { ax, ay, bx, by, color: PREEDIT_UNDERLINE, dashed: false });
+                }
             }
         }
         let tool = &self.session.tool;
@@ -948,6 +959,56 @@ impl SlideDocument {
         out
     }
 
+    /// The layout of the text `ts` edits and the transform from its text space to the slide.
+    fn text_space(&self, st: &DocState, ts: &kition_slide_engine::TextSel) -> Option<(kition_slide_text::TextLayout, kition_slide_geom::Affine)> {
+        if ts.notes {
+            return None;
+        }
+        let sh = st.shape(ts.shape)?;
+        let layout = cmd::text::layout_for(st, ts)?;
+        let x = xfrm_of(&st.doc, &st.selection, sh);
+        let rect = ts
+            .cell
+            .and_then(|cell| cmd::table::cell_rect(st, ts.shape, cell))
+            .unwrap_or_else(|| kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect);
+        let m = kition_slide_render::text_transform(x.affine(), rect, layout.rotation);
+        Some((layout, m))
+    }
+
+    /// Where the editor puts its text field, so an input method's candidate window opens there
+    /// (plan stage 4, WPS W-R1): the line of the caret of the text being edited, from its top to
+    /// its bottom in canvas points `[x0, y0, x1, y1]`; while composing, the start of the
+    /// composition (the candidate window lines up with it). `None` while no text on the slide is
+    /// edited.
+    pub fn text_caret(&mut self) -> Option<[f64; 4]> {
+        let shown = self.session.show_preedit();
+        let line = self.caret_line(shown.as_ref().map(|shown| shown.preedit.start));
+        if let Some(shown) = shown {
+            self.session.unshow_preedit(shown);
+        }
+        line
+    }
+
+    /// The caret line of the text being edited at `at` (else at its caret), in canvas points.
+    fn caret_line(&self, at: Option<(usize, usize)>) -> Option<[f64; 4]> {
+        let st = self.session.active()?;
+        let ts = st.selection.text.as_ref()?;
+        let (layout, m) = self.text_space(st, ts)?;
+        let at = at.unwrap_or(ts.caret);
+        let (cx, top, bottom) = layout.caret(kition_slide_text::Pos { para: at.0, ch: at.1 })?;
+        let (ax, ay) = self.to_canvas(m * Point::new(cx, top));
+        let (bx, by) = self.to_canvas(m * Point::new(cx, bottom));
+        [ax, ay, bx, by].iter().all(|v| v.is_finite()).then_some([ax, ay, bx, by])
+    }
+
+    /// What an input method composes in the text being edited (`text`, its cursor `cursor`
+    /// characters in): shown at the caret, underlined, without changing the slides; empty text ends
+    /// it. Answers whether a composition shows.
+    pub fn set_preedit(&mut self, text: &str, cursor: usize) -> Result<bool, String> {
+        self.refuse_comment_only("text")?;
+        self.session.set_preedit(text, cursor).map_err(engine_error)
+    }
+
     fn respond(&mut self) -> ToolResponse {
         self.take_requests();
         let mut requests: Vec<ToolRequest> = self.requests.borrow_mut().drain(..).collect();
@@ -956,6 +1017,12 @@ impl SlideDocument {
         if *self.reported.borrow() != tool {
             requests.push(ToolRequest::SwitchTool { id: tool.clone() });
             *self.reported.borrow_mut() = tool;
+        }
+        // Drawn on the slide file as the canvas shows it while an input method composes.
+        let shown = self.session.show_preedit();
+        let overlays = self.overlays(shown.as_ref().map(|shown| &shown.preedit));
+        if let Some(shown) = shown {
+            self.session.unshow_preedit(shown);
         }
         let state = self.session.active();
         let editing = state.is_some_and(|st| st.selection.text.is_some());
@@ -966,7 +1033,7 @@ impl SlideDocument {
         let one = state.is_some_and(|st| st.typing_target().is_some());
         ToolResponse {
             requests,
-            overlays: self.overlays(),
+            overlays,
             cursor: cursor(self.session.pointing(self.pointer_at, HIT_PX / self.zoom)),
             // Editing keys come here while text is edited, shapes are selected (Delete, arrows,
             // Escape), a gesture or freeform is under way, or a Format Painter is loaded (Escape
@@ -1795,6 +1862,20 @@ pub mod web {
         #[wasm_bindgen(js_name = setSingle)]
         pub fn set_single(&mut self, single: bool) {
             self.0.set_single(single);
+        }
+
+        /// What an input method composes in the text being edited, shown at the caret (empty text
+        /// ends it); answers whether it shows.
+        #[wasm_bindgen(js_name = setPreedit)]
+        pub fn set_preedit(&mut self, text: &str, cursor: u32) -> Result<bool, JsError> {
+            self.0.set_preedit(text, cursor as usize).map_err(error)
+        }
+
+        /// The caret line of the text being edited (the composition's start while composing),
+        /// `[x0, y0, x1, y1]` in canvas points, or nothing: where the editor's text field goes.
+        #[wasm_bindgen(js_name = textCaret)]
+        pub fn text_caret(&mut self) -> Option<Vec<f64>> {
+            self.0.text_caret().map(|line| line.to_vec())
         }
 
         /// The canvas around the slides in `#rrggbb` (the editor's canvas color).

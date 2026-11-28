@@ -1,6 +1,6 @@
 # Hardware parity with PowerPoint
 
-> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-17 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365); PowerPoint for Windows where noted
+> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-27 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365); PowerPoint for Windows where noted
 
 What hardware PowerPoint uses and what Kition Slide uses. Kition Slide's editor (`web/`) runs in
 the page of its host, Kition, with the engine compiled to WebAssembly; the headless kit executable
@@ -44,7 +44,7 @@ Performance (unmeasured, ~55%) is tracked here too because it mostly follows fro
 | Pinch to zoom, two-finger gestures | yes | pinch (Ctrl or ⌘ with the wheel) zooms kit-editor's slide canvas; two-finger scrolling pages or pans (`web/src/useSlideWheel.ts`) |
 | Pen pressure and tilt for ink (Apple Pencil via Sidecar, Windows Ink) | yes | no: ink strokes have constant width |
 | Touch screens (Windows) | yes | basic pointer only |
-| IME input methods for CJK text | yes | they compose in kit-editor's text field (see [localization-parity.md](localization-parity.md)) |
+| IME input methods for CJK text | yes | they compose in kit-editor's text field, which sits on the caret's line; the composition shows in the text at the caret, underlined (see [localization-parity.md](localization-parity.md)) |
 | Dictation | yes (macOS) | no |
 
 ## Performance
