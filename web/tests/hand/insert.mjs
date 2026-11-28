@@ -107,7 +107,7 @@ const list = [
     const groups = await menu.locator('[role="group"]').evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')))
     assert.deepEqual(groups, ['Lines', 'Rectangles', 'Basic Shapes', 'Block Arrows', 'Equation Shapes', 'Flowchart', 'Stars and Banners', 'Callouts', 'Action Buttons'])
     const presets = await e.ask('shape.presets')
-    const cells = await menu.locator('.slides-gallery-cell').evaluateAll((items) => items.map((item) => ({ id: item.dataset.testid, label: item.getAttribute('aria-label'), paths: [...item.querySelectorAll('path')].filter((path) => (path.getAttribute('d') ?? '').length > 2).length, icon: !!item.querySelector('svg') })))
+    const cells = await menu.locator('.slides-shapes-gallery-cell').evaluateAll((items) => items.map((item) => ({ id: item.dataset.testid, label: item.getAttribute('aria-label'), paths: [...item.querySelectorAll('path')].filter((path) => (path.getAttribute('d') ?? '').length > 2).length, icon: !!item.querySelector('svg') })))
     assert.equal(cells.length, presets.length + 3, 'every preset and the three freeform tools')
     for (const cell of cells) {
       assert(cell.icon, `${cell.id} has an icon`)

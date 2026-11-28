@@ -14,7 +14,9 @@ import { useTools } from '../tools'
 
 /** One sub-path of an icon: an SVG path in a square of `ICON_PT`, filled or not, stroked or not. */
 type IconPath = { d: string; fill: boolean; stroke: boolean }
-type Icons = Record<string, IconPath[]>
+/** A preset's icon: its paths and the square that holds them all (`[x, y, side, side]`). */
+type Icon = { view: [number, number, number, number]; paths: IconPath[] }
+type Icons = Record<string, Icon>
 type Preset = { name: string; label: string; category: string }
 
 /** The icons' side, in the engine's points (drawn at that many CSS pixels). */
@@ -84,11 +86,13 @@ function usePresets() {
 }
 
 /** A preset's icon as the engine drew it, in the text's color (closed shapes lightly filled). */
-function PresetIcon({ paths }: { paths: IconPath[] | undefined }) {
+function PresetIcon({ icon }: { icon: Icon | undefined }) {
+  const [x, y, side] = icon?.view ?? [0, 0, ICON_PT]
+  const pad = side * 0.06
   return (
-    <svg width={ICON_PT} height={ICON_PT} viewBox={`-1 -1 ${ICON_PT + 2} ${ICON_PT + 2}`} aria-hidden="true" focusable="false">
-      {(paths ?? []).map((path, index) => (
-        <path key={index} d={path.d} fill={path.fill ? 'currentColor' : 'none'} fillOpacity={path.fill ? 0.16 : undefined} stroke={path.stroke ? 'currentColor' : 'none'} strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
+    <svg width={ICON_PT} height={ICON_PT} viewBox={`${x - pad} ${y - pad} ${side + 2 * pad} ${side + 2 * pad}`} aria-hidden="true" focusable="false">
+      {(icon?.paths ?? []).map((path, index) => (
+        <path key={index} d={path.d} fill={path.fill ? 'currentColor' : 'none'} fillOpacity={path.fill ? 0.16 : undefined} stroke={path.stroke ? 'currentColor' : 'none'} strokeWidth={1.1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
       ))}
     </svg>
   )
@@ -114,7 +118,7 @@ function GalleryGroups({ groups, prefix }: { groups: Array<{ key: string | null;
   const [locking, setLocking] = useState<{ name: string; x: number; y: number } | null>(null)
   const freeform = new Map(FREEFORM.map((tool) => [tool.name, tool.icon]))
   const offerLock = (name: string, cell: HTMLElement, at?: { x: number; y: number }) => {
-    const gallery = cell.closest('.slides-gallery')?.getBoundingClientRect()
+    const gallery = cell.closest('.slides-shapes-gallery')?.getBoundingClientRect()
     const box = cell.getBoundingClientRect()
     const point = at ?? { x: box.left + box.width / 2, y: box.bottom }
     setLocking({ name, x: point.x - (gallery?.left ?? 0), y: point.y - (gallery?.top ?? 0) })
@@ -132,11 +136,11 @@ function GalleryGroups({ groups, prefix }: { groups: Array<{ key: string | null;
     }
   }
   return (
-    <div className="slides-gallery" data-testid={`${prefix}-gallery`} onPointerDown={(event) => event.button === 0 && !(event.target as HTMLElement).closest('.slides-gallery-lock') && setLocking(null)}>
+    <div className="slides-shapes-gallery" data-testid={`${prefix}-gallery`} onPointerDown={(event) => event.button === 0 && !(event.target as HTMLElement).closest('.slides-shapes-gallery-lock') && setLocking(null)}>
       {groups.map(({ key, names }) => (
         <div key={key ?? 'all'} role="group" aria-label={key ? t(`shapeGroup.${key}`) : undefined} data-testid={key ? `${prefix}-group-${key}` : undefined}>
           {key ? <div className="slides-menu-heading">{t(`shapeGroup.${key}`)}</div> : null}
-          <div className="slides-gallery-grid">
+          <div className="slides-shapes-gallery-grid">
             {names.map((name) => {
               const Icon = freeform.get(name)
               const label = t(`shape.${name}`)
@@ -145,7 +149,7 @@ function GalleryGroups({ groups, prefix }: { groups: Array<{ key: string | null;
                   key={name}
                   type="button"
                   role="menuitem"
-                  className="slides-gallery-cell"
+                  className="slides-shapes-gallery-cell"
                   title={label}
                   aria-label={label}
                   data-active={tools.active === name || undefined}
@@ -154,7 +158,7 @@ function GalleryGroups({ groups, prefix }: { groups: Array<{ key: string | null;
                   onContextMenu={contextMenu(name)}
                   onKeyDown={keyDown(name)}
                 >
-                  {Icon ? <Icon size={ICON_PT - 2} strokeWidth={1.5} aria-hidden="true" /> : <PresetIcon paths={icons[name]} />}
+                  {Icon ? <Icon size={ICON_PT - 2} strokeWidth={1.5} aria-hidden="true" /> : <PresetIcon icon={icons[name]} />}
                 </button>
               )
             })}
@@ -162,7 +166,7 @@ function GalleryGroups({ groups, prefix }: { groups: Array<{ key: string | null;
         </div>
       ))}
       {locking ? (
-        <div className="slides-gallery-lock" style={{ left: locking.x, top: locking.y }} data-testid={`${prefix}-lock-menu`}>
+        <div className="slides-shapes-gallery-lock" style={{ left: locking.x, top: locking.y }} data-testid={`${prefix}-lock-menu`}>
           <MenuItem icon={Lock} label={t('shapes.lock')} onSelect={() => choose(locking.name, true)} testId={`${prefix}-lock`} />
         </div>
       ) : null}

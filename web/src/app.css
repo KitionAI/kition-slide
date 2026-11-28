@@ -377,13 +377,13 @@
 .slides-editor .kui-menu-item.slides-cm-icon { width: 30px; flex: none; justify-content: center; padding: 0; }
 
 /* The shape gallery (plan stage 9): WPS's nine groups of icons, a tooltip naming each. */
-.slides-gallery { position: relative; width: 300px; padding-bottom: 6px; }
-.slides-gallery-grid { display: grid; grid-template-columns: repeat(10, 26px); gap: 2px; padding: 0 10px 4px; }
-.slides-gallery-cell { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--kit-text); cursor: pointer; }
-.slides-gallery-cell:hover, .slides-gallery-cell:focus-visible { border-color: var(--kit-border); background: var(--kit-primary-soft); outline: none; }
-.slides-gallery-cell[data-active] { border-color: var(--kit-primary); color: var(--kit-primary); }
-.slides-gallery-lock { position: absolute; z-index: 2; min-width: 180px; padding: 4px; border: 1px solid var(--kit-border); border-radius: var(--kit-radius-control); background: var(--kit-surface); box-shadow: var(--kit-shadow-card); }
-.slides-editor .kui-line-inline .kui-popover .slides-gallery-cell { display: flex; }
+.slides-shapes-gallery { position: relative; width: 300px; padding-bottom: 6px; }
+.slides-shapes-gallery-grid { display: grid; grid-template-columns: repeat(10, 26px); gap: 2px; padding: 0 10px 4px; }
+.slides-shapes-gallery-cell { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--kit-text); cursor: pointer; }
+.slides-shapes-gallery-cell:hover, .slides-shapes-gallery-cell:focus-visible { border-color: var(--kit-border); background: var(--kit-primary-soft); outline: none; }
+.slides-shapes-gallery-cell[data-active] { border-color: var(--kit-primary); color: var(--kit-primary); }
+.slides-shapes-gallery-lock { position: absolute; z-index: 2; min-width: 180px; padding: 4px; border: 1px solid var(--kit-border); border-radius: var(--kit-radius-control); background: var(--kit-surface); box-shadow: var(--kit-shadow-card); }
+.slides-editor .kui-line-inline .kui-popover .slides-shapes-gallery-cell { display: flex; }
 /* Insert › Table's grid of cells to sweep over (plan stage 9, walkthrough F9). */
 .slides-table-grid { display: grid; gap: 2px; padding: 2px 10px 8px; }
 .slides-table-cell { width: 18px; height: 18px; padding: 0; border: 1px solid var(--kit-border); border-radius: 2px; background: var(--kit-surface); cursor: pointer; }

@@ -513,11 +513,13 @@ fn every_gallery_shape_is_a_tool_with_an_icon_and_shape_tools_lock() {
     let icons = crate::gallery::preset_icons(20.0);
     for info in kition_slide_geom::preset::CATALOG {
         assert!(tool_kind(info.name).is_some(), "{} is a tool", info.name);
-        let paths = icons[info.name].as_array().unwrap_or_else(|| panic!("{} has an icon", info.name));
+        let paths = icons[info.name]["paths"].as_array().unwrap_or_else(|| panic!("{} has an icon", info.name));
+        let view = icons[info.name]["view"].as_array().unwrap();
+        assert!(view[2].as_f64().unwrap() >= 20.0 && view[2] == view[3], "{} is seen whole, square", info.name);
         assert!(paths.iter().any(|path| path["d"].as_str().is_some_and(|d| d.starts_with('M'))), "{} is drawn", info.name);
     }
-    assert!(icons["heart"][0]["fill"].as_bool().unwrap(), "a closed shape is filled");
-    assert!(!icons["line"][0]["fill"].as_bool().unwrap(), "a line is not");
+    assert!(icons["heart"]["paths"][0]["fill"].as_bool().unwrap(), "a closed shape is filled");
+    assert!(!icons["line"]["paths"][0]["fill"].as_bool().unwrap(), "a line is not");
     for name in ["curve", "freeform", "scribble"] {
         assert!(matches!(tool_kind(name), Some(ToolKind::Shape { .. })), "{name} draws");
     }
