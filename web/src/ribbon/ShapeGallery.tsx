@@ -70,18 +70,21 @@ function usePresetIcons(): Icons {
   return icons
 }
 
+/** The engine's presets (names, labels, groups), read once the document is open (the ribbon is drawn before). */
 function usePresets() {
-  const { query } = useSlides()
+  const { query, session } = useSlides()
+  const doc = session.doc
   const [presets, setPresets] = useState<Preset[]>([])
   useEffect(() => {
+    if (!doc) return undefined
     let stale = false
     void query<Preset[]>('shape.presets').then((list) => {
-      if (!stale) setPresets(list ?? [])
+      if (!stale && list?.length) setPresets(list)
     })
     return () => {
       stale = true
     }
-  }, [query])
+  }, [query, doc])
   return presets
 }
 
