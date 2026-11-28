@@ -339,7 +339,8 @@ function beforeClipboard(event: Event) {
 }
 
 /**
- * For the editor's run (slides.tsx): the ribbon's Copy, Cut and Paste of the selection go through
+ * For the editor's run (slides.tsx): the ribbon's (and the context menu's) Copy, Cut, Paste and
+ * Paste Text Only of the selection go through
  * the system clipboard. Answers the run's answer, or null when `id` runs as usual.
  */
 export function clipboardCommand(id: string, params: Record<string, unknown> | undefined): Promise<string | null> | null {
@@ -361,7 +362,7 @@ export function clipboardCommand(id: string, params: Record<string, unknown> | u
     if (sent && started) return started
     return copyWithoutEvent(editor, kind)
   }
-  if (id === 'edit.paste') return readClipboard().then((pasted) => pasteFrom(editor, pasted ?? EMPTY, false))
+  if (id === 'edit.paste' || id === 'edit.pasteText') return readClipboard().then((pasted) => pasteFrom(editor, pasted ?? EMPTY, id === 'edit.pasteText'))
   return null
 }
 

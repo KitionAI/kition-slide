@@ -23,6 +23,9 @@ pub enum PointerKind {
     Move,
     DoubleClick,
     TripleClick,
+    /// A right-click (or Ctrl+click on the Mac): chooses what the context menu is for
+    /// ([`Session::context_target`]) and starts nothing.
+    Context,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -539,7 +542,92 @@ impl Session {
                     Ok(Value::Null)
                 }
             }
+            PointerKind::Context => self.context_press(p, tol),
         }
+    }
+
+    /// A right-click (plan stage 6A; WPS W-J3 to W-J9): settles what the context menu is for, as a
+    /// press would choose it, without starting a gesture, entering text or leaving an undo step.
+    /// In the text being edited (its frame, and a little around it) the caret and the selected
+    /// characters stay; in the cells selected in a table they stay selected; on a selected object,
+    /// its handles or the band along its frame the selection stays, several objects too; in a
+    /// table's cells the caret goes into the cell pressed; on another object that one alone is
+    /// selected; on the empty slide nothing is. With a tool other than Select, or a gesture under
+    /// way, nothing changes. Answers [`Session::context_target`].
+    fn context_press(&mut self, p: Point, tol: f64) -> Result<Value> {
+        if matches!(self.tool.kind, ToolKind::Select) && self.tool.drag.is_none() {
+            self.context_select(p, tol)?;
+        }
+        Ok(self.context_target())
+    }
+
+    fn context_select(&mut self, p: Point, tol: f64) -> Result<()> {
+        let st = self.doc()?;
+        if let Some(t) = st.selection.text.as_ref().filter(|t| !t.notes) {
+            let keep = match t.cell {
+                Some(cell) => table::hit_cell(st, t.shape, p).and_then(|(r, c)| table_owner(st, t.shape, r, c)) == Some(cell),
+                None => st.shape(t.shape).is_some_and(|sh| {
+                    let x = xfrm_of(&st.doc, &st.selection, sh);
+                    let local = x.affine().inverse() * p;
+                    local.x >= -tol && local.y >= -tol && local.x <= x.w + tol && local.y <= x.h + tol
+                }),
+            };
+            if keep {
+                return Ok(());
+            }
+        }
+        if let Some((id, ..)) = st.selection.cells
+            && let Some(cell) = table::hit_cell(st, id, p)
+            && let Some((from, to)) = cmd::table::selected_range(st, id)
+            && (from.0..=to.0).contains(&cell.0)
+            && (from.1..=to.1).contains(&cell.1)
+        {
+            return Ok(());
+        }
+        match self.hit_test(p, tol) {
+            // Handles are a selected object's.
+            Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. } | Hit::LineEnd { .. }) => Ok(()),
+            Some(Hit::Shape { id, .. } | Hit::TableDivider { id, .. }) => {
+                let st = self.doc()?;
+                if let Some(cell) = context_cell(st, id, p, tol) {
+                    self.execute("text.edit", &json!({"id": id, "cell": [cell.0, cell.1]}))?;
+                    let st = self.doc()?;
+                    let pos = st.shape(id).map(|sh| text_pos(st, sh, p)).unwrap_or((0, 0));
+                    self.execute("text.select", &json!({"anchor": pos, "caret": pos}))?;
+                    return Ok(());
+                }
+                if st.selection.text.is_none() && st.selection.cells.is_none() && st.selection.shapes.contains(&id) {
+                    return Ok(());
+                }
+                self.select(|_, sel| {
+                    sel.shapes = vec![id];
+                    sel.text = None;
+                    sel.cells = None;
+                })
+            }
+            None => self.select(|_, sel| {
+                sel.shapes.clear();
+                sel.text = None;
+                sel.cells = None;
+            }),
+        }
+    }
+
+    /// What a context menu is for now (plan stage 6A): `menu` is `text` while text on the slide is
+    /// edited, `cell` while a table's cell is edited or its cells are selected, `objects` with
+    /// objects selected, `slide` with nothing; `ids` and `kinds` are the selected objects'.
+    pub fn context_target(&self) -> Value {
+        let Some(st) = self.active() else { return json!({"menu": "slide", "ids": [], "kinds": []}) };
+        let menu = match st.selection.text.as_ref().filter(|t| !t.notes) {
+            Some(t) if t.cell.is_some() => "cell",
+            Some(_) => "text",
+            None if st.selection.cells.is_some() => "cell",
+            None if !st.selection.shapes.is_empty() => "objects",
+            None => "slide",
+        };
+        let ids: Vec<u32> = st.selection.shapes.iter().map(|id| id.0).collect();
+        let kinds: Vec<&str> = st.selected_shapes().iter().map(|sh| sh.kind_name()).collect();
+        json!({"menu": menu, "ids": ids, "kinds": kinds})
     }
 
     fn begin(&mut self, label: &str) {
@@ -1406,6 +1494,30 @@ pub(crate) fn text_press(st: &crate::DocState, id: ShapeId, p: Point, tol: f64) 
     }
     let edited = st.selection.text.as_ref().is_some_and(|t| t.shape == id && !t.notes && t.cell.is_none());
     is_text_first(st, id) || over_lines(st, sh, p, tol, edited)
+}
+
+/// The cell of table `id` a right-click at `p` puts the caret in: one inside the table's frame, not
+/// on the band along it (which takes the table, as a press there does).
+fn context_cell(st: &crate::DocState, id: ShapeId, p: Point, tol: f64) -> Option<(usize, usize)> {
+    let sh = st.shape(id)?;
+    if !matches!(sh.kind, ShapeKind::Table(_)) {
+        return None;
+    }
+    let x = xfrm_of(&st.doc, &st.selection, sh);
+    let local = x.affine().inverse() * p;
+    if local.x < tol || local.y < tol || local.x > x.w - tol || local.y > x.h - tol {
+        return None;
+    }
+    let (r, c) = table::hit_cell(st, id, p)?;
+    table_owner(st, id, r, c)
+}
+
+/// The cell that owns cell (`r`, `c`) of table `id` (itself, or the merged cell it is part of).
+fn table_owner(st: &crate::DocState, id: ShapeId, r: usize, c: usize) -> Option<(usize, usize)> {
+    match &st.shape(id)?.kind {
+        ShapeKind::Table(table) => table.cell_owner(r, c),
+        _ => None,
+    }
 }
 
 /// Whether shape `id` is one of several shapes selected (none of whose text is edited): a press on

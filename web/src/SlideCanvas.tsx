@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
+import { KitDocumentCanvas, drawPresence, isMac, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
 import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
@@ -7,9 +7,11 @@ import { slideScrollArea } from './useSlideWheel'
 import { CARET_BLINK_MS, isCaretShown, setCaretShown } from './handles'
 import { useInputMethod } from './inputMethod'
 import { useFileDrop } from './clipboard'
+import type { OpenMenu } from './ContextMenu'
+import type { ContextTarget } from './contextMenus'
 
-export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
-  const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled } = useSlides()
+export function SlideCanvas({ canvas, viewMemory, onZoom, onMenu }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void; onMenu: (menu: OpenMenu) => void }) {
+  const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled, contextMenu } = useSlides()
   const tools = useKitTools()
   const [position, setPosition] = useState<RasterView>({ x: 0, y: 0, zoom: 1 })
   const area = session.state?.area
@@ -98,7 +100,7 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
     </div>
   }
   // Where the person presses on the slide: a comment with nothing selected goes there (a host's thread).
-  const pressed = (event: PointerEvent) => {
+  const remember = (event: { target: EventTarget; clientX: number; clientY: number }) => {
     const surface = event.target
     if (!hostComments || !area || !(surface instanceof HTMLCanvasElement) || !surface.classList.contains('kui-canvas-surface')) return
     const box = surface.getBoundingClientRect()
@@ -107,15 +109,71 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
     const inside = x >= 0 && y >= 0 && x <= area.x1 - area.x0 && y <= area.y1 - area.y0
     commentPoint.current = inside ? { slide: session.state?.current ?? 0, x, y } : null
   }
+  const pressed = (event: PointerEvent) => {
+    // Ctrl+click on the Mac is a right-click (its context menu follows): no press of the tool.
+    if (isMac() && event.button === 0 && event.ctrlKey && !event.metaKey && onSurface(event.target)) {
+      event.stopPropagation()
+      return
+    }
+    remember(event)
+  }
+  // The context menu (plan stage 6A, walkthrough C11): the canvas gives the tool no right-click,
+  // so the engine is asked here, in the input order, what it is for (the object pressed becomes
+  // the selection there, the text being edited keeps its caret); then the menu opens at the
+  // pointer. With no point (Shift+F10) the selection stays and the menu opens at it.
+  const latest = useRef({ session, position, tools, onMenu, canvas })
+  latest.current = { session, position, tools, onMenu, canvas }
+  const openMenu = (point: { x: number; y: number } | null, client: { x: number; y: number } | null) => {
+    const { session: now, position: shown } = latest.current
+    const engine = now.doc
+    if (!engine) return
+    void now
+      .inOrder(async () => {
+        const answer = await engine.invoke<string>('contextMenu', point?.x ?? Number.NaN, point?.y ?? Number.NaN, shown.zoom)
+        // A settled tool call brings the editor's state up to date (the selection may have changed).
+        await now.tool('tool', [], true)
+        return answer
+      })
+      .then((answer) => {
+        const target = JSON.parse(answer) as ContextTarget
+        const { tools: engineTools, onMenu: open, canvas: view } = latest.current
+        engineTools?.refresh()
+        void view.current?.retryRender()
+        let at = client
+        if (!at) {
+          const surface = region.current?.querySelector('.kui-canvas-surface')
+          const box = surface?.getBoundingClientRect()
+          const zoom = latest.current.position.zoom
+          at = box ? { x: box.left + (target.at[0] - latest.current.position.x) * zoom, y: box.top + (target.at[1] - latest.current.position.y) * zoom } : { x: 0, y: 0 }
+        }
+        open({ ...target, client: at })
+      })
+      .catch(() => undefined)
+  }
+  const menuAt = (event: MouseEvent) => {
+    if (!onSurface(event.target)) return
+    event.preventDefault()
+    const box = (event.target as HTMLElement).getBoundingClientRect()
+    remember(event)
+    openMenu({ x: (event.clientX - box.left) / position.zoom + position.x, y: (event.clientY - box.top) / position.zoom + position.y }, { x: event.clientX, y: event.clientY })
+  }
+  const opener = useRef(openMenu)
+  opener.current = openMenu
+  useEffect(() => {
+    const open = () => opener.current(null, null)
+    contextMenu.current = open
+    return () => {
+      if (contextMenu.current === open) contextMenu.current = null
+    }
+  }, [contextMenu])
   // A third click in text being edited selects its paragraph (plan 0B): the engine's command, in the
   // input order after the presses before it, which decide whether text is being edited by then. The
   // canvas gives the tool presses and double clicks only.
   const clicked = (event: MouseEvent) => {
-    const surface = event.target
-    if (event.detail !== 3 || !(surface instanceof HTMLCanvasElement) || !surface.classList.contains('kui-canvas-surface')) return
+    if (event.detail !== 3 || !onSurface(event.target)) return
     void runWhenEnabled('text.selectParagraph')
   }
-  return <div ref={region} className="slides-canvas-view" data-dropping={dropping || undefined} data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed} onClick={clicked}>
+  return <div ref={region} className="slides-canvas-view" data-dropping={dropping || undefined} data-ruler={view.ruler} data-grayscale={view.grayscale} onPointerDownCapture={pressed} onClick={clicked} onContextMenu={menuAt}>
     {view.ruler ? <>{ruler('x')}{ruler('y')}</> : null}
     <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={area ?? null} panBounds={panBounds} framed={false} decorate={decorate} onView={(raster) => { setPosition(raster); views.set(raster); onZoom(raster.zoom) }} testId="slides-canvas-region">
       {hostComments ? <CanvasMarkers view={position} /> : null}
@@ -123,4 +181,9 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
       <CanvasScrollbars views={views} content={(shown) => slideScrollArea(area, shown.zoom)} canvas={canvas} />
     </KitDocumentCanvas>
   </div>
+}
+
+/** Whether `target` is the canvas's drawing surface (the slide and what is around it). */
+function onSurface(target: EventTarget | null): target is HTMLCanvasElement {
+  return target instanceof HTMLCanvasElement && target.classList.contains('kui-canvas-surface')
 }

@@ -1009,6 +1009,82 @@ impl SlideDocument {
         self.session.set_preedit(text, cursor).map_err(engine_error)
     }
 
+    /// A press at canvas height `y` on another slide makes it the current one, as clicking its
+    /// thumbnail does; answers the slide pressed.
+    fn press_slide(&mut self, y: f64) -> Result<usize, String> {
+        let target = self.slide_at(y);
+        if target != self.current_slide() {
+            self.session
+                .execute("slide.go", &json!({ "index": target }))
+                .or_else(|_| {
+                    self.session
+                        .select(|_, selection| {
+                            selection.slide = target;
+                            selection.shapes.clear();
+                            selection.text = None;
+                        })
+                        .map(|()| Value::Null)
+                })
+                .map_err(engine_error)?;
+        }
+        Ok(target)
+    }
+
+    /// A context menu (plan stage 6A, walkthrough C11): a right-click at canvas point (`x`, `y`)
+    /// chooses what it is for in the engine ([`kition_slide_engine::Session::context_target`]: the
+    /// object pressed becomes the selection, the text being edited keeps its caret); with no point
+    /// (Shift+F10) the selection stays as it is. Answers that target and `at`, the canvas point the
+    /// menu opens at: the point pressed, else the caret's foot while text is edited, else the
+    /// middle of the selected objects, else of the slide. A person who may only comment, or a
+    /// gesture under way, changes nothing.
+    pub fn context_menu(&mut self, point: Option<(f64, f64)>, zoom: f64) -> Result<Value, String> {
+        self.zoom = if zoom.is_finite() && zoom > 0.0 { zoom } else { 1.0 };
+        let point = point.filter(|(x, y)| x.is_finite() && y.is_finite());
+        if let Some((x, y)) = point
+            && self.session.comment_only().is_none()
+            && self.gesture_slide.is_none()
+            && !self.session.tool.dragging()
+        {
+            let slide = self.press_slide(y)?;
+            let area = self.area(slide);
+            let ev = PointerEvent { kind: PointerKind::Context, x: x - area.x, y: y - area.y, mods: Mods::default(), tol: HIT_PX / self.zoom };
+            self.pointer_at = Some(Point::new(ev.x, ev.y));
+            self.session.pointer(ev).map_err(engine_error)?;
+        }
+        let mut target = self.session.context_target();
+        let at = point.or_else(|| self.caret_line(None).map(|[x0, _, _, y1]| (x0, y1)).or_else(|| self.selection_middle()));
+        let (x, y) = at.unwrap_or_else(|| {
+            let area = self.area(self.current_slide());
+            (area.x + area.w / 2.0, area.y + area.h / 2.0)
+        });
+        if let Some(object) = target.as_object_mut() {
+            object.insert("at".to_owned(), json!([x, y]));
+        }
+        Ok(target)
+    }
+
+    /// The middle of the selected objects' bounds on the current slide, in canvas points.
+    fn selection_middle(&self) -> Option<(f64, f64)> {
+        let st = self.session.active()?;
+        let mut bounds: Option<(f64, f64, f64, f64)> = None;
+        for shape in st.selected_shapes() {
+            let x = xfrm_of(&st.doc, &st.selection, shape);
+            let a = x.affine();
+            for corner in [Point::new(0.0, 0.0), Point::new(x.w, 0.0), Point::new(0.0, x.h), Point::new(x.w, x.h)] {
+                let q = a * corner;
+                if !(q.x.is_finite() && q.y.is_finite()) {
+                    continue;
+                }
+                bounds = Some(match bounds {
+                    Some((x0, y0, x1, y1)) => (x0.min(q.x), y0.min(q.y), x1.max(q.x), y1.max(q.y)),
+                    None => (q.x, q.y, q.x, q.y),
+                });
+            }
+        }
+        let (x0, y0, x1, y1) = bounds?;
+        Some(self.to_canvas(Point::new((x0 + x1) / 2.0, (y0 + y1) / 2.0)))
+    }
+
     fn respond(&mut self) -> ToolResponse {
         self.take_requests();
         let mut requests: Vec<ToolRequest> = self.requests.borrow_mut().drain(..).collect();
@@ -1750,24 +1826,9 @@ impl KitTools for SlideDocument {
             PointerAction::Up => PointerKind::Up,
             PointerAction::DoubleClick => PointerKind::DoubleClick,
         };
-        // A press on another slide makes it the current one, as clicking its thumbnail does.
         let slide = match kind {
             PointerKind::Down | PointerKind::DoubleClick if self.gesture_slide.is_none() && !self.session.tool.drawing_freeform() => {
-                let target = self.slide_at(event.y);
-                if target != self.current_slide() {
-                    self.session
-                        .execute("slide.go", &json!({ "index": target }))
-                        .or_else(|_| {
-                            self.session
-                                .select(|_, selection| {
-                                    selection.slide = target;
-                                    selection.shapes.clear();
-                                    selection.text = None;
-                                })
-                                .map(|()| Value::Null)
-                        })
-                        .map_err(engine_error)?;
-                }
+                let target = self.press_slide(event.y)?;
                 self.gesture_slide = Some(target);
                 target
             }
@@ -1878,6 +1939,14 @@ pub mod web {
         #[wasm_bindgen(js_name = textCaret)]
         pub fn text_caret(&mut self) -> Option<Vec<f64>> {
             self.0.text_caret().map(|line| line.to_vec())
+        }
+
+        /// A context menu at canvas point (`x`, `y`), or for the selection as it is when either is
+        /// not a number (Shift+F10): see `SlideDocument::context_menu`. Answers its JSON.
+        #[wasm_bindgen(js_name = contextMenu)]
+        pub fn context_menu(&mut self, x: f64, y: f64, zoom: f64) -> Result<String, JsError> {
+            let point = (x.is_finite() && y.is_finite()).then_some((x, y));
+            self.0.context_menu(point, zoom).map(|answer| answer.to_string()).map_err(error)
         }
 
         /// The canvas around the slides in `#rrggbb` (the editor's canvas color).

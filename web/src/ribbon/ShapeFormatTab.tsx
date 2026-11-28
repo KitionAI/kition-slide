@@ -48,6 +48,7 @@ import { releaseField } from '../focus'
 import { AlignMenu, GroupMenu, OrderButtons, RotateMenu } from './ArrangeMenu'
 import { ColorPicker, ShapesMenu } from './common'
 import { usePicturePick } from './HomeTab'
+import { CHANGE_TO } from '../contextMenus'
 
 /** Points in a centimetre: sizes show in centimetres, as WPS shows them. */
 const CM = 72 / 2.54
@@ -253,7 +254,6 @@ function OutlineMenu({ label, icon, testId, primary }: { label: string; icon: Ic
 }
 
 /** The shapes Change Shape offers: the common ones, by name in the person's language. */
-const CHANGE_TO = ['rect', 'roundRect', 'ellipse', 'triangle', 'rtTriangle', 'parallelogram', 'trapezoid', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star5', 'rightArrow', 'leftArrow', 'upArrow', 'downArrow', 'heart', 'cloud']
 const MERGE: Array<{ op: string; icon: IconComponent }> = [
   { op: 'union', icon: SquaresUniteIcon },
   { op: 'combine', icon: SquaresExcludeIcon },

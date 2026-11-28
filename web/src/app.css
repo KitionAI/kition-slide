@@ -329,3 +329,10 @@
 
 /* The link dialog. */
 .slides-link-form { display: grid; gap: 6px; min-width: 320px; }
+
+/* The slide's context menu (plan stage 6A): a row of icons on top (W-J3), a smaller second choice
+   beside some rows (Group with Ungroup, W-J4), submenus beside their rows. */
+.slides-editor .slides-cm-bar { display: flex; gap: 2px; padding: 0 2px; }
+.slides-editor .slides-cm-pair { display: flex; gap: 2px; }
+.slides-editor .slides-cm-pair > .kui-menu-item:first-child { flex: 1; min-width: 0; }
+.slides-editor .kui-menu-item.slides-cm-icon { width: 30px; flex: none; justify-content: center; padding: 0; }

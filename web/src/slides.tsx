@@ -189,6 +189,8 @@ function useSlidesState(host: HostConnection, t: Strings) {
   const [notes, setNotes] = useState('')
   /** Whether the link dialog (Insert › Link, Cmd+K) is open. */
   const [linking, setLinking] = useState(false)
+  /** Opens the slide's context menu for the selection as it is (Shift+F10): the canvas sets it. */
+  const contextMenu = useRef<(() => void) | null>(null)
 
   // After every change: the selection's formatting, the slides' facts, the slide's notes.
   const current = session.state?.current ?? 0
@@ -376,6 +378,7 @@ function useSlidesState(host: HostConnection, t: Strings) {
     view,
     linking,
     setLinking,
+    contextMenu,
     threads,
     comment,
     access,

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-c11-context-menu
+feature: slide.editor.context-menus
+intent: "A right-click on the slide opens a context menu, as in WPS (walkthrough C11, G9; W-J3 to W-J9): the object under the pointer is selected first, several selected objects stay selected, the text being edited keeps its caret, a table's cell takes the caret, the empty slide selects nothing; the menu holds WPS's rows for a shape, text, a cell and the slide, a row runs its command, Escape closes it and the slide has the keyboard again, and Shift+F10 opens it for the selection. A right-click on the slide used to do nothing at all."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/context-menu.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/context-menu.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 240
+since: "2026-11-27"

@@ -2079,3 +2079,101 @@ fn composing_on_a_selected_shape_edits_its_text_and_with_nothing_to_type_into_sh
     assert!(s.preedit().is_none());
     assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().doc, &doc));
 }
+
+/// A blank slide with two rectangles (`A` at 100,100 and `B` at 400,100, 200 x 100, each with a
+/// word in its middle) and a 2 x 2 table at 100,300 (200 x 80); nothing selected.
+fn context_slide() -> (Session, u64, u64, u64) {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 200, 100], "text": "A"})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.insert", &json!({"preset": "rect", "rect": [400, 100, 200, 100], "text": "B"})).unwrap()["id"].as_u64().unwrap();
+    let t = s.execute("table.insert", &json!({"rows": 2, "cols": 2, "rect": [100, 300, 200, 80]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    (s, a, b, t)
+}
+
+fn right_click(s: &mut Session, x: f64, y: f64) -> serde_json::Value {
+    s.pointer(PointerEvent { kind: PointerKind::Context, x, y, mods: Mods::default(), tol: 3.0 }).unwrap()
+}
+
+fn selected_ids(s: &Session) -> Vec<u64> {
+    s.doc().unwrap().selection.shapes.iter().map(|id| u64::from(id.0)).collect()
+}
+
+#[test]
+fn a_right_click_selects_the_object_under_it_and_starts_nothing() {
+    let (mut s, a, b, _) = context_slide();
+    let steps = s.doc().unwrap().history.undo.len();
+    // On an unselected shape (away from its word): that shape alone, an object menu.
+    let answer = right_click(&mut s, 120.0, 115.0);
+    assert_eq!(selected_ids(&s), vec![a]);
+    assert_eq!(answer["menu"], "objects", "{answer}");
+    assert_eq!(answer["kinds"][0], "shape", "{answer}");
+    assert!(s.doc().unwrap().selection.text.is_none(), "a right-click never enters text");
+    assert!(!s.tool.dragging(), "a right-click starts no gesture");
+    // On its word too: still the object, no caret.
+    right_click(&mut s, 200.0, 150.0);
+    assert!(s.doc().unwrap().selection.text.is_none());
+    // On another shape: that one instead.
+    right_click(&mut s, 420.0, 115.0);
+    assert_eq!(selected_ids(&s), vec![b]);
+    // On the empty slide: nothing, the slide's menu.
+    let answer = right_click(&mut s, 800.0, 480.0);
+    assert!(selected_ids(&s).is_empty());
+    assert_eq!(answer["menu"], "slide", "{answer}");
+    assert_eq!(s.doc().unwrap().history.undo.len(), steps, "a right-click leaves no undo step");
+}
+
+#[test]
+fn a_right_click_in_the_selection_keeps_it() {
+    let (mut s, a, b, _) = context_slide();
+    s.execute("edit.select", &json!({"ids": [a, b]})).unwrap();
+    let answer = right_click(&mut s, 420.0, 115.0);
+    assert_eq!(selected_ids(&s), vec![a, b], "{answer}");
+    assert_eq!(answer["ids"], json!([a, b]));
+    // On a selected object's handle (its bottom-right corner) too.
+    right_click(&mut s, 600.0, 200.0);
+    assert_eq!(selected_ids(&s), vec![a, b]);
+}
+
+#[test]
+fn a_right_click_in_the_text_being_edited_keeps_the_caret() {
+    let (mut s, a, _, _) = context_slide();
+    s.execute("text.edit", &json!({"id": a, "all": true})).unwrap();
+    let before = s.doc().unwrap().selection.text.clone().unwrap();
+    let answer = right_click(&mut s, 110.0, 190.0);
+    assert_eq!(answer["menu"], "text", "{answer}");
+    let after = s.doc().unwrap().selection.text.clone().unwrap();
+    assert_eq!((after.shape, after.anchor, after.caret), (before.shape, before.anchor, before.caret));
+    // Outside it: the text is left, as a press there would.
+    let answer = right_click(&mut s, 800.0, 480.0);
+    assert!(s.doc().unwrap().selection.text.is_none());
+    assert_eq!(answer["menu"], "slide");
+}
+
+#[test]
+fn a_right_click_in_a_table_puts_the_caret_in_its_cell() {
+    let (mut s, _, _, t) = context_slide();
+    // The bottom-right cell (row 1, column 1).
+    let answer = right_click(&mut s, 250.0, 360.0);
+    assert_eq!(answer["menu"], "cell", "{answer}");
+    let text = s.doc().unwrap().selection.text.clone().unwrap();
+    assert_eq!((u64::from(text.shape.0), text.cell), (t, Some((1, 1))));
+    // A row inserted from there goes below that cell's row.
+    s.execute("table.insertRowBelow", &json!({})).unwrap();
+    let rows = s.execute("table.state", &json!({"id": t})).unwrap()["rows"].as_u64().unwrap();
+    assert_eq!(rows, 3);
+    // Cells selected stay selected when one of them is right-clicked.
+    s.execute("table.selectCells", &json!({"id": t, "from": [0, 0], "to": [0, 1]})).unwrap();
+    right_click(&mut s, 150.0, 310.0);
+    assert!(s.doc().unwrap().selection.cells.is_some());
+}
+
+#[test]
+fn a_right_click_with_a_drawing_tool_changes_nothing() {
+    let (mut s, a, _, _) = context_slide();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    s.set_tool(ToolKind::Shape { preset: "rect".into() });
+    right_click(&mut s, 800.0, 480.0);
+    assert_eq!(selected_ids(&s), vec![a]);
+}

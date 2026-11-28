@@ -40,13 +40,15 @@ import { CONTEXT_PRIMARY, RIBBON_MENUS } from './ribbon/menus'
 import { FileTab } from './ribbon/FileTab'
 import { ExportDialog } from './ExportDialog'
 import { useEngineBackdrop } from './backdrop'
-import { returnKeyboardLater, takeKeyboardOnOpen, useKeyboardFallback } from './focus'
+import { focusEditor, returnKeyboardLater, takeKeyboardOnOpen, useKeyboardFallback } from './focus'
 import { slideKeys, usePopupEscape } from './editorKeys'
 import { drawSlideHandle } from './handles'
 import { LinkDialog } from './LinkDialog'
 import { ZoomBox } from './ZoomBox'
 import { steppedCanvas } from './zoom'
 import { useSystemClipboard } from './clipboard'
+import { SlideContextMenu, type OpenMenu } from './ContextMenu'
+import type { ContextTarget } from './contextMenus'
 
 const HOST_TOOLS = { hand: HAND_TOOL }
 
@@ -119,6 +121,15 @@ function Editor({ slides }: { slides: Slides }) {
     setTab(wanted ?? ownTab.current)
   }, [wanted])
   const [exporting, setExporting] = useState(false)
+  // The slide's context menu (plan stage 6A): open while set. Closing it gives the slide the
+  // keyboard again, the text being edited first.
+  const [menu, setMenu] = useState<OpenMenu | null>(null)
+  const closeMenu = useCallback(() => {
+    setMenu(null)
+    focusEditor(slides.session.state?.editingText === true)
+  }, [slides.session.state?.editingText])
+  // Format Object… brings the object's own tab forward (stage 1), Shape Format for text.
+  const formatObject = useCallback((target: ContextTarget) => chooseTab(contextTab(target.kinds, false) ?? 'shapeFormat'), [chooseTab])
   const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS, drawOverlay: drawSlideHandle })
   const endShow = view.endShow
   // The show ended: the editor has the keyboard again (walkthrough K2).
@@ -211,13 +222,14 @@ function Editor({ slides }: { slides: Slides }) {
         <div className="kui-row">
           <div className="slides-main" ref={canvasRegion}>
             {view.mode === 'sorter' ? <SlidesPanel /> : view.mode === 'notesPage' ? <NotesPage /> : <>
-              <SlideCanvas canvas={canvas} viewMemory={viewMemory} onZoom={setZoom} />
+              <SlideCanvas canvas={canvas} viewMemory={viewMemory} onZoom={setZoom} onMenu={setMenu} />
               {view.notesOpen ? <FrameChrome><NotesPane /></FrameChrome> : null}
             </>}
           </div>
         </div>
         {exporting ? <ExportDialog onClose={() => setExporting(false)} /> : null}
         {slides.linking ? <LinkDialog onClose={() => slides.setLinking(false)} /> : null}
+        {menu ? <SlideContextMenu menu={menu} onClose={closeMenu} onFormat={formatObject} /> : null}
         {view.showing != null && doc ? <SlideShow doc={doc} from={view.showing.from} slides={state?.slides ?? 1} onEnd={showEnded} hint={t('endShow')} options={view.showing} /> : null}
       </EditorFrame>
     </KitEditorProvider>

@@ -67,7 +67,7 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Exact size/position, lock aspect | yes | yes: Shape Format's height, width and rotation fields take a typed value (centimetres, or with its unit), with the aspect ratio locked on demand (`web/tests/hand/format.mjs`) |
 | Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
-| Context menus on shapes, slides, text, thumbnails | yes | yes, shorter |
+| Context menus on shapes, slides, text, thumbnails | yes | yes: on the slide a right-click (Ctrl+click on the Mac) selects what it is on first and opens WPS's rows for a shape, a picture, text, a table cell or the empty slide; Shift+F10 opens it for the selection (`web/tests/hand/context-menu.mjs`); the thumbnails' menu is shorter |
 | Drag and drop of files and between thumbnails | yes | partial: picture files dropped on the slide go where they are dropped (`web/tests/hand/clipboard.mjs`); a dropped slide file is not opened (the host opens files); thumbnails reorder by dragging |
 | Copy, cut and paste with other apps | yes | yes, plain text: what Cmd+C copies reaches other apps as text; their text pastes at the caret or as a new text box; Cmd+Alt+Shift+V pastes text only (`web/tests/hand/clipboard.mjs`) |
 | Image paste from the clipboard | yes | yes: 0.75 pt a pixel, in the middle of the slide (`web/tests/hand/clipboard.mjs`) |

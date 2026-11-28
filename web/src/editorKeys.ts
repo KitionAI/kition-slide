@@ -13,7 +13,7 @@
  *   and last slide, the arrows to the next and previous one, Tab selects the first object (Shift+Tab
  *   the last). Delete goes on to the engine's Delete, which deletes nothing then (only the slide
  *   list deletes slides, WPS W-Q1). Cmd+Shift+Z redoes as Cmd+Y does, Cmd+K opens the link dialog,
- *   Cmd+Alt+M a new comment, Cmd+1 shows 100%.
+ *   Cmd+Alt+M a new comment, Cmd+1 shows 100%, Shift+F10 and the menu key open the context menu.
  */
 import { isMac, type KitCanvasHandle } from '@kition/sdk/editor'
 import { useEffect, type RefObject } from 'react'
@@ -105,6 +105,12 @@ export function slideKeys(slides: Slides, canvas: RefObject<KitCanvasHandle | nu
     }
     if (command(event) && event.altKey && !event.shiftKey && (code === 'KeyM' || event.key.toLowerCase() === 'm')) {
       if (slides.canNewComment) void slides.newComment()
+      return true
+    }
+    // Shift+F10 and the menu key open the context menu for the selection (plan stage 6A).
+    if ((event.key === 'F10' && event.shiftKey && !command(event) && !event.altKey) || (event.key === 'ContextMenu' && plain(event))) {
+      if (!onSlide(event.target) || !slides.contextMenu.current) return false
+      slides.contextMenu.current()
       return true
     }
     if (command(event) && !event.shiftKey && !event.altKey && (event.key === '1' || code === 'Digit1')) {

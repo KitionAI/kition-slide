@@ -434,3 +434,26 @@ fn the_caret_lines_up_with_the_text_at_every_vertical_anchor() {
         assert!((first - top) < 8.0 && (bottom - last) < 8.0, "{anchor}: the caret hugs the line");
     }
 }
+
+#[test]
+fn a_right_click_chooses_the_menu_in_the_engine_and_opens_it_where_it_was_pressed() {
+    let mut doc = SlideDocument::create("Menu.kslide", 960, 540).unwrap();
+    doc.execute("slide.new", json!({ "layout": "blank" })).unwrap();
+    let id = doc.execute("shape.insert", json!({ "preset": "rect", "rect": [100, 100, 200, 100] })).unwrap()["id"].as_u64().unwrap();
+    doc.execute("edit.deselectAll", json!({})).unwrap();
+    // The slides stacked: the second one's area, below the first.
+    let area = doc.area(1);
+    let answer = doc.context_menu(Some((area.x + 150.0, area.y + 120.0)), 1.0).unwrap();
+    assert_eq!(answer["menu"], "objects", "{answer}");
+    assert_eq!(answer["ids"], json!([id]));
+    assert_eq!(answer["at"], json!([area.x + 150.0, area.y + 120.0]));
+    // Shift+F10: the selection as it is, the menu in the middle of it.
+    let answer = doc.context_menu(None, 1.0).unwrap();
+    assert_eq!(answer["ids"], json!([id]));
+    assert_eq!(answer["at"], json!([area.x + 200.0, area.y + 150.0]));
+    // A right-click on the first slide makes it the current one, with nothing selected there.
+    let first = doc.area(0);
+    let answer = doc.context_menu(Some((first.x + 900.0, first.y + 500.0)), 1.0).unwrap();
+    assert_eq!(answer["menu"], "slide", "{answer}");
+    assert_eq!(doc.inspect().unwrap()["slide"], 0);
+}
