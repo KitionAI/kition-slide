@@ -69,6 +69,8 @@ pub const FRAME_BAND_PX: f64 = 10.0;
 pub const DRAG_START_PX: f64 = 3.5;
 /// Free rotation lands on whole degrees (WPS W-B6), Shift on multiples of this.
 pub const ROTATE_STEP_DEG: f64 = 15.0;
+/// Gaps narrower than this (points) are no spacing to repeat.
+const MIN_GAP_PT: f64 = 1.0;
 
 /// Points per screen pixel, from a pointer event's tolerance.
 pub fn px_of(tol: f64) -> f64 {
@@ -883,15 +885,18 @@ impl Session {
                 let bounds = origs.iter().map(|(_, x)| x.bounds()).reduce(|a, b| a.union(b)).unwrap_or_default();
                 let moved_b = bounds + d;
                 // Cmd is a plain move that snaps as ever (WPS W-A8); a copy follows the pointer.
-                let (mut snap, mut guides) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !copy);
+                let (mut snap, [across_guides, down_guides]) = self.snap_rect(moved_b, &ids_now, tol * 1.5, !copy);
                 match lock {
                     Some(true) => snap.y = 0.0,
                     Some(false) => snap.x = 0.0,
                     None => {}
                 }
-                guides.retain(|g| lock.is_none_or(|across| g.vertical == across));
                 d += snap;
-                self.tool.guides = guides;
+                self.tool.guides = match lock {
+                    Some(true) => across_guides,
+                    Some(false) => down_guides,
+                    None => across_guides.into_iter().chain(down_guides).collect(),
+                };
                 let origs2: Vec<(ShapeId, Xfrm)> =
                     if duplicate { ids_now.iter().copied().zip(origs.iter().map(|o| o.1)).collect() } else { origs.clone() };
                 self.edit(|doc, sel| {
@@ -1432,31 +1437,123 @@ impl Session {
         (self.prefs.snap_to_grid && step.is_finite() && step > 0.0).then(|| kition_slide_geom::snap(v, step) - v)
     }
 
-    /// Smart guides: snap `r` edges/centres to the slide and other shapes, else its top-left corner
-    /// to the grid. Returns the offset to apply and the guides to draw. Off (`enabled` false), the
-    /// box follows the pointer.
-    fn snap_rect(&self, r: Rect, exclude: &[ShapeId], tol: f64, enabled: bool) -> (Vec2, Vec<Guide>) {
+    /// Smart guides: snap `r` edges/centres to the slide and other shapes, or to an equal spacing
+    /// with its neighbours, whichever is nearer, else its top-left corner to the grid. Returns the
+    /// offset to apply and the guides to draw for each axis (across, then down). Off (`enabled`
+    /// false), the box follows the pointer.
+    fn snap_rect(&self, r: Rect, exclude: &[ShapeId], tol: f64, enabled: bool) -> (Vec2, [Vec<Guide>; 2]) {
         if !enabled {
-            return (Vec2::ZERO, vec![]);
+            return (Vec2::ZERO, [vec![], vec![]]);
         }
         let (xs, ys) = self.snap_targets(exclude);
         let mut off = Vec2::ZERO;
-        let mut guides = vec![];
-        if let Some((d, x, b)) = nearest_target(&[r.x0, r.center().x, r.x1], &xs, tol) {
-            off.x = d;
-            let rr = r + Vec2::new(d, 0.0);
-            guides.push(Guide { vertical: true, pos: x, from: b.y0.min(rr.y0), to: b.y1.max(rr.y1) });
-        } else if let Some(d) = self.grid_pull(r.x0) {
-            off.x = d;
+        let mut guides = [vec![], vec![]];
+        let edge_x = nearest_target(&[r.x0, r.center().x, r.x1], &xs, tol);
+        let gap_x = self.equal_gap(r, exclude, 0, tol);
+        match (edge_x, gap_x) {
+            (edge, Some((d, marks))) if edge.is_none_or(|(e, _, _)| d.abs() < e.abs()) => {
+                off.x = d;
+                guides[0] = marks;
+            }
+            (Some((d, x, b)), _) => {
+                off.x = d;
+                let rr = r + Vec2::new(d, 0.0);
+                guides[0].push(Guide { vertical: true, pos: x, from: b.y0.min(rr.y0), to: b.y1.max(rr.y1) });
+            }
+            _ => off.x = self.grid_pull(r.x0).unwrap_or(0.0),
         }
-        if let Some((d, y, b)) = nearest_target(&[r.y0, r.center().y, r.y1], &ys, tol) {
-            off.y = d;
-            let rr = r + Vec2::new(0.0, d);
-            guides.push(Guide { vertical: false, pos: y, from: b.x0.min(rr.x0), to: b.x1.max(rr.x1) });
-        } else if let Some(d) = self.grid_pull(r.y0) {
-            off.y = d;
+        let edge_y = nearest_target(&[r.y0, r.center().y, r.y1], &ys, tol);
+        let gap_y = self.equal_gap(r, exclude, 1, tol);
+        match (edge_y, gap_y) {
+            (edge, Some((d, marks))) if edge.is_none_or(|(e, _, _)| d.abs() < e.abs()) => {
+                off.y = d;
+                guides[1] = marks;
+            }
+            (Some((d, y, b)), _) => {
+                off.y = d;
+                let rr = r + Vec2::new(0.0, d);
+                guides[1].push(Guide { vertical: false, pos: y, from: b.x0.min(rr.x0), to: b.x1.max(rr.x1) });
+            }
+            _ => off.y = self.grid_pull(r.y0).unwrap_or(0.0),
         }
         (off, guides)
+    }
+
+    /// Equal spacing (WPS W-C2) along `axis` (0 across, 1 down) among the shapes level with `r`:
+    /// the move that leaves `r` as far from its neighbour as that neighbour is from the next one,
+    /// or as far from both neighbours between which it lies, if `tol` or nearer. Answers the move
+    /// and the marks to draw: a line across each of the equal gaps with a tick at each end.
+    fn equal_gap(&self, r: Rect, exclude: &[ShapeId], axis: usize, tol: f64) -> Option<(f64, Vec<Guide>)> {
+        let st = self.active()?;
+        if !self.prefs.smart_guides {
+            return None;
+        }
+        let span = |b: &Rect| if axis == 0 { (b.x0, b.x1) } else { (b.y0, b.y1) };
+        let side = |b: &Rect| if axis == 0 { (b.y0, b.y1) } else { (b.x0, b.x1) };
+        let ((lo, hi), (c0, c1)) = (span(&r), side(&r));
+        let level: Vec<Rect> = st
+            .shapes()
+            .iter()
+            .filter(|sh| !exclude.contains(&sh.id) && !sh.hidden)
+            .map(|sh| xfrm_of(&st.doc, &st.selection, sh).bounds())
+            .filter(|b| b.is_finite() && side(b).0 < c1 && side(b).1 > c0)
+            .collect();
+        let mut before: Vec<Rect> = level.iter().filter(|b| span(b).1 <= lo + tol && span(b).0 < lo).copied().collect();
+        before.sort_by(|a, b| span(b).1.total_cmp(&span(a).1));
+        let mut after: Vec<Rect> = level.iter().filter(|b| span(b).0 >= hi - tol && span(b).1 > hi).copied().collect();
+        after.sort_by(|a, b| span(a).0.total_cmp(&span(b).0));
+        // A gap from `from` to `to` along the axis, between boxes `p` and `q`: marked halfway across
+        // where both are.
+        let mark = |from: f64, to: f64, p: &Rect, q: &Rect| {
+            let (a0, a1) = (side(p).0.max(side(q).0), side(p).1.min(side(q).1));
+            (from, to, if a0 <= a1 { (a0 + a1) / 2.0 } else { (c0 + c1) / 2.0 })
+        };
+        let mut best: Option<(f64, Vec<(f64, f64, f64)>)> = None;
+        let mut consider = |d: f64, gaps: Vec<(f64, f64, f64)>| {
+            if d.abs() <= tol && best.as_ref().is_none_or(|(b, _)| d.abs() < b.abs()) {
+                best = Some((d, gaps));
+            }
+        };
+        let width = hi - lo;
+        if let Some(a) = before.first()
+            && let Some(b) = before.iter().find(|b| span(b).1 <= span(a).0)
+        {
+            let gap = span(a).0 - span(b).1;
+            if gap > MIN_GAP_PT {
+                let at = span(a).1 + gap;
+                let moved = r + if axis == 0 { Vec2::new(at - lo, 0.0) } else { Vec2::new(0.0, at - lo) };
+                consider(at - lo, vec![mark(span(b).1, span(a).0, b, a), mark(span(a).1, at, a, &moved)]);
+            }
+        }
+        if let Some(a) = after.first()
+            && let Some(b) = after.iter().find(|b| span(b).0 >= span(a).1)
+        {
+            let gap = span(b).0 - span(a).1;
+            if gap > MIN_GAP_PT {
+                let at = span(a).0 - gap;
+                let moved = r + if axis == 0 { Vec2::new(at - hi, 0.0) } else { Vec2::new(0.0, at - hi) };
+                consider(at - hi, vec![mark(at, span(a).0, &moved, a), mark(span(a).1, span(b).0, a, b)]);
+            }
+        }
+        if let (Some(a), Some(b)) = (before.first(), after.first()) {
+            let gap = (span(b).0 - span(a).1 - width) / 2.0;
+            if gap > MIN_GAP_PT {
+                let at = span(a).1 + gap;
+                let moved = r + if axis == 0 { Vec2::new(at - lo, 0.0) } else { Vec2::new(0.0, at - lo) };
+                consider(at - lo, vec![mark(span(a).1, at, a, &moved), mark(at + width, span(b).0, &moved, b)]);
+            }
+        }
+        let (d, gaps) = best?;
+        // The ticks: as long as the snapping reach (4 screen pixels either way).
+        let tick = tol / 1.5;
+        let mut marks = vec![];
+        for (from, to, at) in gaps {
+            marks.push(Guide { vertical: axis == 1, pos: at, from, to });
+            for end in [from, to] {
+                marks.push(Guide { vertical: axis == 0, pos: end, from: at - tick, to: at + tick });
+            }
+        }
+        Some((d, marks))
     }
 
     /// A resize's snap: only the dragged edges move, each to a guide (another shape's or the

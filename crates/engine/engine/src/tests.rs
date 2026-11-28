@@ -2418,3 +2418,32 @@ fn rotation_is_whole_degrees_and_cmd_draws_from_the_centre() {
     let drawn = s.doc().unwrap().selection.shapes[0].0 as u64;
     assert_eq!(box_of(&mut s, drawn)[..4], [560.0, 360.0, 80.0, 80.0], "Shift+Cmd: a square about the press");
 }
+
+/// Plan stage 8 item 7 (WPS W-C2): a shape dragged to within reach of the spacing of the two before
+/// it lands at that spacing, and the equal gaps are marked while the drag goes on; between two
+/// shapes it centres in the room between them.
+#[test]
+fn a_drag_snaps_to_an_equal_spacing_and_marks_the_gaps() {
+    let (mut s, ids) = stage8(&[[100.0, 100.0, 60.0, 60.0], [200.0, 100.0, 60.0, 60.0], [330.0, 100.0, 60.0, 60.0]]);
+    s.prefs.snap_to_grid = false;
+    let c = ids[2];
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: crate::tools::TOL_PX };
+    s.pointer(ev(PointerKind::Down, 360.0, 110.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 340.0, 110.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 332.0, 110.0)).unwrap();
+    let marks: Vec<_> = s.tool.guides.iter().filter(|g| !g.vertical).map(|g| (g.from, g.to)).collect();
+    assert!(marks.contains(&(160.0, 200.0)) && marks.contains(&(260.0, 300.0)), "both 40 pt gaps are marked: {:?}", s.tool.guides);
+    s.pointer(ev(PointerKind::Up, 332.0, 110.0)).unwrap();
+    assert_eq!(box_of(&mut s, c)[0], 300.0, "the third lands 40 pt after the second, as the second after the first");
+    undo(&mut s);
+    // Between the first two shapes' neighbours: a shape 2 pt off the middle of the room centres in it.
+    s.execute("shape.move", &json!({"ids": [c], "x": 600, "y": 100})).unwrap();
+    s.execute("shape.move", &json!({"ids": [ids[1]], "x": 400, "y": 100})).unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    // Room from 160 to 400 (240 pt) for 60 pt: 90 pt each side, so x 250.
+    s.pointer(ev(PointerKind::Down, 610.0, 110.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 400.0, 110.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 262.0, 110.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 262.0, 110.0)).unwrap();
+    assert_eq!(box_of(&mut s, c)[0], 250.0, "centred between its neighbours");
+}

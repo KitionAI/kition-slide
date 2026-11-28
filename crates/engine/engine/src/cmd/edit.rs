@@ -381,7 +381,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
             .filter_map(|id| u32::try_from(id).ok())
             .map(ShapeId)
             .collect();
-        s.duplicated = (!copies.is_empty()).then(|| crate::Duplicated { uid, from: ids, copies });
+        s.duplicated = (!copies.is_empty()).then_some(crate::Duplicated { uid, from: ids, copies });
     }
     Ok(r)
 }

@@ -156,24 +156,29 @@ const list = [
     await e.kit.getByTestId('slides-grid-gridlines').setChecked(true)
     await e.kit.getByTestId('slides-grid-apply').click()
     await e.wait(400)
-    await select(e, 120, 120)
-    const x = (await boxOf(e, id)).x
-    await press(e, 'ArrowRight')
-    const spacing = 72 / 2.54
-    assert(near((await boxOf(e, id)).x - x, spacing, 1e-3), `an arrow key moves the 1 cm spacing (${(await boxOf(e, id)).x - x} pt)`)
-    // The gridlines: vertical lines one spacing apart on screen.
-    const s = await scale(e)
-    const ops = await e.frame().evaluate(() => window.__hand?.frame ?? [])
-    const verticals = ops.filter((op, index) => op.op === 'move' && ops[index + 1]?.op === 'line' && Math.abs(ops[index + 1].at[0] - op.at[0]) < 0.01 && Math.abs(ops[index + 1].at[1] - op.at[1]) > 200 * s).map((op) => op.at[0]).sort((a, b) => a - b)
-    assert(verticals.length > 20, `gridlines are drawn (${verticals.length})`)
-    const gaps = verticals.slice(1, 6).map((v, index) => v - verticals[index])
-    assert(gaps.every((gap) => near(gap, spacing * s, 0.1)), `one spacing apart on screen (${gaps.join(', ')} for ${spacing * s})`)
-    // Back to the defaults for the segments after.
-    await e.kit.getByTestId('ribbon-tab-view').click()
-    await e.kit.getByTestId('slides-view-gridSettings').click()
-    await e.kit.getByTestId('slides-grid-defaults').click()
-    await e.kit.getByTestId('slides-grid-apply').click()
-    await e.wait(400)
+    try {
+      await select(e, 120, 120)
+      const x = (await boxOf(e, id)).x
+      await press(e, 'ArrowRight')
+      const spacing = 72 / 2.54
+      assert(near((await boxOf(e, id)).x - x, spacing, 1e-3), `an arrow key moves the 1 cm spacing (${(await boxOf(e, id)).x - x} pt)`)
+      // The gridlines: vertical lines one spacing apart on screen.
+      const s = await scale(e)
+      const ops = await e.frame().evaluate(() => window.__hand?.frame ?? [])
+      const verticals = ops.filter((op, index) => op.op === 'move' && ops[index + 1]?.op === 'line' && Math.abs(ops[index + 1].at[0] - op.at[0]) < 0.01 && Math.abs(ops[index + 1].at[1] - op.at[1]) > 200 * s).map((op) => op.at[0]).sort((a, b) => a - b)
+      assert(verticals.length > 20, `gridlines are drawn (${verticals.length})`)
+      const gaps = verticals.slice(1, 6).map((v, index) => v - verticals[index])
+      // The zoom shown is rounded to a whole percent: the gaps are equal and one spacing at about that zoom.
+      assert(gaps.every((gap) => near(gap, gaps[0], 0.05)), `the gridlines are evenly spaced (${gaps.join(', ')})`)
+      assert(near(gaps[0], spacing * s, spacing * 0.01), `one spacing apart on screen (${gaps[0]} for ${spacing * s})`)
+    } finally {
+      // Back to the defaults for the segments after.
+      await e.kit.getByTestId('ribbon-tab-view').click()
+      await e.kit.getByTestId('slides-view-gridSettings').click()
+      await e.kit.getByTestId('slides-grid-defaults').click()
+      await e.kit.getByTestId('slides-grid-apply').click()
+      await e.wait(400)
+    }
   }],
   // Near another shape's centre line the dragged shape snaps to it and the guide is drawn (W-C1).
   ['guide-centre', async (e) => {
@@ -188,6 +193,26 @@ const list = [
     const moved = await boxOf(e, a)
     assert(near(moved.x + moved.w / 2, 450, 0.01), `the centres line up (${moved.x + moved.w / 2})`)
     assert.deepEqual((await boxOf(e, b)).x, 400, 'the other shape stays')
+    await gridSettings(e, { snapToGrid: true })
+  }],
+  // A shape dragged near the spacing of the two before it lands at that spacing, and the gaps are marked (W-C2).
+  ['equal-spacing', async (e) => {
+    const [, , c] = await fresh(e, [[100, 100, 60, 60], [200, 100, 60, 60], [330, 100, 60, 60]])
+    await gridSettings(e, { snapToGrid: false })
+    const from = await e.toScreen(360, 110)
+    const s = await scale(e)
+    let marked = 0
+    await drag(e, from, -28 * s, 0, {
+      during: async () => {
+        const box = await e.surface()
+        const ops = await e.drawn()
+        const y = (await e.toScreen(0, 130)).y - box.y
+        // Lines across the gaps, halfway down the shapes.
+        marked = ops.filter((op, index) => op.op === 'move' && ops[index + 1]?.op === 'line' && near(op.at[1], y, 1.5) && near(ops[index + 1].at[1], y, 1.5) && near(Math.abs(ops[index + 1].at[0] - op.at[0]), 40 * s, 1.5)).length
+      },
+    })
+    assert(marked >= 2, `the two equal gaps are marked (${marked})`)
+    assert.equal((await boxOf(e, c)).x, 300, 'the third shape lands 40 pt after the second')
     await gridSettings(e, { snapToGrid: true })
   }],
   // Alt drags a copy that lands at the pointer, off the grid; the original stays (W-A7).
