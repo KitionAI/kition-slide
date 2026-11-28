@@ -1216,7 +1216,7 @@ fn vertical_text_runs_down_its_box_and_an_arch_keeps_its_size() {
     let ctx = cmd::text::ctx_for(&st.doc, &st.selection).unwrap();
     let x = cmd::xfrm_of(&st.doc, &st.selection, &sh);
     let rect = kition_slide_render::shape_geometry(&sh, x.w, x.h).text_rect;
-    let opts = kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: true };
+    let opts = kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: true, empty_bullets: false };
     let laid = kition_slide_text::layout(&ctx, &sh, sh.text.as_ref().unwrap(), &opts);
     assert_eq!(laid.lines.len(), 1, "one column down the box");
     assert!(!laid.overflow);
@@ -1228,7 +1228,7 @@ fn vertical_text_runs_down_its_box_and_an_arch_keeps_its_size() {
     let st = s.doc().unwrap();
     let sh = st.shape(kition_slide_model::ShapeId(r as u32)).unwrap().clone();
     let rect = kition_slide_render::shape_geometry(&sh, 60.0, 400.0).text_rect;
-    let opts = kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: true };
+    let opts = kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: true, empty_bullets: false };
     let laid = kition_slide_text::layout(&cmd::text::ctx_for(&st.doc, &st.selection).unwrap(), &sh, sh.text.as_ref().unwrap(), &opts);
     assert!(!laid.overflow && laid.lines.len() == 1);
 
@@ -1773,4 +1773,194 @@ fn held_arrow_keys_nudge_in_one_step() {
     assert_eq!(s.execute("shape.inspect", &json!({"id": b})).unwrap()["box"]["y"].as_f64(), Some(100.0));
     undo(&mut s);
     assert_eq!(x(&mut s, a), 100.0, "one undo takes all the first run's nudges back");
+}
+
+/// Plan stage 3 (walkthrough E3; case regressions/issue-hand-e3-cmd-arrows): the Mac's text keys.
+#[test]
+fn cmd_arrows_go_to_the_ends_of_the_line_and_the_text() {
+    let mut s = session();
+    let id = typing_box(&mut s);
+    s.execute("text.edit", &json!({"id": id})).unwrap();
+    s.execute("text.insert", &json!({"text": "one two\nthree four"})).unwrap();
+    let cmd = Mods { cmd: true, ..Mods::default() };
+    let caret = |s: &Session| {
+        let t = s.doc().unwrap().selection.text.clone().unwrap();
+        (t.anchor, t.caret)
+    };
+    s.execute("text.select", &json!({"anchor": [1, 3], "caret": [1, 3]})).unwrap();
+    s.key("ArrowLeft", cmd).unwrap();
+    assert_eq!(caret(&s), ((1, 0), (1, 0)), "Cmd+Left: the line's start");
+    s.key("ArrowRight", cmd).unwrap();
+    assert_eq!(caret(&s), ((1, 10), (1, 10)), "Cmd+Right: the line's end");
+    s.key("ArrowUp", cmd).unwrap();
+    assert_eq!(caret(&s), ((0, 0), (0, 0)), "Cmd+Up: the text's start");
+    s.key("ArrowDown", cmd).unwrap();
+    assert_eq!(caret(&s), ((1, 10), (1, 10)), "Cmd+Down: the text's end");
+    s.key("ArrowLeft", Mods { shift: true, ..cmd }).unwrap();
+    assert_eq!(caret(&s), ((1, 10), (1, 0)), "Shift+Cmd+Left extends to the line's start");
+    s.key("Home", cmd).unwrap();
+    assert_eq!(caret(&s), ((0, 0), (0, 0)), "Cmd+Home: the text's start");
+    s.execute("text.select", &json!({"anchor": [1, 5], "caret": [1, 5]})).unwrap();
+    s.key("Backspace", cmd).unwrap();
+    assert_eq!(text_of(&mut s, id), "one two\n four", "Cmd+Backspace deletes to the line's start");
+    s.key("Delete", cmd).unwrap();
+    assert_eq!(text_of(&mut s, id), "one two\n", "Cmd+Delete deletes to the line's end");
+    s.key("Backspace", cmd).unwrap();
+    assert_eq!(text_of(&mut s, id), "one two", "at the line's start it joins the lines");
+    undo(&mut s);
+    assert_eq!(text_of(&mut s, id), "one two\n", "each Cmd+Backspace is a step of its own");
+}
+
+/// Plan stage 3 (WPS W-F2, W-F3; walkthrough C8, D12, R8; cases regressions/issue-hand-c8-click-shape-text,
+/// regressions/issue-hand-d12-drag-on-text-selects): a press on a shape's text puts the caret there at
+/// once and a drag from it selects text; anywhere else on the shape it takes the object, as the
+/// pointer says; the band along an edited text box's frame moves the box.
+#[test]
+fn a_press_on_text_edits_and_elsewhere_takes_the_object() {
+    use crate::tools::{Pointing, TOL_PX};
+    use kition_slide_geom::Point;
+    let mut s = session();
+    s.prefs.snap_to_grid = false;
+    s.prefs.smart_guides = false;
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let rect = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 300, 100], "text": "Hello"})).unwrap()["id"].as_u64().unwrap();
+    let boxed = s.execute("textBox.insert", &json!({"rect": [100, 300, 400, 40], "text": "Drag over these words"})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: TOL_PX };
+    let click = |s: &mut Session, x: f64, y: f64| {
+        s.pointer(ev(PointerKind::Down, x, y)).unwrap();
+        s.pointer(ev(PointerKind::Up, x, y)).unwrap();
+    };
+    let editing = |s: &Session| s.doc().unwrap().selection.text.as_ref().map(|t| t.shape.0 as u64);
+    let p = |x: f64, y: f64| Some(Point::new(x, y));
+    assert_eq!(s.pointing(p(250.0, 150.0), TOL_PX), Pointing::Text, "an unselected shape's words: the text cursor");
+    click(&mut s, 250.0, 150.0);
+    assert_eq!(editing(&s), Some(rect), "the first click on its words puts the caret there");
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(s.doc().unwrap().selection.shapes, vec![model::ShapeId(rect as u32)]);
+    assert_eq!(s.pointing(p(110.0, 110.0), TOL_PX), Pointing::Move, "away from its words: move");
+    click(&mut s, 110.0, 110.0);
+    assert_eq!(editing(&s), None, "a click away from the words of the selected shape keeps the object selected");
+    assert_eq!(s.doc().unwrap().selection.shapes, vec![model::ShapeId(rect as u32)]);
+    // A drag on an unselected text box's words selects them and leaves the box where it is.
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let before = s.execute("shape.inspect", &json!({"id": boxed})).unwrap()["box"].clone();
+    s.pointer(ev(PointerKind::Down, 112.0, 320.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 180.0, 320.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 250.0, 320.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 250.0, 320.0)).unwrap();
+    let t = s.doc().unwrap().selection.text.clone().unwrap();
+    assert_eq!(t.shape.0 as u64, boxed);
+    assert!(t.is_range(), "a drag on the words selects them: {t:?}");
+    assert_eq!(s.execute("shape.inspect", &json!({"id": boxed})).unwrap()["box"], before, "and moves nothing");
+    // While it is edited, the band along its frame takes the box: a drag there moves it.
+    assert_eq!(s.pointing(p(200.0, 302.0), TOL_PX), Pointing::Move, "the frame's band (its top edge, away from the handles): move");
+    s.pointer(ev(PointerKind::Down, 200.0, 302.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 230.0, 312.0)).unwrap();
+    s.pointer(ev(PointerKind::Drag, 250.0, 322.0)).unwrap();
+    s.pointer(ev(PointerKind::Up, 250.0, 322.0)).unwrap();
+    let after = s.execute("shape.inspect", &json!({"id": boxed})).unwrap()["box"].clone();
+    assert_eq!(after["x"].as_f64(), Some(150.0), "{after}");
+    assert_eq!(after["y"].as_f64(), Some(320.0), "{after}");
+    assert_eq!(editing(&s), None, "the box is selected as an object");
+}
+
+/// Plan stage 3 (WPS W-F4, W-F5; cases regressions/issue-hand-e9-enter-selects-all,
+/// regressions/issue-hand-e9-typing-at-last-caret): Enter and F2 edit a selected shape's text with
+/// all of it selected; typing on it goes where its caret last was, at its end if it was never
+/// edited, and keeps the text.
+#[test]
+fn enter_selects_all_and_typing_goes_on_at_the_last_caret() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let a = s.execute("shape.insert", &json!({"preset": "rect", "rect": [100, 100, 300, 100], "text": "Back"})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [a]})).unwrap();
+    s.type_text("H").unwrap();
+    s.type_text("i").unwrap();
+    assert_eq!(text_of(&mut s, a), "BackHi", "never edited: at the end, the text kept");
+    s.key("Escape", Mods::default()).unwrap();
+    s.execute("text.edit", &json!({"id": a, "at": [0, 2]})).unwrap();
+    s.key("Escape", Mods::default()).unwrap();
+    assert!(s.doc().unwrap().selection.text.is_none());
+    s.type_text("X").unwrap();
+    assert_eq!(text_of(&mut s, a), "BaXckHi", "where the caret last was");
+    s.key("Escape", Mods::default()).unwrap();
+    s.key("Enter", Mods::default()).unwrap();
+    let t = s.doc().unwrap().selection.text.clone().unwrap();
+    assert_eq!(t.ordered(), ((0, 0), (0, 7)), "Enter selects all of it");
+    s.type_text("Z").unwrap();
+    assert_eq!(text_of(&mut s, a), "Z", "and typing replaces it");
+    s.key("Escape", Mods::default()).unwrap();
+    s.key("F2", Mods::default()).unwrap();
+    assert_eq!(s.doc().unwrap().selection.text.clone().unwrap().ordered(), ((0, 0), (0, 1)), "F2 as Enter");
+    // A selected picture or line takes no typing: the keys stay the editor's.
+    s.key("Escape", Mods::default()).unwrap();
+    let line = s.execute("shape.insert", &json!({"preset": "line", "rect": [100, 300, 200, 0]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.select", &json!({"ids": [line]})).unwrap();
+    assert!(s.doc().unwrap().typing_target().is_none());
+    assert_eq!(s.type_text("q").unwrap()["handled"], false);
+}
+
+/// Plan stage 3 (walkthrough E11, WPS W-E3; case regressions/issue-hand-e11-empty-textbox): a text
+/// box the Text Box tool made and the person left without typing goes, leaving no undo or redo step.
+#[test]
+fn an_empty_text_box_left_goes_without_a_step() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "blank"})).unwrap();
+    let kept = s.execute("shape.insert", &json!({"preset": "rect", "rect": [600, 100, 100, 100]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("edit.deselectAll", &json!({})).unwrap();
+    let shapes = |s: &Session| s.doc().unwrap().shapes().len();
+    let (n, steps) = (shapes(&s), undo_steps(&s));
+    let ev = |kind, x, y| PointerEvent { kind, x, y, mods: Mods::default(), tol: 4.0 };
+    let click = |s: &mut Session, x: f64, y: f64| {
+        s.pointer(ev(PointerKind::Down, x, y)).unwrap();
+        s.pointer(ev(PointerKind::Up, x, y)).unwrap();
+    };
+    s.set_tool(ToolKind::TextBox);
+    click(&mut s, 200.0, 300.0);
+    assert!(s.doc().unwrap().selection.text.is_some(), "the click made a box to type in");
+    assert_eq!(shapes(&s), n + 1);
+    // A click on another shape leaves it: the box goes, the other shape is selected.
+    click(&mut s, 650.0, 150.0);
+    assert_eq!(shapes(&s), n, "the empty box went");
+    assert_eq!(undo_steps(&s), steps, "no undo step");
+    assert!(s.doc().unwrap().history.redo.is_empty(), "no redo step");
+    assert_eq!(s.doc().unwrap().selection.shapes, vec![model::ShapeId(kept as u32)]);
+    // Escape leaves it too; a box typed in stays.
+    s.set_tool(ToolKind::TextBox);
+    click(&mut s, 200.0, 300.0);
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(shapes(&s), n, "Escape: the empty box went");
+    s.set_tool(ToolKind::TextBox);
+    click(&mut s, 200.0, 300.0);
+    s.type_text("a").unwrap();
+    s.key("Escape", Mods::default()).unwrap();
+    assert_eq!(shapes(&s), n + 1, "a box typed in stays");
+}
+
+/// Plan stage 3 (walkthrough E6; case regressions/issue-hand-e6-empty-bullet): an empty bulleted
+/// paragraph keeps its bullet's room (the caret is where its text will be) and, while edited, shows
+/// the bullet; Backspace at its start takes the bullet away, the next joins the paragraphs.
+#[test]
+fn an_empty_bullet_keeps_its_place_and_backspace_takes_it_away() {
+    let mut s = session();
+    s.execute("slide.new", &json!({"layout": "titleAndContent", "title": "T", "body": "B"})).unwrap();
+    let body = s.doc().unwrap().current_slide().unwrap().shapes[1].id.0 as u64;
+    s.execute("text.edit", &json!({"id": body})).unwrap();
+    s.key("Enter", Mods::default()).unwrap();
+    let x_of = |s: &Session, pos: (usize, usize)| {
+        let st = s.doc().unwrap();
+        let t = st.selection.text.clone().unwrap();
+        let layout = cmd::text::layout_for(st, &t).unwrap();
+        layout.caret(kition_slide_text::Pos { para: pos.0, ch: pos.1 }).unwrap().0
+    };
+    let (full, empty) = (x_of(&s, (0, 0)), x_of(&s, (1, 0)));
+    assert!((full - empty).abs() < 0.01, "the empty item's caret is where the text of a bulleted one starts ({empty} vs {full})");
+    let paras = |s: &Session| s.doc().unwrap().shape(model::ShapeId(body as u32)).unwrap().text.as_ref().unwrap().paragraphs.clone();
+    s.key("Backspace", Mods::default()).unwrap();
+    let after = paras(&s);
+    assert_eq!(after.len(), 2, "the first Backspace keeps the paragraph");
+    assert_eq!(after[1].props.bullet, Some(model::text::Bullet::None), "and takes its bullet away");
+    s.key("Backspace", Mods::default()).unwrap();
+    assert_eq!(paras(&s).len(), 1, "the next joins it to the one before");
 }

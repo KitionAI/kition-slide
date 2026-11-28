@@ -13,10 +13,18 @@ use crate::{DocState, Result, Selection, Session, Target, TextSel};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(noundo "text.edit", "Edit Text", [], Some("Enter"), "{id?, at?: [paragraph, char], end?: bool, cell?: [row, col], notes?: bool}", has_slide, edit),
+        cmd!(noundo "text.edit", "Edit Text", [], Some("Enter"), "{id?, at?: [paragraph, char], all?: bool (select all of the text), end?: bool, cell?: [row, col], notes?: bool}", has_slide, edit),
         cmd!(noundo "text.exit", "Stop Editing Text", [], None, "{}", has_doc, exit),
         cmd!("text.insert", "Type Text", [], None, "{text} (\\n = new paragraph, \\u000b = line break)", has_text, insert),
-        cmd!("text.delete", "Delete Text", [], Some("Backspace"), "{dir?: backward|forward|wordBackward|wordForward}", has_text, delete),
+        cmd!(
+            "text.delete",
+            "Delete Text",
+            [],
+            Some("Backspace"),
+            "{dir?: backward|forward|wordBackward|wordForward|lineBackward|lineForward} (line: to the line's start or end)",
+            has_text,
+            delete
+        ),
         cmd!(noundo "text.move", "Move Insertion Point", [], None, "{to: left|right|up|down|wordLeft|wordRight|lineStart|lineEnd|paraStart|paraEnd|start|end, extend?: bool}", has_text, move_caret),
         cmd!(noundo "text.select", "Select Text", [], None, "{anchor: [p, c], caret: [p, c]}", has_text, select),
         cmd!(noundo "text.selectAll", "Select All Text", [], None, "{}", has_text, select_all),
@@ -209,7 +217,13 @@ pub fn layout_for(st: &DocState, t: &TextSel) -> Option<kition_slide_text::TextL
         &ctx,
         sh,
         body,
-        &kition_slide_text::Opts { rect: geo.text_rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false },
+        &kition_slide_text::Opts {
+            rect: geo.text_rect,
+            fields: &kition_slide_text::NoFields,
+            prompt_color: None,
+            no_shrink: false,
+            empty_bullets: false,
+        },
         text_shape_transform(&ctx, st.shapes(), t.shape, kition_slide_geom::Affine::IDENTITY, 0).unwrap_or_else(|| x.affine()),
     ))
 }
@@ -243,7 +257,9 @@ fn edit(s: &mut Session, p: &Value) -> Result<Value> {
         (ShapeKind::Shape | ShapeKind::Connector { .. }, _) => sh.text.clone().unwrap_or_default(),
         _ => return Err(bad("text.edit", "this object doesn't hold text")),
     };
-    let at = pos_param(p, "at").unwrap_or_else(|| ed::end(&body));
+    let end = ed::end(&body);
+    let all = bool_or(p, "all", false);
+    let at = pos_param(p, "at").filter(|_| !all).unwrap_or(end);
     // A shape without a text body gets one on first edit.
     if sh.text.is_none() && cell.is_none() {
         s.edit(|doc, sel| {
@@ -258,7 +274,7 @@ fn edit(s: &mut Session, p: &Value) -> Result<Value> {
     s.select(|_, sel| {
         sel.shapes = vec![id];
         sel.cells = None;
-        sel.text = Some(TextSel { shape: id, anchor: at, caret: at, cell, notes: false });
+        sel.text = Some(TextSel { shape: id, anchor: if all { (0, 0) } else { at }, caret: at, cell, notes: false });
     })?;
     Ok(json!({"id": id, "at": [at.0, at.1]}))
 }
@@ -414,6 +430,20 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
 
 pub(crate) fn delete_dir(s: &mut Session, dir: &str) -> Result<Value> {
     let dir = dir.to_string();
+    let st = s.doc()?;
+    let t0 = st.selection.text.clone().ok_or_else(|| bad("text.delete", "no text insertion point"))?;
+    // The line's start or end as laid out (a soft-wrapped line's own, not the paragraph's).
+    let line_end = match dir.as_str() {
+        "lineBackward" | "lineForward" => layout_for(st, &t0).map(|l| {
+            let (a, b) = l.line_bounds(kition_slide_text::Pos { para: t0.caret.0, ch: t0.caret.1 });
+            let r = if dir == "lineBackward" { a } else { b };
+            (r.para, r.ch)
+        }),
+        _ => None,
+    };
+    // An empty paragraph's bullet as it shows (inherited from the layout too): Backspace at its
+    // start takes the bullet away first (walkthrough E6).
+    let bulleted = t0.cell.is_none() && !t0.notes && shows_bullet(st, &t0);
     edit_text(s, move |body, t| {
         let (a, b) = t.ordered();
         let at = if a != b {
@@ -423,7 +453,26 @@ pub(crate) fn delete_dir(s: &mut Session, dir: &str) -> Result<Value> {
                 "forward" => ed::char_move(body, a, true),
                 "wordBackward" => ed::word_move(body, a, false),
                 "wordForward" => ed::word_move(body, a, true),
+                "lineBackward" | "lineForward" => {
+                    let forward = dir == "lineForward";
+                    let len = body.paragraphs.get(a.0).map_or(0, |p| p.char_len());
+                    // The paragraph's own edge when the text has no layout; one character on
+                    // when the caret is at the edge already (it joins the lines, as macOS does).
+                    let edge = line_end.unwrap_or(if forward { (a.0, len) } else { (a.0, 0) });
+                    if edge == a { ed::char_move(body, a, forward) } else { edge }
+                }
                 _ => {
+                    if a.1 == 0
+                        && bulleted
+                        && let Some(para) = body.paragraphs.get_mut(a.0)
+                        && para.level == 0
+                        && para.char_len() == 0
+                    {
+                        para.props.bullet = Some(kition_slide_model::text::Bullet::None);
+                        t.anchor = a;
+                        t.caret = a;
+                        return;
+                    }
                     // Backspace at the start of an indented/bulleted paragraph outdents first.
                     if a.1 == 0
                         && let Some(para) = body.paragraphs.get_mut(a.0)
@@ -443,6 +492,15 @@ pub(crate) fn delete_dir(s: &mut Session, dir: &str) -> Result<Value> {
         t.caret = at;
     })?;
     ok()
+}
+
+/// Whether the paragraph with the caret of `t` shows a bullet or a number (its own or the one it
+/// inherits).
+fn shows_bullet(st: &DocState, t: &TextSel) -> bool {
+    let Some(sh) = st.shape(t.shape) else { return false };
+    let Some(para) = sh.text.as_ref().and_then(|b| b.paragraphs.get(t.caret.0)) else { return false };
+    let Some(ctx) = ctx_for(&st.doc, &st.selection) else { return false };
+    !matches!(resolve::para(&ctx, sh, para).bullet, None | Some(kition_slide_model::text::Bullet::None))
 }
 
 fn delete(s: &mut Session, p: &Value) -> Result<Value> {

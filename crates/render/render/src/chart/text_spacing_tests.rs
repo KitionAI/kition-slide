@@ -38,6 +38,7 @@ fn chart_tracking_inherits_and_uses_the_ordinary_text_measurement_path() {
             fields: &kition_slide_text::NoFields,
             prompt_color: None,
             no_shrink: true,
+            empty_bullets: false,
         },
     );
     assert!((layout.content_width - measure(&env, text, &inherited, None).0).abs() < 0.01);

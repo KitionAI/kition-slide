@@ -91,7 +91,13 @@ fn matches(a: &[Token], b: &[Token]) -> Vec<Option<usize>> {
 fn layout(ctx: &Ctx, s: &Shape, x: Xfrm, fields: &dyn Fields) -> Option<TextLayout> {
     let body = s.text.as_ref().filter(|b| !b.is_empty())?;
     let rect = shape_geometry(s, x.w, x.h).text_rect;
-    Some(kition_slide_text::layout_with_transform(ctx, s, body, &Opts { rect, fields, prompt_color: None, no_shrink: false }, x.affine()))
+    Some(kition_slide_text::layout_with_transform(
+        ctx,
+        s,
+        body,
+        &Opts { rect, fields, prompt_color: None, no_shrink: false, empty_bullets: false },
+        x.affine(),
+    ))
 }
 
 fn glyph_at(l: &TextLayout, (ri, gi): (usize, usize)) -> Option<(&GlyphRun, u32, Point)> {

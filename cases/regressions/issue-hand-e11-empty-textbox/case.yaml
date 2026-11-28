@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e11-empty-textbox
+feature: slide.editor.text-keys
+intent: "A text box made with one click of the Text Box tool and left with nothing typed (a click elsewhere, Escape) goes and leaves nothing to redo; one typed in stays (an empty 20 x 28.8 pt box stayed; walkthrough E11; WPS W-E3)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e11-empty-textbox]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

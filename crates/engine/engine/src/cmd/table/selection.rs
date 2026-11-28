@@ -81,7 +81,13 @@ pub fn cell_layout(st: &crate::DocState, id: ShapeId, cell: (usize, usize)) -> O
         &ctx,
         &shape,
         &body,
-        &kition_slide_text::Opts { rect: cell_rect(st, id, (r, c))?, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false },
+        &kition_slide_text::Opts {
+            rect: cell_rect(st, id, (r, c))?,
+            fields: &kition_slide_text::NoFields,
+            prompt_color: None,
+            no_shrink: false,
+            empty_bullets: false,
+        },
         transform,
     ))
 }

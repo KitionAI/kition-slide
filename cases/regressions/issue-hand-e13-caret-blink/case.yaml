@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e13-caret-blink
+feature: slide.editor.text-keys
+intent: "The caret blinks while text is edited, and the slide is not drawn again for it (it stood still; walkthrough E13)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e13-caret-blinks]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

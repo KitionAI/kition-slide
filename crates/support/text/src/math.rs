@@ -284,7 +284,7 @@ mod tests {
             &ctx,
             &shape,
             shape.text.as_ref().unwrap(),
-            &Opts { rect: Rect::new(0.0, 0.0, 600.0, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true },
+            &Opts { rect: Rect::new(0.0, 0.0, 600.0, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false },
         )
     }
 

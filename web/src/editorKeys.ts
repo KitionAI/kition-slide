@@ -4,14 +4,18 @@
  * order (a command runs through `run`, after the tool events still on their way):
  *
  * - `beforeTool`: keys the tool would otherwise take: Cmd+Enter and F5 start the show with shapes
- *   selected.
+ *   selected. And the text keys that follow the platform (plan stage 3, walkthrough E3, E9; WPS
+ *   W-F4): the engine's keys are the Mac's (Cmd+Left / Right to the line's ends, Alt+Left / Right
+ *   by word), so on Windows and Linux Ctrl+Left / Right, Up / Down, Backspace and Delete go to it
+ *   as Alt ones (by word, by paragraph), and on the Mac Ctrl+A / Ctrl+E as Home / End. F2 (which
+ *   the frame does not hand the tool) edits the selected shape's text with all of it selected.
  * - `afterTool`: keys the tool did not take: with nothing selected, Home and End go to the first
  *   and last slide, the arrows to the next and previous one, Tab selects the first object (Shift+Tab
  *   the last). Delete goes on to the engine's Delete, which deletes nothing then (only the slide
  *   list deletes slides, WPS W-Q1). Cmd+Shift+Z redoes as Cmd+Y does, Cmd+K opens the link dialog,
  *   Cmd+Alt+M a new comment, Cmd+1 shows 100%.
  */
-import type { KitCanvasHandle } from '@kition/sdk/editor'
+import { isMac, type KitCanvasHandle } from '@kition/sdk/editor'
 import { useEffect, type RefObject } from 'react'
 import type { Slides } from './slides'
 import { editorRoot } from './focus'
@@ -56,7 +60,28 @@ export function slideKeys(slides: Slides, canvas: RefObject<KitCanvasHandle | nu
     view.present(fromStart ? 0 : session.state.current)
   }
 
-  const beforeTool = (event: Key) => {
+  /** The tool's own handling of a key (the frame's input order). */
+  type Forward = (event: Key) => boolean
+  const textKey = (event: Key, forward: Forward) => {
+    if (!session.state?.editingText || !event.ctrlKey || event.metaKey || event.altKey) return false
+    const as = (key: string, alt: boolean) => forward({ key, code: key, shiftKey: event.shiftKey, altKey: alt, metaKey: false, ctrlKey: false, target: event.target })
+    if (isMac()) {
+      const key = event.key.toLowerCase()
+      if (key === 'a' || event.code === 'KeyA') return as('Home', false)
+      if (key === 'e' || event.code === 'KeyE') return as('End', false)
+      return false
+    }
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return as(event.key, true)
+    if ((event.key === 'Backspace' || event.key === 'Delete') && !event.shiftKey) return as(event.key, true)
+    return false
+  }
+
+  const beforeTool = (event: Key, forward: Forward) => {
+    if (textKey(event, forward)) return true
+    if (event.key === 'F2' && plain(event)) {
+      if (session.state && session.state.selected > 0 && !session.state.editingText) void run('text.edit', { all: true })
+      return session.state != null && session.state.selected > 0
+    }
     if (command(event) && !event.altKey && event.key === 'Enter' && !session.state?.editingText) {
       show(event.shiftKey)
       return true

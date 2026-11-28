@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e3-cmd-arrows
+feature: slide.editor.text-keys
+intent: "The text keys work: Cmd+Left and Cmd+Right go to the line's start and end, Shift+Cmd+Left selects to its start, Cmd+Backspace deletes to it, Ctrl+A and Ctrl+E on a Mac; Ctrl+Left goes by word, Ctrl+Home and Ctrl+End to the text's ends and Ctrl+Backspace deletes a word on Windows and Linux (none of them did anything; walkthrough E3)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e3-cmd-arrows]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

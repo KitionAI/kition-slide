@@ -19,7 +19,12 @@ fn setup(text: &str, w: f64, h: f64) -> (SlideFile, Shape) {
 
 fn lay(p: &SlideFile, sh: &Shape, w: f64, h: f64) -> TextLayout {
     let ctx = Ctx::for_slide(p, &p.slides[0]).unwrap();
-    layout(&ctx, sh, sh.text.as_ref().unwrap(), &Opts { rect: Rect::new(0.0, 0.0, w, h), fields: &NoFields, prompt_color: None, no_shrink: false })
+    layout(
+        &ctx,
+        sh,
+        sh.text.as_ref().unwrap(),
+        &Opts { rect: Rect::new(0.0, 0.0, w, h), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
+    )
 }
 
 #[test]
@@ -857,7 +862,7 @@ fn transformed_east_asian_text_retains_the_complete_legacy_layout() {
     body.body.inset_r = Some(7.0);
     body.body.inset_b = Some(5.0);
     let ctx = Ctx::for_slide(&p, &p.slides[0]).unwrap();
-    let opts = Opts { rect: Rect::new(0.0, 0.0, 100.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: false };
+    let opts = Opts { rect: Rect::new(0.0, 0.0, 100.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false };
     for (shape_rot, flip, body_rot, parent) in [
         (270.0, true, 0.0, Affine::IDENTITY),
         (36.0, false, 0.0, Affine::IDENTITY),

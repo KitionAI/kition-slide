@@ -183,6 +183,7 @@ fn synthetic_bold_without_visible_fill_does_not_widen_outline_effects() {
             fields: &kition_slide_text::NoFields,
             prompt_color: None,
             no_shrink: true,
+            empty_bullets: false,
         },
     );
     let mut run = layout.runs[0].clone();
@@ -226,7 +227,7 @@ fn prepared_effect_uses_relocated_ink_and_paragraph_opacity() {
         &rctx,
         shape,
         shape.text.as_ref().unwrap(),
-        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false },
+        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
     );
     let path = Rect::new(20.0, 20.0, 60.0, 40.0).to_path(0.1);
     let mut ctx = RenderContext::new_with(160, 120, vello_cpu::RenderSettings { num_threads: 0, ..Default::default() });

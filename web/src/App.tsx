@@ -130,7 +130,7 @@ function Editor({ slides }: { slides: Slides }) {
   const tools = {
     ...engineTools,
     keyDown: (event: Parameters<typeof engineTools.keyDown>[0]) => {
-      if (keys.beforeTool(event)) return true
+      if (keys.beforeTool(event, engineTools.keyDown)) return true
       if (engineTools.keyDown(event)) return true
       if (!plainEscape(event) || engineTools.active === 'select') return false
       engineTools.select('select')

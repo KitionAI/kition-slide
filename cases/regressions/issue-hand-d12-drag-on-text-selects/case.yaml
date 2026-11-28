@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-d12-drag-on-text-selects
+feature: slide.editor.text-keys
+intent: "A drag on the words of an unselected text box selects them and leaves the box where it is (it moved the box; walkthrough D12; WPS W-F3)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, d12-drag-on-text-selects]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

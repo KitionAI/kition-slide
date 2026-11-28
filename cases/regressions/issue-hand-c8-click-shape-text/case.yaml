@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-c8-click-shape-text
+feature: slide.editor.text-keys
+intent: "One click on the words of an unselected shape puts the caret there (it only selected the shape), and a click on a selected shape away from its words keeps the object selected instead of editing, as the move pointer there says (walkthrough C8; WPS W-F2)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, c8-click-shape-text]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

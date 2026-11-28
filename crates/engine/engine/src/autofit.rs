@@ -88,6 +88,7 @@ fn collect(old_ctx: &Ctx, old_shapes: &[Shape], ctx: &Ctx, shapes: &[Shape], roo
                                 fields: &kition_slide_text::NoFields,
                                 prompt_color: None,
                                 no_shrink: false,
+                                empty_bullets: false,
                             },
                             transform,
                         );
@@ -349,7 +350,7 @@ mod vertical_tests {
             &ctx,
             &shape,
             body,
-            &kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false },
+            &kition_slide_text::Opts { rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
             transform,
         );
         (

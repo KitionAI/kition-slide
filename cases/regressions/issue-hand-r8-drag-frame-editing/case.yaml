@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-r8-drag-frame-editing
+feature: slide.editor.text-keys
+intent: "While a text box's text is edited, a drag on the band along its frame moves the box, one undo step, the pointer there being move (it moved the caret; walkthrough root cause R8)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, r8-drag-frame-while-editing]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

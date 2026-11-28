@@ -288,7 +288,13 @@ fn laid_text(ctx: &Ctx, shape: &Shape, x: &kition_slide_geom::Xfrm) -> Option<Te
         return None;
     }
     let geo = kition_slide_render::shape_geometry(shape, x.w, x.h);
-    let opts = kition_slide_text::Opts { rect: geo.text_rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false };
+    let opts = kition_slide_text::Opts {
+        rect: geo.text_rect,
+        fields: &kition_slide_text::NoFields,
+        prompt_color: None,
+        no_shrink: false,
+        empty_bullets: false,
+    };
     let laid = kition_slide_text::layout(ctx, shape, body, &opts);
     let runs: Vec<&kition_slide_text::GlyphRun> = laid.runs.iter().filter(|r| r.cells.iter().any(|(_, c)| !c.is_whitespace())).collect();
     let largest = runs.iter().map(|r| r.size).fold(0.0, f64::max);

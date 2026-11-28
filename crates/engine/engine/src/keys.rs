@@ -83,6 +83,7 @@ impl Session {
             }
         };
         self.sync_all_kdm();
+        self.drop_left_box();
         r
     }
 
@@ -189,6 +190,29 @@ impl Session {
                 return Ok(json!({"handled": true}));
             }
         }
+        // The Mac's text keys (walkthrough E3): Cmd+Left / Right to the line's start and end,
+        // Cmd+Up / Down (and Cmd+Home / End) to the text's start and end, with Shift extending the
+        // selection; Cmd+Backspace deletes to the line's start, Cmd+Delete to its end. (Elsewhere
+        // the editor sends Ctrl+Left / Right as Alt+Left / Right: by word.)
+        if editing && mods.cmd && !mods.alt {
+            let to = match k {
+                "left" => Some("lineStart"),
+                "right" => Some("lineEnd"),
+                "up" | "home" => Some("start"),
+                "down" | "end" => Some("end"),
+                _ => None,
+            };
+            let r = match (to, k) {
+                (Some(to), _) => Some(self.execute("text.move", &json!({"to": to, "extend": mods.shift}))),
+                (None, "backspace") if !mods.shift => Some(self.execute("text.delete", &json!({"dir": "lineBackward"}))),
+                (None, "delete") if !mods.shift => Some(self.execute("text.delete", &json!({"dir": "lineForward"}))),
+                _ => None,
+            };
+            if let Some(r) = r {
+                r?;
+                return Ok(json!({"handled": true}));
+            }
+        }
         if !editing && has_shapes && !mods.cmd {
             let step = if mods.alt { 1.0 } else { 6.0 };
             let d = match k {
@@ -208,7 +232,8 @@ impl Session {
                     return Ok(json!({"handled": true}));
                 }
                 "enter" | "return" | "f2" => {
-                    self.execute("text.edit", &json!({}))?;
+                    // Into the text with all of it selected (WPS W-F4): what is typed next replaces it.
+                    self.execute("text.edit", &json!({"all": true}))?;
                     return Ok(json!({"handled": true}));
                 }
                 "escape" | "esc" => {
@@ -283,13 +308,17 @@ impl Session {
     fn type_into(&mut self, text: &str) -> Result<Value> {
         let st = self.doc()?;
         if st.selection.text.is_none() {
-            let Some(id) = st.selection.shapes.first().copied() else { return Ok(json!({"handled": false})) };
-            if st.selection.shapes.len() != 1 {
-                return Ok(json!({"handled": false}));
-            }
-            // Typing on a selected shape replaces its text (PowerPoint behaviour).
-            self.execute("text.edit", &json!({"id": id}))?;
-            self.execute("text.selectAll", &json!({}))?;
+            let Some(id) = st.typing_target() else { return Ok(json!({"handled": false})) };
+            // Typing on a selected shape goes into its text where its caret last was, keeping the
+            // text (WPS W-F5); at its end when it was never edited.
+            let at = st.last_caret(id);
+            self.execute(
+                "text.edit",
+                &match at {
+                    Some(at) => json!({"id": id, "at": [at.0, at.1]}),
+                    None => json!({"id": id}),
+                },
+            )?;
         }
         self.execute("text.insert", &json!({"text": text}))
     }

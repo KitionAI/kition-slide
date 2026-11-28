@@ -23,7 +23,7 @@ fn sample(text: &str, latin_break: Option<bool>, width: f64) -> (TextLayout, Par
     slide.shapes = vec![shape.clone()];
     pres.slides = vec![Arc::new(slide)];
     let ctx = Ctx::for_slide(&pres, &pres.slides[0]).unwrap();
-    let opts = Opts { rect: Rect::new(0.0, 0.0, width, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true };
+    let opts = Opts { rect: Rect::new(0.0, 0.0, width, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false };
     let body = shape.text.as_ref().unwrap();
     (layout(&ctx, &shape, body, &opts), shape_para(&ctx, &shape, body, 0, 1.0, &opts, None, false))
 }

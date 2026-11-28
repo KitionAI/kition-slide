@@ -308,6 +308,7 @@ fn measure(e: &Env, text: &str, t: &Txt, max_w: Option<f64>) -> (f64, f64) {
             fields: &kition_slide_text::NoFields,
             prompt_color: None,
             no_shrink: true,
+            empty_bullets: false,
         },
     );
     (l.content_width, l.content_height)

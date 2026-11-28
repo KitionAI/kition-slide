@@ -26,7 +26,7 @@ fn sample(shift: f64, script_size: f64, width: f64) -> TextLayout {
         &ctx,
         &shape,
         shape.text.as_ref().unwrap(),
-        &Opts { rect: Rect::new(0.0, 0.0, width, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true },
+        &Opts { rect: Rect::new(0.0, 0.0, width, 400.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false },
     )
 }
 

@@ -159,6 +159,9 @@ pub struct RenderOpts<'a> {
     pub skip: &'a [ShapeId],
     /// Hide the text of this shape (the UI draws it while editing).
     pub skip_text: Option<ShapeId>,
+    /// The shape whose text the editor is editing (with `edit`): its empty paragraphs show their
+    /// bullets and numbers, and an empty placeholder its bullet instead of its prompt.
+    pub editing: Option<ShapeId>,
     /// Animated GIF pictures and how far into their play they are (seconds); others show frame 1.
     pub gif_times: &'a [(ShapeId, f64)],
     /// Worker threads (0 = this thread; required when effects use filters).
@@ -183,6 +186,7 @@ impl Default for RenderOpts<'_> {
             state: None,
             skip: &[],
             skip_text: None,
+            editing: None,
             gif_times: &[],
             threads: 0,
             offset: (0.0, 0.0),
@@ -924,13 +928,14 @@ impl Renderer {
             && !skip_text
         {
             let tr = geo.text_rect;
+            let editing = f.opts.edit && f.opts.editing == Some(s.id);
             // A field without a saved value (a date with no cached text) still shows its value.
-            if !body.is_empty() || has_field(body) {
+            if !body.is_empty() || has_field(body) || editing {
                 let l = kition_slide_text::layout_with_transform(
                     rctx,
                     s,
                     body,
-                    &Opts { rect: tr, fields: &f.fields, prompt_color: None, no_shrink: false },
+                    &Opts { rect: tr, fields: &f.fields, prompt_color: None, no_shrink: false, empty_bullets: editing },
                     m,
                 );
                 let bp = resolve::body(rctx, s);
@@ -1471,7 +1476,13 @@ fn glyph(face: &kition_slide_fonts::FontFace, gid: u32) -> Arc<BezPath> {
 
 /// Draw a text body into shape space `m` within the text rect.
 pub fn draw_text(ctx: &mut RenderContext, rctx: &Ctx, s: &Shape, body: &TextBody, tr: Rect, m: Affine, fields: &dyn Fields, prompt: Option<Rgba>) {
-    let l = kition_slide_text::layout_with_transform(rctx, s, body, &Opts { rect: tr, fields, prompt_color: prompt, no_shrink: false }, m);
+    let l = kition_slide_text::layout_with_transform(
+        rctx,
+        s,
+        body,
+        &Opts { rect: tr, fields, prompt_color: prompt, no_shrink: false, empty_bullets: false },
+        m,
+    );
     draw_layout_with_context(ctx, rctx, &l, tr, m, &[]);
 }
 

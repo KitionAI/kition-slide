@@ -27,7 +27,7 @@ fn layout(s: &Session) -> TextLayout {
         &ctx,
         shape,
         shape.text.as_ref().unwrap(),
-        &Opts { rect: geometry.text_rect, fields: &NoFields, prompt_color: None, no_shrink: false },
+        &Opts { rect: geometry.text_rect, fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
     )
 }
 

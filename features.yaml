@@ -477,7 +477,7 @@ features:
     priority: P1
     status: has
     paths: [crates/engine/engine/src/tools.rs, bindings/wasm/src/lib.rs, web/src/SlideCanvas.tsx, web/tests/hand/pointer.mjs]
-    gap: "A press on a selected shape still enters its text wherever it lands (the move pointer shows away from the words; stage 3 makes the press follow the pointer, WPS W-F2). No hover outline: neither PowerPoint nor Keynote draws one. The rotation handle's place and the handles' reach are the kit's own (kition-office-core's box_handles keeps 20 pt for doc and sheet)."
+    gap: "No hover outline: neither PowerPoint nor Keynote draws one. The rotation handle's place and the handles' reach are the kit's own (kition-office-core's box_handles keeps 20 pt for doc and sheet)."
     cases: [regressions/issue-hand-c3-cursors, regressions/issue-hand-d7-handle-hit]
     since: "2026-11-27"
   - id: slide.editor.arrange-and-size
@@ -497,6 +497,15 @@ features:
     paths: [crates/engine/engine/src/keys.rs, crates/engine/engine/src/lib.rs, crates/engine/engine/src/kdm_bridge.rs, crates/engine/engine/src/tools.rs, crates/engine/engine/src/tests.rs, crates/engine/engine/tests/kdm_bridge.rs, web/tests/hand/undo.mjs]
     gap: "A one-character commit of an input method (one Chinese character chosen alone) joins the typing run around it; WPS makes every commit its own step (W-R2), which needs the editor to tell the engine a commit came from composition (stage 4). Paste stays a step of its own. The undo button still says only Undo, not what it takes back."
     cases: [regressions/issue-hand-i2-typing-undo, regressions/issue-hand-i4-nudge-undo]
+    since: "2026-11-27"
+  - id: slide.editor.text-keys
+    title: "Text by hand, as WPS works: one click on a shape's words puts the caret there (selected or not), a press elsewhere on the shape selects it and a drag there moves it, as the pointer shows; a drag on words selects them; the band along an edited text box's frame moves the box; Enter and F2 edit a selected shape's text with all of it selected; typing on a selected shape goes on where its caret last was (at the end if it was never edited) and keeps the text; Cmd+Left and Cmd+Right to the line's ends, Cmd+Up and Cmd+Down to the text's, Shift extending, Cmd+Backspace to the line's start, Ctrl+A and Ctrl+E on the Mac, Ctrl+Left and Ctrl+Right by word on Windows and Linux; an empty list item keeps its bullet's place and shows it while edited, and Backspace there takes the bullet away; a text box made by the Text Box tool and left empty goes without an undo step; the caret blinks without the slide being drawn again"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [crates/engine/engine/src/tools.rs, crates/engine/engine/src/keys.rs, crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/lib.rs, crates/support/text/src/lib.rs, crates/render/render/src/lib.rs, bindings/wasm/src/lib.rs, web/src/editorKeys.ts, web/src/SlideCanvas.tsx, web/src/handles.ts, web/tests/hand/text.mjs]
+    gap: "No Ctrl+Enter to the next placeholder (cut from stage 3). A text box typed in and emptied again stays (only one left untouched goes). The Text Box tool's click still makes a box that grows with its text, not WPS's 320 pt wrapping one (stage 9). The Mac's keys are tested on a page that reports a Mac; the SDK hands the kit Cmd and Ctrl as one modifier, so Windows' and Linux's are the kit's own translation."
+    cases: [regressions/issue-hand-c8-click-shape-text, regressions/issue-hand-d12-drag-on-text-selects, regressions/issue-hand-r8-drag-frame-editing, regressions/issue-hand-e3-cmd-arrows, regressions/issue-hand-e9-enter-selects-all, regressions/issue-hand-e9-typing-at-last-caret, regressions/issue-hand-e6-empty-bullet, regressions/issue-hand-e11-empty-textbox, regressions/issue-hand-e13-caret-blink]
     since: "2026-11-27"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"

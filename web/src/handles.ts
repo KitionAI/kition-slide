@@ -4,8 +4,9 @@
  * slide: the eight resize handles and a line's ends as white circles 9 px across with a dark ring,
  * the rotation handle as a grey circle with a turning arrow, a shape's adjust handles as yellow
  * diamonds. They sit on the slide's own colours, not the editor's, so they keep fixed colours that
- * read on white and on black alike, as the selection outline does. Everything else is kit-editor's
- * default drawing.
+ * read on white and on black alike, as the selection outline does. The caret blinks (plan stage
+ * 3, walkthrough E13): [`setCaretShown`] hides it every other beat, and only the overlays are
+ * drawn again, never the slide. Everything else is kit-editor's default drawing.
  */
 import type { OverlayDrawer } from '@kition/sdk/editor'
 
@@ -22,7 +23,18 @@ const ROTATE = 13
 type Rgba = [number, number, number, number]
 const isColor = (color: Rgba, r: number, g: number, b: number) => color[0] === r && color[1] === g && color[2] === b
 
+/** How long the caret shows, then hides (ms): about the platforms' own blink. */
+export const CARET_BLINK_MS = 530
+let caretShown = true
+/** Shows or hides the caret on the next drawing of the overlays. */
+export function setCaretShown(shown: boolean) {
+  caretShown = shown
+}
+export const isCaretShown = () => caretShown
+
 export const drawSlideHandle: OverlayDrawer = (overlay, { context, toScreen }) => {
+  // The caret: the engine's solid near-black line (bindings/wasm CARET), hidden between beats.
+  if (overlay.kind === 'line' && !overlay.dashed && isColor(overlay.color, 20, 20, 20)) return !caretShown
   if (overlay.kind !== 'anchor') return false
   const { x, y } = toScreen(overlay.x, overlay.y)
   context.save()

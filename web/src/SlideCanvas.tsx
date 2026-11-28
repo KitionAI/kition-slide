@@ -1,9 +1,10 @@
-import { useMemo, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 import { KitDocumentCanvas, drawPresence, useKitTools, type KitCanvasHandle, type RasterDecoration, type RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
 import { CanvasMarkers } from './HostComments'
 import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { slideScrollArea } from './useSlideWheel'
+import { CARET_BLINK_MS, isCaretShown, setCaretShown } from './handles'
 
 export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<KitCanvasHandle | null>; viewMemory: RefObject<RasterView | null>; onZoom: (zoom: number) => void }) {
   const { session, view, threads, activeThread, remoteSelections, hostComments, commentPoint, runWhenEnabled } = useSlides()
@@ -13,6 +14,23 @@ export function SlideCanvas({ canvas, viewMemory, onZoom }: { canvas: RefObject<
   // An enlarged slide scrolls only a margin past its edges, by a drag as by the wheel; the scrollbars follow the view.
   const views = useMemo(createViewStore, [])
   const panBounds = useMemo(() => slideScrollArea(area, position.zoom), [area?.x0, area?.y0, area?.x1, area?.y1, position.zoom])
+  // The caret blinks while text is edited (walkthrough E13): each beat draws the overlays again over
+  // the slide already drawn. It shows at once after every answer of the tool (a key, a click).
+  const editing = session.state?.editingText === true
+  const overlays = tools?.decorate
+  const [, setBeat] = useState(0)
+  useEffect(() => {
+    setCaretShown(true)
+    if (!editing) return
+    const timer = window.setInterval(() => {
+      setCaretShown(!isCaretShown())
+      setBeat((beat) => beat + 1)
+    }, CARET_BLINK_MS)
+    return () => {
+      window.clearInterval(timer)
+      setCaretShown(true)
+    }
+  }, [editing, overlays])
   const decorate: RasterDecoration = (context, toScreen, raster) => {
     if (area) {
       const a = toScreen(area.x0, area.y0), b = toScreen(area.x1, area.y1)

@@ -235,7 +235,13 @@ fn morph_text_tokens_are_words_or_characters() {
         &rctx,
         &s,
         s.text.as_ref().unwrap(),
-        &Opts { rect: Rect::new(0.0, 0.0, 600.0, 120.0), fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false },
+        &Opts {
+            rect: Rect::new(0.0, 0.0, 600.0, 120.0),
+            fields: &kition_slide_text::NoFields,
+            prompt_color: None,
+            no_shrink: false,
+            empty_bullets: false,
+        },
     );
     assert_eq!(morph_text::token_keys(&l, false), ["Hello", "big", "world", "Hello"]);
     assert_eq!(morph_text::token_keys(&l, true).concat(), "Hellobigworld".to_string() + "Hello");

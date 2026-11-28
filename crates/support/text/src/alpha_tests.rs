@@ -32,7 +32,7 @@ fn laid_out(color: ColorRef, math: bool) -> TextLayout {
         &ctx,
         &shape,
         shape.text.as_ref().unwrap(),
-        &Opts { rect: Rect::new(0.0, 0.0, 300.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true },
+        &Opts { rect: Rect::new(0.0, 0.0, 300.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false },
     )
 }
 

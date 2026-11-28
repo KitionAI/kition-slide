@@ -9,7 +9,8 @@ import { createServer } from 'vite'
 /**
  * Init script for every frame: records the paths drawn on the editor's canvas surface (the slide is
  * one drawImage, the engine's overlays the paths after it), so a test reads how a handle looks
- * without reading pixels. `window.__hand.frame` is the last frame's operations.
+ * without reading pixels. `window.__hand.frame` is the last frame's operations; `puts` counts the
+ * slide images put into frames (the slide drawn again).
  */
 const RECORD_OVERLAYS = () => {
   if (window.__TRACE_KEYS !== undefined) return
@@ -18,7 +19,16 @@ const RECORD_OVERLAYS = () => {
   window.addEventListener('keydown', (event) => window.__TRACE_KEYS.push(`${event.key}:${event.defaultPrevented ? 'taken' : 'free'}`))
   const P = window.CanvasRenderingContext2D?.prototype
   if (!P) return
-  const state = (window.__hand = { frame: [], current: [] })
+  const state = (window.__hand = { frame: [], current: [], puts: 0 })
+  // Every slide image put into a frame (the slide drawn again), on any canvas.
+  for (const proto of [P, window.OffscreenCanvasRenderingContext2D?.prototype]) {
+    const original = proto?.putImageData
+    if (typeof original !== 'function') continue
+    proto.putImageData = function (...args) {
+      state.puts += 1
+      return original.apply(this, args)
+    }
+  }
   const surface = (ctx) => ctx.canvas?.classList?.contains('kui-canvas-surface')
   const wrap = (name, record) => {
     const original = P[name]
@@ -123,11 +133,13 @@ export async function open({ which = process.argv[2] ?? 'chromium', query = 'loc
   })
   /** The operations of the last frame drawn over the slide. */
   const drawn = () => frame().evaluate(() => window.__hand?.frame ?? [])
+  /** How many slide images were put into frames so far (each a drawing of the slide). */
+  const slideDraws = () => frame().evaluate(() => window.__hand?.puts ?? 0)
   const close = async () => {
     await browser.close().catch(() => undefined)
     await server.close().catch(() => undefined)
   }
-  return { which, page, kit, frame, wait, until, agent, ask, inspected, state, zoom, surface, toScreen, click, goto, active, drawn, errors, close }
+  return { which, page, kit, frame, wait, until, agent, ask, inspected, state, zoom, surface, toScreen, click, goto, active, drawn, slideDraws, errors, close }
 }
 
 /**

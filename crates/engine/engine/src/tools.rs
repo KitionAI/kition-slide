@@ -269,6 +269,20 @@ pub struct ToolState {
     pub path_preview: Vec<Point>,
     pub path_smooth: bool,
     pub path_closing: bool,
+    /// The text box the Text Box tool just made, until something is typed in it or it is left
+    /// ([`Session::drop_left_box`]).
+    made_box: Option<ShapeId>,
+    fresh_box: Option<FreshBox>,
+}
+
+/// A text box the Text Box tool made, as the document was right after (WPS W-E3): left without
+/// anything typed in it, it goes as if it had never been made.
+#[derive(Clone, Debug)]
+struct FreshBox {
+    uid: u64,
+    id: ShapeId,
+    doc: Arc<kition_slide_model::SlideFile>,
+    pushed: u64,
 }
 
 impl ToolState {
@@ -401,36 +415,25 @@ impl Session {
             Some(Hit::Adjust { .. }) => Pointing::Adjust,
             Some(Hit::LineEnd { .. }) => Pointing::LineEnd,
             Some(Hit::TableDivider { vertical, .. }) => Pointing::Divider { vertical },
-            Some(Hit::Shape { id, text }) => {
-                // The text being edited takes the caret anywhere in its frame.
+            Some(Hit::Shape { id, .. }) => {
+                // The table cell being edited takes the caret anywhere in it.
                 if let Some(t) = &st.selection.text
                     && !t.notes
                     && t.shape == id
+                    && let Some(cell) = t.cell
+                    && table::hit_cell(st, id, p) == Some(cell)
                 {
-                    let inside = match t.cell {
-                        Some(cell) => table::hit_cell(st, id, p) == Some(cell),
-                        None => st.shape(id).is_some_and(|sh| xfrm_of(&st.doc, &st.selection, sh).bounds().inflate(tol, tol).contains(p)),
-                    };
-                    if inside {
-                        return Pointing::Text;
-                    }
+                    return Pointing::Text;
                 }
                 let Some(sh) = st.shape(id) else { return Pointing::Default };
-                let x = xfrm_of(&st.doc, &st.selection, sh);
-                let local = x.affine().inverse() * p;
-                let within = local.x >= tol && local.y >= tol && local.x <= x.w - tol && local.y <= x.h - tol;
                 if matches!(sh.kind, ShapeKind::Table(_)) {
+                    let x = xfrm_of(&st.doc, &st.selection, sh);
+                    let local = x.affine().inverse() * p;
+                    let within = local.x >= tol && local.y >= tol && local.x <= x.w - tol && local.y <= x.h - tol;
                     // A press in a cell edits it; the frame moves the table.
                     return if within && table::hit_cell(st, id, p).is_some() { Pointing::Text } else { Pointing::Move };
                 }
-                if !text || !within {
-                    return Pointing::Move;
-                }
-                if is_text_first(st, id) || (st.selection.shapes.contains(&id) && over_lines(st, sh, p, tol)) {
-                    Pointing::Text
-                } else {
-                    Pointing::Move
-                }
+                if text_press(st, id, p, tol) && !in_several(st, id) { Pointing::Text } else { Pointing::Move }
             }
             None => Pointing::Default,
         }
@@ -452,7 +455,46 @@ impl Session {
         }
         let r = self.pointer_event(ev);
         self.sync_all_kdm();
+        if let Some(id) = self.tool.made_box.take()
+            && let Some(st) = self.active()
+        {
+            self.tool.fresh_box = Some(FreshBox { uid: st.uid, id, doc: st.doc.clone(), pushed: st.history.pushed });
+        }
+        self.drop_left_box();
         r
+    }
+
+    /// The text box the Text Box tool made goes when the person leaves it with nothing typed in it
+    /// (walkthrough E11; WPS W-E3): it is taken back as an undo would, and leaves no step to redo,
+    /// while the selection stays where the person put it. One typed in, or changed since in any
+    /// other way, stays.
+    pub(crate) fn drop_left_box(&mut self) {
+        let Some(fresh) = self.tool.fresh_box.take() else { return };
+        let Some(st) = self.active() else { return };
+        if st.uid == fresh.uid && st.selection.text.as_ref().is_some_and(|t| t.shape == fresh.id && !t.notes) {
+            self.tool.fresh_box = Some(fresh);
+            return;
+        }
+        let untouched = st.uid == fresh.uid
+            && Arc::ptr_eq(&st.doc, &fresh.doc)
+            && st.history.pushed == fresh.pushed
+            && st.interaction.is_none()
+            && st.history.undo.last().is_some_and(|e| !e.agent);
+        if !untouched || self.acts_as_agent() {
+            return;
+        }
+        let selection = st.selection.clone();
+        if self.execute("edit.undo", &json!({"scope": "person"})).is_err() {
+            return;
+        }
+        if let Some(st) = self.active_mut() {
+            if let Some(i) = st.history.redo.iter().rposition(|e| !e.agent) {
+                st.history.redo.remove(i);
+            }
+            st.selection = selection;
+            crate::clamp_selection(st);
+            st.revision += 1;
+        }
     }
 
     fn pointer_event(&mut self, ev: PointerEvent) -> Result<Value> {
@@ -600,15 +642,14 @@ impl Session {
             return Ok(Value::Null);
         }
         let st = self.doc()?;
-        // Clicking inside the text being edited moves the caret / starts a text selection.
+        // A press on the text being edited moves the caret / starts a text selection; on the band
+        // along its frame it takes the object, which a drag moves (walkthrough R8).
         if let Some(t) = st.selection.text.clone()
             && !t.notes
             && t.cell.is_none()
             && let Some(sh) = st.shape(t.shape)
         {
-            let x = xfrm_of(&st.doc, &st.selection, sh);
-            if x.bounds().inflate(tol, tol).contains(p)
-                && !matches!(self.hit_test(p, tol), Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. }))
+            if text_press(st, t.shape, p, tol) && !matches!(self.hit_test(p, tol), Some(Hit::Resize { .. } | Hit::Rotate { .. } | Hit::Adjust { .. }))
             {
                 let pos = text_pos(st, sh, p);
                 let shift = mods.shift;
@@ -650,9 +691,24 @@ impl Session {
                 self.begin("Adjust Shape");
                 self.tool.drag = Some(Drag::Adjust { id, index, orig });
             }
-            Some(Hit::Shape { id, text }) => {
+            Some(Hit::Shape { id, .. }) => {
                 let selected = st.selection.shapes.contains(&id);
                 let toggle = mods.shift || mods.cmd;
+                // A press on a shape's text puts the caret there at once, selected or not, and a
+                // drag from it selects text (WPS W-F2, W-F3); anywhere else on the shape it takes
+                // the object. One of several selected shapes moves with the others: a click
+                // without a drag on its text puts the caret there.
+                let painting = self.painter.is_some() || self.anim_painter.is_some();
+                let on_text = !toggle && !painting && text_press(st, id, p, tol);
+                if on_text
+                    && !in_several(st, id)
+                    && let Some(sh) = st.shape(id)
+                {
+                    let pos = text_pos(st, sh, p);
+                    self.execute("text.edit", &json!({"id": id, "at": [pos.0, pos.1]}))?;
+                    self.tool.drag = Some(Drag::TextSelect { shape: id });
+                    return Ok(json!({"caret": [pos.0, pos.1], "editing": id}));
+                }
                 let ids: Vec<ShapeId> = if toggle {
                     let mut v = st.selection.shapes.clone();
                     if selected {
@@ -667,9 +723,7 @@ impl Session {
                     vec![id]
                 };
                 let origs: Vec<(ShapeId, Xfrm)> = ids.iter().filter_map(|i| st.shape(*i).map(|s| (*i, xfrm_of(&st.doc, &st.selection, s)))).collect();
-                // A click (no drag) on text puts the caret there; unselected text boxes and
-                // placeholders take the caret straight away like PowerPoint.
-                let enter_text = (text && !toggle && (selected || is_text_first(st, id))).then_some((id, p));
+                let enter_text = on_text.then_some((id, p));
                 let ids2 = ids.clone();
                 self.select(|_, sel| {
                     sel.shapes = ids2;
@@ -940,7 +994,7 @@ impl Session {
         let mut out = Value::Null;
         match drag {
             Some(Drag::Move { moved: false, enter_text: Some((id, at)), .. }) => {
-                // Plain click on text: caret at the click.
+                // A click on the text of one of several selected shapes: caret at the click.
                 let st = self.doc()?;
                 if let Some(sh) = st.shape(id) {
                     let pos = text_pos(st, sh, at);
@@ -1008,7 +1062,9 @@ impl Session {
                     ToolKind::TextBox => {
                         let w = preview.filter(|_| dragged).map(|x| x.w).unwrap_or(0.0);
                         let at = preview.filter(|_| dragged).map(|x| Point::new(x.x, x.y)).unwrap_or(start);
-                        self.execute("textBox.insert", &json!({"rect": [at.x, at.y, w, 30.0]}))?
+                        let r = self.execute("textBox.insert", &json!({"rect": [at.x, at.y, w, 30.0]}))?;
+                        self.tool.made_box = r.get("id").and_then(Value::as_u64).and_then(|id| u32::try_from(id).ok()).map(ShapeId);
+                        r
                     }
                     _ => Value::Null,
                 };
@@ -1333,6 +1389,32 @@ fn is_text_first(st: &crate::DocState, id: ShapeId) -> bool {
     st.shape(id).is_some_and(|s| s.ph.is_some() || s.text_box)
 }
 
+/// Whether a press at `p` on shape `id` puts the caret in its text, selected or not, edited or not
+/// (plan stage 3; WPS W-F2, W-F3): anywhere inside a text box's or a placeholder's frame, on the
+/// lines of any other shape's text (the whole width of its lines while it is edited). Never on the
+/// band along the frame's edge ([`TOL_PX`] wide, inside the frame), which takes the object: a drag
+/// there moves it, even while its text is edited (walkthrough R8). The one rule both a press and
+/// the pointer's shape ([`Session::pointing`]) follow.
+pub(crate) fn text_press(st: &crate::DocState, id: ShapeId, p: Point, tol: f64) -> bool {
+    let Some(sh) = st.shape(id) else { return false };
+    if !matches!(sh.kind, ShapeKind::Shape) || sh.is_line() {
+        return false;
+    }
+    let x = xfrm_of(&st.doc, &st.selection, sh);
+    let local = x.affine().inverse() * p;
+    if !(local.x >= tol && local.y >= tol && local.x <= x.w - tol && local.y <= x.h - tol) {
+        return false;
+    }
+    let edited = st.selection.text.as_ref().is_some_and(|t| t.shape == id && !t.notes && t.cell.is_none());
+    is_text_first(st, id) || over_lines(st, sh, p, tol, edited)
+}
+
+/// Whether shape `id` is one of several shapes selected (none of whose text is edited): a press on
+/// it takes them all.
+fn in_several(st: &crate::DocState, id: ShapeId) -> bool {
+    st.selection.text.is_none() && st.selection.shapes.len() > 1 && st.selection.shapes.contains(&id)
+}
+
 /// The key of the nearest of `items` (key, distance) within `reach`.
 fn nearest<K: Copy>(items: impl Iterator<Item = (K, f64)>, reach: f64) -> Option<(K, f64)> {
     items.filter(|(_, d)| d.is_finite() && *d <= reach).min_by(|a, b| a.1.total_cmp(&b.1))
@@ -1348,14 +1430,18 @@ fn resize_pointing(x: &Xfrm, handle: u8) -> Pointing {
     Pointing::Resize { angle: if angle.is_finite() { angle } else { 0.0 } }
 }
 
-/// Whether `p` is on the lines of shape `sh`'s text (not on the shape's empty space).
-fn over_lines(st: &crate::DocState, sh: &Shape, p: Point, tol: f64) -> bool {
+/// Whether `p` is on the lines of shape `sh`'s text (not on the shape's empty space): on their words,
+/// or (`whole`, the text being edited) anywhere across them, empty lines too.
+fn over_lines(st: &crate::DocState, sh: &Shape, p: Point, tol: f64, whole: bool) -> bool {
     let t = TextSel { shape: sh.id, ..Default::default() };
     let Some(layout) = cmd::text::layout_for(st, &t) else { return false };
     let x = xfrm_of(&st.doc, &st.selection, sh);
     let rect = kition_slide_render::shape_geometry(sh, x.w, x.h).text_rect;
     let local = kition_slide_render::text_transform(x.affine(), rect, layout.rotation).inverse() * p;
-    layout.lines.iter().any(|l| l.extent.1 > l.extent.0 && Rect::new(l.extent.0, l.top, l.extent.1, l.bottom).inflate(tol, tol).contains(local))
+    layout.lines.iter().any(|l| {
+        let (x0, x1) = if whole { (layout.inner.x0, layout.inner.x1) } else { l.extent };
+        x1 > x0 && Rect::new(x0, l.top, x1, l.bottom).inflate(tol, tol).contains(local)
+    })
 }
 
 fn contains_rect(outer: Rect, inner: Rect) -> bool {

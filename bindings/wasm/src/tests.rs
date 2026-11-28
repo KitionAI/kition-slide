@@ -277,7 +277,7 @@ fn eviction_drops_the_least_recently_drawn_and_never_the_frame_being_drawn() {
     let image = |bytes: usize| Image { width: 1, height: 1, pixels: vec![0; bytes] };
     let mut cache: HashMap<usize, Cached> = HashMap::new();
     for (index, used) in [(0, 1), (1, 2), (2, 3), (3, 3)] {
-        cache.insert(index, Cached { key: (index, 0, 0), image: image(100), used });
+        cache.insert(index, Cached { key: (index, 0, 0, None), image: image(100), used });
     }
     evict(&mut cache, 3, 250);
     let mut left: Vec<usize> = cache.keys().copied().collect();

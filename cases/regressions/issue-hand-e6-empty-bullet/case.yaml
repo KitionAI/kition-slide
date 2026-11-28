@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e6-empty-bullet
+feature: slide.editor.text-keys
+intent: "An empty list item's caret is where an item's text starts, not at the box's left edge; Backspace there takes its bullet away and keeps the line, the next Backspace joins it to the item before (walkthrough E6)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e6-empty-bullet]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

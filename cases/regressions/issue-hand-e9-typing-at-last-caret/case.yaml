@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e9-typing-at-last-caret
+feature: slide.editor.text-keys
+intent: "Typing on a selected shape goes into its text where its caret last was and keeps the text, at its end if it was never edited (typing replaced the whole text; walkthrough E9; WPS W-F5)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e9-typing-at-last-caret]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

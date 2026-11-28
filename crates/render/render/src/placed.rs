@@ -93,7 +93,13 @@ fn place(out: &mut Placed, rctx: &Ctx, fields: &SlideFields, s: &Shape, parent: 
 
 /// Lay out `body` in text rect `tr` of shape `s` (shape-local → slide `m`) and record it and its hyperlinks.
 fn place_text(out: &mut Placed, rctx: &Ctx, fields: &SlideFields, s: &Shape, body: &TextBody, tr: Rect, m: Affine) {
-    let layout = kition_slide_text::layout_with_transform(rctx, s, body, &Opts { rect: tr, fields, prompt_color: None, no_shrink: false }, m);
+    let layout = kition_slide_text::layout_with_transform(
+        rctx,
+        s,
+        body,
+        &Opts { rect: tr, fields, prompt_color: None, no_shrink: false, empty_bullets: false },
+        m,
+    );
     let m = crate::text_transform(m, tr, layout.rotation);
     // Text hyperlinks: one box per line segment of a linked run.
     for run in layout.runs.iter().filter(|r| r.link && !r.glyphs.is_empty()) {

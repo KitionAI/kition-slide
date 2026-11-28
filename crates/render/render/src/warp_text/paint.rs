@@ -97,7 +97,7 @@ mod tests {
             rctx,
             &shape,
             &text,
-            &Opts { rect: Rect::new(0.0, 0.0, 160.0, 120.0), fields: &NoFields, prompt_color: None, no_shrink: false },
+            &Opts { rect: Rect::new(0.0, 0.0, 160.0, 120.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
         )
     }
 

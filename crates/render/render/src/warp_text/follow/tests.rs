@@ -21,7 +21,7 @@ fn fixture(text: &str, rect: Rect) -> TextLayout {
     let shape =
         Shape { xfrm: Some(Xfrm::new(0.0, 0.0, rect.width(), rect.height())), text: Some(body.clone()), text_box: true, ..Default::default() };
     let ctx = Ctx::for_slide(&p, &p.slides[0]).unwrap();
-    kition_slide_text::layout(&ctx, &shape, &body, &Opts { rect, fields: &NoFields, prompt_color: None, no_shrink: true })
+    kition_slide_text::layout(&ctx, &shape, &body, &Opts { rect, fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false })
 }
 
 fn cluster_edges(line: &LineInfo, head: usize) -> Option<(f64, f64)> {

@@ -32,7 +32,7 @@ fn sample(mut runs: Vec<Run>, inherited: Option<Reflection>, bullet: Bullet) -> 
         &ctx,
         &shape,
         shape.text.as_ref().unwrap(),
-        &Opts { rect: Rect::new(0.0, 0.0, 500.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true },
+        &Opts { rect: Rect::new(0.0, 0.0, 500.0, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false },
     )
 }
 

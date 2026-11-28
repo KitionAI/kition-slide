@@ -55,8 +55,12 @@ fn laid_with_width(runs: Vec<Run>, outer: Align, vert: TextDir, bullet: Bullet, 
     slide.shapes = vec![shape.clone()];
     pres.slides = vec![Arc::new(slide)];
     let ctx = Ctx::for_slide(&pres, &pres.slides[0]).unwrap();
-    let result =
-        crate::layout(&ctx, &shape, &body, &Opts { rect: Rect::new(0.0, 0.0, width, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true });
+    let result = crate::layout(
+        &ctx,
+        &shape,
+        &body,
+        &Opts { rect: Rect::new(0.0, 0.0, width, 200.0), fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false },
+    );
     assert_eq!(shape.text.as_ref().unwrap(), &body, "display alignment is layout data, not a source mutation");
     result
 }

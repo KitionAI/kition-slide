@@ -290,7 +290,13 @@ fn overflows(ctx: &Ctx, shape: &Shape, x: kition_slide_geom::Xfrm) -> bool {
         return false;
     }
     let geo = kition_slide_render::shape_geometry(shape, x.w, x.h);
-    let opts = kition_slide_text::Opts { rect: geo.text_rect, fields: &kition_slide_text::NoFields, prompt_color: None, no_shrink: false };
+    let opts = kition_slide_text::Opts {
+        rect: geo.text_rect,
+        fields: &kition_slide_text::NoFields,
+        prompt_color: None,
+        no_shrink: false,
+        empty_bullets: false,
+    };
     kition_slide_text::layout(ctx, shape, body, &opts).overflow
 }
 

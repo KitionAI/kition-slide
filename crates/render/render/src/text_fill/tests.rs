@@ -25,7 +25,7 @@ fn layout(rctx: &Ctx, fill: Fill) -> TextLayout {
         rctx,
         &shape,
         &body,
-        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false },
+        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
     )
 }
 
@@ -155,7 +155,7 @@ fn picture_fill_survives_layout_and_prompt_color_suppresses_it() {
         },
     );
     let shape = Shape { text: Some(body.clone()), ..Default::default() };
-    let options = Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false };
+    let options = Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false };
     let actual = kition_slide_text::layout(&rctx, &shape, &body, &options);
     assert!(actual.runs.iter().all(|run| run.fill.as_ref() == Some(&fill)));
     let prompt = kition_slide_text::layout(&rctx, &shape, &body, &Opts { prompt_color: Some(Rgba::rgb(80, 80, 80)), ..options });
@@ -167,7 +167,7 @@ fn picture_fill_survives_layout_and_prompt_color_suppresses_it() {
         &rctx,
         &cleared_shape,
         &body,
-        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false },
+        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 160.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
     );
     assert!(cleared.runs.iter().all(|run| run.fill.is_none() && run.alpha == 0.0));
 }

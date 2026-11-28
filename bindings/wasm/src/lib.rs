@@ -128,7 +128,8 @@ struct SlideArea {
 
 /// One cached 1:1 slide image and what it was rendered from.
 struct Cached {
-    key: (usize, usize, usize),
+    /// The slide, its masters, the slide count, and the shape whose text is edited on it.
+    key: (usize, usize, usize, Option<u32>),
     image: Image,
     /// The frame that last drew it ([`SlideDocument::frame`]).
     used: u64,
@@ -664,6 +665,14 @@ impl SlideDocument {
         index.min(self.slide_count().saturating_sub(1))
     }
 
+    /// The shape whose text is edited, when slide `index` is the one being edited: its empty
+    /// paragraphs show their bullets (walkthrough E6).
+    fn editing_on(&self, index: usize) -> Option<kition_slide_model::ShapeId> {
+        let st = self.session.active()?;
+        let t = st.selection.text.as_ref().filter(|t| !t.notes && t.cell.is_none())?;
+        (st.selection.slide == index).then_some(t.shape)
+    }
+
     fn current_slide(&self) -> usize {
         self.session.active().map_or(0, |state| state.selection.slide)
     }
@@ -682,6 +691,7 @@ impl SlideDocument {
             let opts = RenderOpts {
                 scale,
                 edit: true,
+                editing: self.editing_on(index),
                 offset: ((area.x - x) * scale, (area.y - y) * scale),
                 size: Some((width, height)),
                 ..RenderOpts::default()
@@ -703,11 +713,12 @@ impl SlideDocument {
         let pres = self.pres()?;
         let slide = pres.slides.get(index)?;
         let masters = pres.masters.iter().fold(0usize, |hash, master| hash.rotate_left(5) ^ (std::sync::Arc::as_ptr(master) as usize));
-        let key = (std::sync::Arc::as_ptr(slide) as usize, masters, pres.slides.len());
+        let editing = self.editing_on(index);
+        let key = (std::sync::Arc::as_ptr(slide) as usize, masters, pres.slides.len(), editing.map(|id| id.0));
         let frame = self.frame.get();
         let fresh = self.cache.borrow_mut().get_mut(&index).filter(|cached| cached.key == key).map(|cached| cached.used = frame).is_some();
         if !fresh {
-            let image = kition_slide_render::render_slide(pres, index, &RenderOpts { scale: 1.0, edit: true, ..RenderOpts::default() });
+            let image = kition_slide_render::render_slide(pres, index, &RenderOpts { scale: 1.0, edit: true, editing, ..RenderOpts::default() });
             let mut cache = self.cache.borrow_mut();
             cache.insert(index, Cached { key, image, used: frame });
             evict(&mut cache, frame, CACHE_BYTES);
@@ -949,8 +960,10 @@ impl SlideDocument {
         let state = self.session.active();
         let editing = state.is_some_and(|st| st.selection.text.is_some());
         let selected = state.is_some_and(|st| !st.selection.shapes.is_empty());
-        // Typing on one selected shape replaces its text, as in PowerPoint.
-        let one = state.is_some_and(|st| st.selection.shapes.len() == 1);
+        // Typing on the one selected shape that holds text goes into its text (WPS W-F5); with a
+        // picture, a line, a table or a group selected the keys are the editor's (tool keys, Space
+        // to pan).
+        let one = state.is_some_and(|st| st.typing_target().is_some());
         ToolResponse {
             requests,
             overlays: self.overlays(),

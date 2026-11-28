@@ -24,7 +24,7 @@ fn layout(ctx: &Ctx, text: &str, props: RunProps) -> TextLayout {
         }
     }
     let shape = Shape { text: Some(body.clone()), text_box: true, ..Default::default() };
-    kition_slide_text::layout(ctx, &shape, &body, &Opts { rect: RECT, fields: &NoFields, prompt_color: None, no_shrink: true })
+    kition_slide_text::layout(ctx, &shape, &body, &Opts { rect: RECT, fields: &NoFields, prompt_color: None, no_shrink: true, empty_bullets: false })
 }
 
 /// Paint ordinary text first so a declined adapter must leave existing ink and decorations intact.

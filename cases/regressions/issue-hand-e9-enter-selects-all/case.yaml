@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-e9-enter-selects-all
+feature: slide.editor.text-keys
+intent: "Enter and F2 on a selected shape edit its text with all of it selected, so the letter typed next replaces it (Enter put the caret at the end and F2 did nothing; walkthrough E9; WPS W-F4)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/text.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/text.mjs, chromium, e9-enter-selects-all]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-27"

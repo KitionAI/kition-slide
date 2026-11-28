@@ -32,7 +32,7 @@ fn layout(text: &str, g: Gradient) -> TextLayout {
         &ctx,
         &shape,
         &body,
-        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 240.0), fields: &NoFields, prompt_color: None, no_shrink: false },
+        &Opts { rect: Rect::new(0.0, 0.0, 400.0, 240.0), fields: &NoFields, prompt_color: None, no_shrink: false, empty_bullets: false },
     )
 }
 

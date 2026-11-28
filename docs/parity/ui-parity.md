@@ -61,7 +61,8 @@ table editing has not been compared with PowerPoint at 99.9% visual parity.
 | Connector glue and rerouting | yes | yes |
 | Edit points on freeforms | yes | **no** |
 | Crop handles, crop to shape, aspect ratio | yes | partial |
-| Text caret, selection, double/triple click, drag-select | yes | yes (three clicks select the paragraph, `web/tests/hand/pointer.mjs`); Tab in text boxes ends editing |
+| Text caret, selection, double/triple click, drag-select | yes | yes (three clicks select the paragraph, `web/tests/hand/pointer.mjs`); Tab in text boxes ends editing; the caret blinks (`web/tests/hand/text.mjs`) |
+| Entering text by hand | a click on text edits it; Enter or F2 on a selected shape edits it | as WPS: one click on a shape's words puts the caret there, a press elsewhere on the shape selects it and a drag there moves it, a drag on words selects them, the band along an edited box's frame moves the box; Enter and F2 select all the text; typing on a selected shape goes on where its caret last was; an empty text box left goes (`web/tests/hand/text.mjs`) |
 | Exact size/position, lock aspect | yes | yes: Shape Format's height, width and rotation fields take a typed value (centimetres, or with its unit), with the aspect ratio locked on demand (`web/tests/hand/format.mjs`) |
 | Align and distribute, order, group, rotate and flip from the ribbon | yes | yes: Home › Arrange and Shape Format run them on the selection in one click, one object to the slide and several to their selection (`web/tests/hand/format.mjs`) |
 | Rulers with indent markers and tab stops | yes | rulers yes; tab stops partial |
@@ -78,7 +79,11 @@ start/current, view switching. Not yet: Cmd+F Find opening a find bar on the sli
 precision without snapping, F6 pane cycling, ribbon KeyTips (Windows). With nothing selected Home and
 End go to the first and last slide, the arrows change slides, Tab selects the first object and Delete
 deletes nothing (as WPS); Cmd+Shift+Z redoes as Cmd+Y does; F5 and Shift+F5 start the show, and
-Cmd+Enter does with an object selected too; Cmd+1 is 100% (`web/tests/hand/keys.mjs`).
+Cmd+Enter does with an object selected too; Cmd+1 is 100% (`web/tests/hand/keys.mjs`). In text,
+Cmd+Left and Cmd+Right go to the line's start and end, Cmd+Up and Cmd+Down (and Cmd+Home, Cmd+End) to
+the text's, with Shift extending; Cmd+Backspace deletes to the line's start; Ctrl+A and Ctrl+E as on
+the Mac; on Windows and Linux Ctrl+Left and Ctrl+Right go by word, Ctrl+Backspace deletes a word
+(`web/tests/hand/text.mjs`). Not yet: Ctrl+Enter to the next placeholder.
 
 ## Visual fidelity
 

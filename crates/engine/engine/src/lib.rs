@@ -192,6 +192,9 @@ pub struct DocState {
     /// The run of typing, deleting or nudging under way ([`keys`]): the person's next keystroke
     /// of the same kind joins its undo step. Session state, never written.
     pub(crate) run: Option<keys::EditRun>,
+    /// Where the caret of each shape's text last was (WPS W-F5): typing on the selected shape
+    /// goes on there. Session state, never written.
+    pub(crate) carets: std::collections::HashMap<ShapeId, (usize, usize)>,
 }
 
 static NEXT_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -210,6 +213,7 @@ impl DocState {
             revision: 1,
             interaction: None,
             run: None,
+            carets: std::collections::HashMap::new(),
             uid: NEXT_UID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             title,
         }
@@ -242,6 +246,25 @@ impl DocState {
     }
     pub fn selected_shapes(&self) -> Vec<&Shape> {
         self.selection.shapes.iter().filter_map(|id| self.shape(*id)).collect()
+    }
+
+    /// The one selected shape typing goes into while no text is edited: a shape that holds text
+    /// (not a line, a picture, a table, a chart, a group or media).
+    pub fn typing_target(&self) -> Option<ShapeId> {
+        if self.selection.text.is_some() {
+            return None;
+        }
+        let [id] = self.selection.shapes.as_slice() else { return None };
+        self.shape(*id).filter(|sh| matches!(sh.kind, kition_slide_model::ShapeKind::Shape) && !sh.is_line()).map(|sh| sh.id)
+    }
+
+    /// Where the caret of shape `id`'s text last was, if it was edited and the place is still in
+    /// its text.
+    pub fn last_caret(&self, id: ShapeId) -> Option<(usize, usize)> {
+        let (para, ch) = *self.carets.get(&id)?;
+        let body = self.shape(id)?.text.as_ref()?;
+        let len = body.paragraphs.get(para)?.char_len();
+        Some((para, ch.min(len)))
     }
 }
 
@@ -467,6 +490,9 @@ impl Session {
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
         let r = self.guarded(id, |s| s.execute_unguarded(id, params));
         self.sync_all_kdm();
+        if self.depth == 0 {
+            self.drop_left_box();
+        }
         // A new drawing object's KitDrawing id is its replica object, made by the write above.
         if id == "drawing.insert"
             && self.depth == 0
@@ -631,6 +657,13 @@ pub(crate) fn clamp_selection(st: &mut DocState) {
         && st.shape(t.shape).is_none()
     {
         st.selection.text = None;
+    }
+    // The caret of the text being edited, for typing on its shape later (WPS W-F5).
+    if let Some(t) = &st.selection.text
+        && !t.notes
+        && t.cell.is_none()
+    {
+        st.carets.insert(t.shape, t.caret);
     }
     let slides: Vec<SlideId> = st.selection.slides.iter().copied().filter(|id| st.doc.slide(*id).is_some()).collect();
     st.selection.slides = slides;

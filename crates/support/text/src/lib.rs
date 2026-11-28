@@ -172,6 +172,9 @@ pub struct Opts<'a> {
     pub prompt_color: Option<Rgba>,
     /// Ignore autofit shrinking (used to measure natural height).
     pub no_shrink: bool,
+    /// Draw the bullets and numbers of empty paragraphs (the editor, on the text being edited).
+    /// An empty paragraph keeps its bullet's room either way: its caret sits where its text will.
+    pub empty_bullets: bool,
 }
 
 #[derive(Clone)]
@@ -250,6 +253,8 @@ struct ParaShaped {
     lead_size: f64,
     lead_face: Arc<FontFace>,
     bullet: Option<(String, Style)>,
+    /// Whether the bullet is drawn (an empty paragraph's only when [`Opts::empty_bullets`] asks).
+    bullet_shown: bool,
     #[allow(dead_code)]
     level: u8,
     /// Right-to-left paragraph (`a:pPr/@rtl`).
@@ -496,6 +501,7 @@ fn shape_para(ctx: &Ctx, shape: &Shape, body: &TextBody, pi: usize, scale: f64, 
             lead_size: 18.0,
             lead_face: face,
             bullet: None,
+            bullet_shown: false,
             level: 0,
             rtl: false,
         };
@@ -566,10 +572,9 @@ fn shape_para(ctx: &Ctx, shape: &Shape, body: &TextBody, pi: usize, scale: f64, 
     let lead_style = make_style(ctx, &lead, scale, opts.prompt_color);
     let lead_size = lead_style.size;
     let lead_face = lead_style.face.clone();
-    // Bullet.
-    let bullet = if para.is_empty() && opts.prompt_color.is_none() {
-        None
-    } else {
+    // Bullet: an empty paragraph's too, which takes its room but is drawn only when asked.
+    let bullet_shown = !para.is_empty() || opts.prompt_color.is_some() || opts.empty_bullets;
+    let bullet = {
         match &props.bullet {
             Some(Bullet::Char { char }) => {
                 let mut rp = lead.clone();
@@ -607,7 +612,7 @@ fn shape_para(ctx: &Ctx, shape: &Shape, body: &TextBody, pi: usize, scale: f64, 
             _ => None,
         }
     };
-    ParaShaped { cells, math, math_alignment, styles, faces, props, lead_size, lead_face, bullet, level: para.level, rtl }
+    ParaShaped { cells, math, math_alignment, styles, faces, props, lead_size, lead_face, bullet, bullet_shown, level: para.level, rtl }
 }
 
 /// Shape a logical paragraph into cells: bidi levels, per-grapheme faces, items of one level,
@@ -1127,7 +1132,10 @@ fn layout_scaled(ctx: &Ctx, shape: &Shape, body: &TextBody, bp: &BodyProps, opts
     for (pi, para) in body.paragraphs.iter().enumerate() {
         let lvl = para.level.min(8) as usize;
         let pp = resolve::para(ctx, shape, para);
-        let number = if matches!(pp.bullet, Some(Bullet::AutoNum { .. })) && !para.is_empty() {
+        let number = if matches!(pp.bullet, Some(Bullet::AutoNum { .. })) && para.is_empty() {
+            // An empty item shows the number the next item would take, and takes none.
+            numbering.get(lvl).map(|n| n.saturating_add(1))
+        } else if matches!(pp.bullet, Some(Bullet::AutoNum { .. })) {
             if let Some(n) = numbering.get_mut(lvl) {
                 *n += 1;
             }
@@ -1408,6 +1416,7 @@ fn layout_scaled(ctx: &Ctx, shape: &Shape, body: &TextBody, bp: &BodyProps, opts
         line.shift_x(ox);
         let Some(p) = shaped_paras.get(line.para) else { continue };
         if let Some((s, bx, by)) = bullet.take()
+            && p.bullet_shown
             && let Some((_, st)) = p.bullet.as_ref()
         {
             let (_, g) = measure_str(&st.face, st.size, &s);
@@ -1960,7 +1969,7 @@ impl TextLayout {
 /// Height the shape needs so its text fits (Resize shape to fit text): text height + insets.
 pub fn fit_height(ctx: &Ctx, shape: &Shape, body: &TextBody, rect: Rect, fields: &dyn Fields) -> f64 {
     let bp = resolve::body(ctx, shape);
-    let l = layout(ctx, shape, body, &Opts { rect, fields, prompt_color: None, no_shrink: true });
+    let l = layout(ctx, shape, body, &Opts { rect, fields, prompt_color: None, no_shrink: true, empty_bullets: false });
     l.content_height + bp.inset_t.unwrap_or(3.6) + bp.inset_b.unwrap_or(3.6)
 }
 
@@ -1979,7 +1988,7 @@ pub fn fit_width(ctx: &Ctx, shape: &Shape, body: &TextBody, rect: Rect, fields: 
     if let Some(t) = s2.text.as_mut() {
         t.body.wrap = Some(false);
     }
-    let l = layout(ctx, &s2, body, &Opts { rect: wide, fields, prompt_color: None, no_shrink: true });
+    let l = layout(ctx, &s2, body, &Opts { rect: wide, fields, prompt_color: None, no_shrink: true, empty_bullets: false });
     let w = l.lines.iter().map(|li| li.start_offset + (li.extent.1 - li.extent.0)).fold(0.0, f64::max);
     w + bp.inset_l.unwrap_or(7.2) + bp.inset_r.unwrap_or(7.2) + 1.0
 }
