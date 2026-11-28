@@ -29,6 +29,7 @@ import {
 } from '@kition/tessera/icons/react'
 import type { RasterView } from '@kition/sdk/editor'
 import { useSlides } from './slides'
+import { focusEditor } from './focus'
 import { ColorPicker } from './ribbon/common'
 import { ALIGN_EDGES, DISTRIBUTE, useArrange } from './ribbon/ArrangeMenu'
 import { SIZES, fontChoices } from './ribbon/HomeTab'
@@ -36,8 +37,11 @@ import { SIZES, fontChoices } from './ribbon/HomeTab'
 /** What `floatingBar` answers: the bar's kind and the box it floats over, in canvas points. */
 export type FloatingBar = { kind: 'text' | 'objects'; box: [number, number, number, number]; ids?: number[] }
 
-/** The gap between a bar and what it floats over, in pixels. */
-const GAP = 8
+/**
+ * The gap between a bar and what it floats over, in pixels: the align bar keeps clear of the
+ * rotation handles above the objects (18 px over their top edge).
+ */
+const GAP = { text: 8, objects: 30 }
 
 /** Keys that only change another key: they leave the bar up. */
 const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Fn', 'OS', 'Hyper', 'Super'])
@@ -204,10 +208,12 @@ function ListRow({ label, chosen, onPick, testId }: { label: string; chosen: boo
 
 /** The text bar's buttons (WPS W-J1, the plan's set). */
 function TextBar({ list, setList }: { list: string | null; setList: (list: string | null) => void }) {
-  const { t, run, enabled, format, facts } = useSlides()
+  const { t, run, enabled, format, facts, session } = useSlides()
   const on = enabled('format.bold')
   const align = format.align ?? ''
   const pick = (id: string, params: Record<string, unknown>) => {
+    // A color typed in the hex field: the keyboard goes back to the text from there.
+    if (document.activeElement instanceof HTMLInputElement && document.activeElement.closest('.slides-mini')) focusEditor(session.state?.editingText === true)
     setList(null)
     void run(id, params)
   }
@@ -285,8 +291,9 @@ export function MiniToolbar({ bar, element, toClient, region }: { bar: FloatingB
     }
     const width = own.offsetWidth, height = own.offsetHeight
     const left = bar.kind === 'text' ? (a.x + b.x) / 2 - 24 : (a.x + b.x) / 2 - width / 2
-    let top = Math.min(a.y, b.y) - GAP - height
-    if (top < area.top + 4) top = Math.max(a.y, b.y) + GAP
+    const gap = GAP[bar.kind]
+    let top = Math.min(a.y, b.y) - gap - height
+    if (top < area.top + 4) top = Math.max(a.y, b.y) + gap
     setPlace({
       left: Math.round(Math.max(area.left + 4, Math.min(left, area.right - width - 4))),
       top: Math.round(Math.max(area.top + 4, Math.min(top, area.bottom - height - 4))),
