@@ -13,7 +13,7 @@
     "class": "SlideDocument",
     "contract": 2,
     "crate": "kition-slide-kit",
-    "editorState": ["/slide", "/selection", "/selectedKinds", "/target", "/editingText"]
+    "editorState": ["/slide", "/selection", "/selectedKinds", "/target", "/editingText", "/textSelected"]
   },
   "formats": [
     {
