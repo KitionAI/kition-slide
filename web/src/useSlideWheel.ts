@@ -5,12 +5,14 @@ import { notchZoom, pinchZoom, wheelNotches, zoomAround } from './zoom'
 
 /** How far past the slide's edge an enlarged slide scrolls, in screen pixels. */
 export const CANVAS_MARGIN = 28
-const PAGE_DELAY_MS = 350
-const PAGE_THRESHOLD = 18
+/** A mouse notch turns one page at most this often (the slide show's wheel too). */
+export const PAGE_DELAY_MS = 350
+/** A mouse notch turns a page when it scrolls more than this, in CSS pixels. */
+export const PAGE_THRESHOLD = 18
 /** How far a trackpad's fine scroll travels before it turns the page, in CSS pixels. */
-const SWIPE_DISTANCE = 60
+export const SWIPE_DISTANCE = 60
 /** A pause this long ends a trackpad swipe, its momentum included. */
-const SWIPE_END_MS = 220
+export const SWIPE_END_MS = 220
 
 /**
  * The native slide canvas's wheel policy: page when fitted, bounded pan when enlarged. With Cmd or

@@ -1,11 +1,11 @@
 # Slide show and presenter view: parity with PowerPoint
 
-> **Last reviewed:** 2026-11-17 · **Last updated:** 2026-11-17 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-28 · **Last updated:** 2026-11-28 · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
 Presenting is the job PowerPoint is hired for. This doc covers the slide show, presenter view,
 rehearsal and recording in the kit's editor. Its slide show (`web/src/SlideShow.tsx`) shows one
 slide at a time, full screen, each rendered by the engine at the screen's resolution; it plays no
-transitions or animations yet. Transition and animation playback are in
+transitions or animations yet. Its keys, menu and controls follow WPS (feature `slide.editor.slideshow`). Transition and animation playback are in
 [animation-parity.md](animation-parity.md); display hardware in
 [hardware-parity.md](hardware-parity.md).
 
@@ -14,12 +14,14 @@ transitions or animations yet. Transition and animation playback are in
 | Feature | PowerPoint | Kition Slide | Notes |
 |---|---|---|---|
 | Play from Start / from Current Slide (F5, Shift+F5, Cmd+Enter) | yes | yes | Slide Show tab, or `show.fromStart` / `show.fromCurrent` |
-| Next/previous by click, arrows, Space, Page Up/Down, Enter, Backspace | yes | yes | Click, Right/Down, Page Down, Space and Enter go on; Left/Up, Page Up and Backspace go back |
-| Go to slide (number + Enter), first/last | yes | first/last only (Home, End) | |
-| Black / white screen (B / W) | yes | no | |
-| End screen, Esc to leave | yes | Esc and a Close button; the show ends after the last slide, with no end screen | |
+| Next/previous by click, arrows, Space, Page Up/Down, Enter, Backspace, N/P, wheel | yes | yes | Click, Right/Down, Page Down, Space, Enter and N go on; Left/Up, Page Up, Backspace and P go back; the wheel turns pages as in the editor |
+| Go to slide (number + Enter), first/last | yes | yes | A typed number shows at the bottom left until Return (3 s); Home, End |
+| Black / white screen (B / W) | yes | yes | Again, a click or a step brings the slide back |
+| End screen, Esc to leave | yes | yes | A black end screen after the last slide; one more step or a click ends the show; the editor is then on the slide shown last |
 | Step clock: a click after a long pause plays its step | yes | no (no animations play) | |
 | Hidden slides skipped | yes | no | |
+| Right-click menu (Next, Previous, First, Last, Go to Slide, Screen, End Show) | yes | yes | No Pointer Options, Magnifier, Speaker Notes or Help rows |
+| Control bar at the bottom left, pointer hidden while still | yes | yes | Previous, Next, End Show and the slide's number; they hide after the pointer rested 2.5 s |
 | Hyperlinks and action settings followed (slides, web, mail, End Show, Last Viewed) | yes | no | |
 | Media playback with controls, play across slides, full-screen video | yes | no | Media plays in the editor's Media pane, not in the show |
 | Animated GIFs play; pause from their corner button | yes | no | |
@@ -39,7 +41,7 @@ transitions or animations yet. Transition and animation playback are in
 | Separate presenter window with current slide, next slide, notes | yes | a panel beside the slide in the same full-screen page, with the next slide and the notes (Slide Show › Presenter View) | |
 | Elapsed timer | yes | no | |
 | Pause / reset timer, clock | yes | no | |
-| Slide counter, previous/next/end buttons | yes | slide counter, Next and Close buttons | |
+| Slide counter, previous/next/end buttons | yes | the show's control bar: slide counter, Previous, Next, End Show | |
 | Notes font size, scrolling | yes | no font size control | |
 | Placed on the presenter's display automatically, show on the projector | yes | **no**: the presenter panel shares the show's screen | Beta blocker, 3–5 h |
 | Swap displays | yes | no | |
@@ -76,3 +78,4 @@ Animations tabs' Preview opens it too.
 | Date | Change | Summary |
 |---|---|---|
 | 2026-11-17 | major | First public version |
+| 2026-11-28 | minor | N/P, typed slide numbers, B/W, the wheel, the right-click menu, the end screen and the control bar (plan stage 11) |

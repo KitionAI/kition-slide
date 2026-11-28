@@ -57,7 +57,21 @@
 .slides-presenter { padding: 20px; background: var(--kit-surface); color: var(--kit-text); border-radius: var(--kit-radius-card); }
 .slides-presenter canvas { width: 100%; }
 .slides-presenter p { white-space: pre-wrap; }
-.slides-show-controls { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-radius: var(--kit-radius-control); background: var(--kit-surface); color: var(--kit-text); }
+/* The show's control bar (plan stage 11, W-M6): at the bottom left, shown while the pointer moves. */
+.slides-show-controls { position: absolute; bottom: 24px; left: 16px; z-index: 2; display: flex; gap: 4px; align-items: center; padding: 4px 6px 4px 12px; border-radius: var(--kit-radius-control); background: var(--kit-surface); color: var(--kit-text); box-shadow: var(--kit-shadow-card); opacity: 0.92; transition: opacity 0.2s; }
+.slides-show-controls[data-shown='false'] { opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s; }
+.slides-show-controls > span { margin-right: 6px; font-size: 12px; white-space: nowrap; }
+.slides-show-control { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--kit-radius-control); background: transparent; color: inherit; cursor: pointer; }
+.slides-show-control:hover:not(:disabled) { background: var(--kui-hover); }
+.slides-show-control:disabled { opacity: 0.4; cursor: default; }
+.slides-show[data-pointer='shown'] { cursor: default; }
+.slides-show .kui-popover { cursor: default; }
+/* The end screen, and the black or white screen (B, W): the show's content, so black and white. */
+.slides-show-ended { position: absolute; inset: 0; padding: 24px 32px; background: #000; color: #fff; font-size: 18px; }
+.slides-show-screen { position: absolute; inset: 0; z-index: 1; background: #000; }
+.slides-show[data-screen='white'] > .slides-show-screen { background: #fff; }
+/* A slide number being typed (then Return). */
+.slides-show-typed { position: absolute; bottom: 72px; left: 16px; z-index: 2; padding: 6px 12px; border-radius: var(--kit-radius-control); background: var(--kit-surface); color: var(--kit-text); }
 
 .slides-slides {
   width: 212px;

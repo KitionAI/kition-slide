@@ -137,11 +137,13 @@ function Editor({ slides }: { slides: Slides }) {
   const formatObject = useCallback((target: ContextTarget) => chooseTab(contextTab(target.kinds, false) ?? 'shapeFormat'), [chooseTab])
   const engineTools = useEngineTools(session.tool, doc != null, change, { initial: 'select', hostTools: HOST_TOOLS, drawOverlay: drawSlideHandle })
   const endShow = view.endShow
-  // The show ended: the editor has the keyboard again (walkthrough K2).
-  const showEnded = useCallback(() => {
+  // The show ended: the editor goes to the slide shown last (WPS W-M4, walkthrough L3) and has
+  // the keyboard again (walkthrough K2).
+  const showEnded = useCallback((last: number) => {
     endShow()
+    if (last !== slides.session.state?.current) void slides.run('slide.go', { index: last })
     returnKeyboardLater()
-  }, [endShow])
+  }, [endShow, slides])
   // Escape cancels first (KitPointer 4.4): the engine's tool has it while text is edited, shapes
   // are selected or a gesture is under way; else a tool other than Select gives way to Select,
   // as PowerPoint puts a shape tool down. Only an Escape with nothing to cancel is left untaken,

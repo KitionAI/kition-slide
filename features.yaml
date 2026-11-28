@@ -579,6 +579,15 @@ features:
     gap: "No Ctrl+Enter to the next placeholder (cut from stage 3). A text box typed in and emptied again stays (only one left untouched goes). The Mac's keys are tested on a page that reports a Mac; the SDK hands the kit Cmd and Ctrl as one modifier, so Windows' and Linux's are the kit's own translation."
     cases: [regressions/issue-hand-c8-click-shape-text, regressions/issue-hand-d12-drag-on-text-selects, regressions/issue-hand-r8-drag-frame-editing, regressions/issue-hand-e3-cmd-arrows, regressions/issue-hand-e9-enter-selects-all, regressions/issue-hand-e9-typing-at-last-caret, regressions/issue-hand-e6-empty-bullet, regressions/issue-hand-e11-empty-textbox, regressions/issue-hand-e13-caret-blink]
     since: "2026-11-27"
+  - id: slide.editor.slideshow
+    title: "The slide show by hand, as WPS works: a click, Space, Right, Down, Return, Page Down and N go on; Left, Up, Backspace, Page Up and P go back; Home and End go to the first and last slide; a typed slide number and Return go to it (Backspace takes back a digit, Escape the number); B and W black or white the screen, again (or a click or a step) brings the slide back; the wheel turns pages as in the editor; the right button opens a menu with Next, Previous, First Slide, Last Slide, Go to Slide (every slide by its title), Screen (Black, White) and End Show; after the last slide a black end screen says the show has ended, back returns to the last slide and one more step ends the show; Escape ends it at once; the editor is then on the slide shown last with the keyboard on the slide; the pointer and a control bar at the bottom left (the slide's number, Previous, Next, End Show) show while the pointer moves and hide once it rested 2.5 s, not while it rests on the bar; the editor's shortcuts do nothing while the show runs"
+    dimension: [function]
+    priority: P2
+    status: has
+    paths: [web/src/SlideShow.tsx, web/src/App.tsx, web/src/useSlideWheel.ts, web/src/app.css, web/src/strings.ts, web/tests/hand/slideshow.mjs]
+    gap: "Transitions and animations are not played: a step goes to the next slide at once, with no animation steps (WPS plays both). Hidden slides are shown like the others, and custom shows, Set Up Show's options and rehearsed timings are not applied. No pen, highlighter, laser pointer, magnifier, all-slides grid or speaker notes in the menu (WPS's Pointer Options, Use Magnifier, Speaker Notes and Help rows are left out). Presenter view is the panel beside the slide on the same screen, with no timer or clock (cut from stage 11). The browser leaves full screen on Escape whatever the page does: an Escape that closed the menu or took back a typed number keeps the show going in the window. The real wheel and trackpad are checked with Playwright's wheel only."
+    cases: [regressions/issue-hand-l3-show-exit-slide]
+    since: "2026-11-28"
   - id: slide.show.slideshow
     title: "Slide show from start or current slide, setup and custom shows"
     dimension: [function]

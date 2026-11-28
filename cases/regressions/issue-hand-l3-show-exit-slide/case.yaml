@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-hand-l3-show-exit-slide
+feature: slide.editor.slideshow
+intent: "After the last slide the show shows a black end screen and one more step ends it; Escape or the end leaves the editor on the slide shown last, with the keyboard on the slide (walkthrough L3: a step after the last slide left the show at once, and the editor stayed on the slide the show started from)."
+layer: gate
+source:
+  kind: probe
+  from: web/tests/hand/slideshow.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/hand/slideshow.mjs, chromium, l3-show-exit-slide]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-28"
